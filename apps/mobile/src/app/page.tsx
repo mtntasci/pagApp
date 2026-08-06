@@ -78,25 +78,7 @@ export default function MobileAppPage() {
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
-      {/* Phone container representing NextJS mobile client */}
-      <div className="w-full max-w-[400px] h-[812px] bg-[#05060b] rounded-[48px] border-[8px] border-[#151825] shadow-2xl overflow-hidden relative flex flex-col">
-        {/* Dynamic Island */}
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-2xl z-40 flex items-center justify-center">
-          <div className="w-3.5 h-3.5 rounded-full bg-[#0a0a0c] border border-white/5 ml-auto mr-3"></div>
-        </div>
-
-        {/* Custom Status Bar */}
-        <div className="h-10 pt-3 px-8 flex justify-between items-center text-[10px] text-white/60 font-black z-30 select-none bg-transparent">
-          <span>09:41</span>
-          <div className="flex items-center gap-1.5">
-            <span>5G</span>
-            <div className="w-4 h-2.5 border border-white/30 rounded-sm p-[1px] flex items-center">
-              <div className="w-2.5 h-full bg-emerald-400 rounded-2xs"></div>
-            </div>
-          </div>
-        </div>
-
+    <main className="min-h-[100dvh] w-full bg-[#05060b] relative flex flex-col overflow-hidden text-white">
         {/* Content */}
         <div className="flex-1 overflow-y-auto pb-20 relative flex flex-col pt-1">
           {!isLoggedIn ? (
@@ -433,10 +415,6 @@ export default function MobileAppPage() {
             </div>
           )}
         </div>
-
-        {/* Physical Home Indicator */}
-        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-32 h-1 bg-white/20 rounded-full z-30"></div>
-      </div>
     </main>
   );
 }
