@@ -1,4 +1,4 @@
-export type SurveyCategory = 'teknoloji' | 'moda' | 'gida' | 'finans' | 'spor' | 'genel';
+export type SurveyCategory = 'teknoloji' | 'moda' | 'gida' | 'finans' | 'spor' | 'genel' | 'demografi' | 'lokasyon' | 'inanc';
 
 export interface Question {
   id: string;
@@ -7,19 +7,36 @@ export interface Question {
   selectedOptionIndex?: number;
 }
 
+export type SurveyType = 'profile' | 'campaign';
+
 export interface Survey {
   id: string;
   title: string;
+  type?: SurveyType; // 'profile' (kalıcı, XP ödüllü) veya 'campaign' (süreli, ₺ ve XP ödüllü)
   rewardCash: number; // ₺
   rewardXp: number; // XP
   questionsCount: number;
   estimatedMinutes: number;
   category: SurveyCategory;
   isCompleted: boolean;
+  expiresAt?: string; // Süreli anketler için son kullanma tarihi (ISO String / YYYY-MM-DD)
+  brandName?: string; // Marka adı (Normal anketler için)
   questions: Question[];
 }
 
+// Kalıcı Profil Sorusu Modeli (Sadece XP kazandırır, süresizdir)
+export interface ProfileQuestion {
+  id: string;
+  category: SurveyCategory;
+  text: string;
+  options: string[];
+  rewardXp: number;
+  isAnswered?: boolean;
+  selectedOptionIndex?: number;
+}
+
 export interface UserProfile {
+  id?: string;
   name: string;
   avatar: string;
   xp: number;
@@ -27,6 +44,8 @@ export interface UserProfile {
   completedSurveysCount: number;
   demographicsCompletedCount: number;
   watchedVideosCount: number;
+  completedProfileQuestionIds?: string[];
+  locationSharingEnabled?: boolean;
 }
 
 export interface WithdrawalRequest {
