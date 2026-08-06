@@ -485,12 +485,12 @@ export default function MobileApp({
 
   return (
     <div 
-      className="relative mx-auto w-[375px] h-[780px] bg-[#0a0c14] rounded-[48px] shadow-2xl border-[12px] border-slate-950 overflow-hidden flex flex-col select-none text-white border-b-4"
+      className="relative mx-auto w-full h-[85vh] md:w-[375px] md:h-[780px] bg-[#0a0c14] md:rounded-[48px] shadow-2xl md:border-[12px] border-slate-950 overflow-hidden flex flex-col select-none text-white md:border-b-4"
       style={{ background: 'radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0a0c14 100%)' }}
     >
       
       {/* 1. Phone Top Notch & Status Bar */}
-      <div className="relative w-full h-11 bg-transparent border-b border-white/5 flex justify-between items-center px-6 z-30 text-white/80">
+      <div className="relative w-full h-11 bg-transparent border-b border-white/5 hidden md:flex justify-between items-center px-6 z-30 text-white/80">
         <span className="text-xs font-semibold tracking-tight text-white/80">09:41</span>
         {/* Notch */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-5 bg-black rounded-b-2xl flex items-center justify-center gap-1">
