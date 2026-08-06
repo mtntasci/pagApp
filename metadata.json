@@ -1,0 +1,6 @@
+{
+  "name": "PAG - Persona Analytics & Geotargeting",
+  "description": "Lokasyon odaklı anlık hediye çeki dağıtım platformu ve hız tabanlı flaş araştırma ekosistemi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
