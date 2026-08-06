@@ -485,7 +485,7 @@ export default function MobileApp({
 
   return (
     <div 
-      className="relative mx-auto w-full h-[85vh] md:w-[375px] md:h-[780px] bg-[#0a0c14] md:rounded-[48px] shadow-2xl md:border-[12px] border-slate-950 overflow-hidden flex flex-col select-none text-white md:border-b-4"
+      className="relative mx-auto w-full h-[100dvh] md:w-[375px] md:h-[780px] bg-[#0a0c14] md:rounded-[48px] shadow-2xl border-0 md:border-[12px] md:border-slate-950 overflow-hidden flex flex-col select-none text-white md:border-b-4"
       style={{ background: 'radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0a0c14 100%)' }}
     >
       

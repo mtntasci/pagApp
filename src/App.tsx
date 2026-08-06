@@ -190,7 +190,7 @@ export default function App() {
     >
       
       {/* 1. Global Header */}
-      <header className="bg-slate-950/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 px-6 py-3 shadow-lg">
+      <header className="hidden md:block bg-slate-950/80 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 px-6 py-3 shadow-lg">
         <div className="max-w-[1550px] mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           
           {/* Logo & Slogan */}
@@ -276,7 +276,7 @@ export default function App() {
       </header>
 
       {/* 2. Workspace Body */}
-      <main className="flex-1 flex items-center justify-center p-4 lg:p-6">
+      <main className="flex-1 flex items-center justify-center p-0 md:p-4 lg:p-6">
         <div className="max-w-[1550px] w-full mx-auto">
           
           <div className="grid grid-cols-12 gap-6 items-start">
@@ -285,19 +285,19 @@ export default function App() {
             {(viewMode === 'split' || viewMode === 'mobile') && (
               <div className={`${
                 viewMode === 'split' ? 'col-span-12 xl:col-span-4' : 'col-span-12'
-              } flex flex-col items-center justify-center py-4`}>
+              } flex flex-col items-center justify-center py-0 md:py-4`}>
                 
                 {viewMode === 'split' && (
-                  <div className="mb-3 text-center xl:hidden">
+                  <div className="mb-3 text-center hidden md:block xl:hidden">
                     <span className="text-xs bg-white/10 text-white/80 border border-white/10 font-bold px-3 py-1 rounded-full flex items-center gap-1">
                       <Smartphone className="w-3.5 h-3.5" /> Mobil Görünüm (PAG App)
                     </span>
                   </div>
                 )}
 
-                <div className="relative">
+                <div className="relative w-full md:w-auto">
                   {/* Decorative phone shadows */}
-                  <div className="absolute inset-4 bg-indigo-500/10 rounded-[48px] blur-3xl -z-10"></div>
+                  <div className="absolute inset-4 bg-indigo-500/10 rounded-[48px] blur-3xl -z-10 hidden md:block"></div>
                   
                   <MobileApp 
                     userProfile={userProfile}
@@ -314,7 +314,7 @@ export default function App() {
                   />
                 </div>
 
-                <div className="mt-4 flex flex-col items-center gap-1 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl shadow-md text-center max-w-[340px] backdrop-blur-md">
+                <div className="mt-4 hidden md:flex flex-col items-center gap-1 bg-white/5 border border-white/10 px-4 py-2.5 rounded-2xl shadow-md text-center max-w-[340px] backdrop-blur-md">
                   <span className="text-[10px] font-black text-emerald-400 uppercase flex items-center gap-1">
                     <CheckCircle className="w-3.5 h-3.5" /> %100 İnteraktif Simülatör
                   </span>
@@ -360,7 +360,7 @@ export default function App() {
       </main>
 
       {/* 3. Aesthetic Footer */}
-      <footer className="bg-transparent border-t border-white/5 py-4 text-center px-6 mt-auto">
+      <footer className="hidden md:block bg-transparent border-t border-white/5 py-4 text-center px-6 mt-auto">
         <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider">
           PAG © 2026 • Tüm Hakları Saklıdır
         </p>
