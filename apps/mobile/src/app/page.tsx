@@ -39,6 +39,7 @@ export default function Page() {
   const [loginEmail, setLoginEmail] = useState<string>('');
   const [loginPassword, setLoginPassword] = useState<string>('');
   const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
+  const [showEmailForm, setShowEmailForm] = useState<boolean>(false);
   const [locationPermGranted, setLocationPermGranted] = useState<'granted' | 'denied' | 'none'>('none');
 
   // Rewarded Phone Verification states in Profile
@@ -482,180 +483,184 @@ export default function Page() {
   const userTier = getUserTier(userProfile.xp);
 
   return (
-    <div className="w-full min-h-[100dvh] bg-[#0a0c14] flex flex-col select-none text-white relative overflow-hidden">
+    <div className="w-full h-[100dvh] bg-[#0a0c14] flex flex-col select-none text-white relative overflow-hidden">
+
+      {/* GLOBAL TOP BAR (Sabit) */}
+      {isLoggedIn && !currentSurvey && !isDemographicsOpen && !isVideoPlaying && !isSpeedRunActiveScreen && (
+        <div className="w-full pt-4 px-5 pb-3 bg-[#0a0c14]/90 z-30 flex justify-between items-center border-b border-white/5 sticky top-0 backdrop-blur-xl">
+          <div className="flex items-center gap-2.5">
+            <div className="relative">
+              <img 
+                src={userProfile.avatar} 
+                alt="Profile" 
+                className="w-10 h-10 rounded-full object-cover border border-white/10"
+              />
+              <div className="absolute -bottom-1 -right-1 bg-indigo-500 rounded-full p-0.5 border-2 border-[#0a0c14]">
+                <ShieldCheck className="w-3 h-3 text-white" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-white tracking-tight leading-none">PAG Mobil</h1>
+              <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Hoş geldin, {userProfile.name}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-end">
+              <span className="text-[10px] font-bold text-emerald-400">₺{userProfile.balance.toFixed(2)}</span>
+              <span className="text-[9px] text-indigo-300 font-semibold">{userProfile.xp} XP</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area (Scrollable with hidden bar) */}
       <div className="flex-1 overflow-y-auto pb-20 scrollbar-none relative flex flex-col">
         {!isLoggedIn ? (
           <div className="flex-1 flex flex-col justify-between p-5 pt-7">
             {/* Top Logo and Tagline */}
-            <div className="flex flex-col items-center text-center mt-1">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-black text-2xl shadow-2xl shadow-indigo-500/30 mb-2.5">
+            <div className="flex flex-col items-center text-center mt-8 mb-6">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-black text-3xl shadow-2xl shadow-indigo-500/30 mb-4">
                 PAG
               </div>
-              <h2 className="text-lg font-black text-white tracking-tight">PAG Mobil</h2>
-              <p className="text-[9px] text-indigo-300 font-bold uppercase mt-0.5 tracking-wide">
+              <h2 className="text-2xl font-black text-white tracking-tight">PAG Mobil</h2>
+              <p className="text-xs text-indigo-300 font-bold uppercase mt-1 tracking-wide">
                 Persona Analytics & Geotargeting
               </p>
-              <p className="text-[11px] text-white/50 max-w-[260px] mt-2 leading-relaxed">
-                Geleneksel anketleri unutun. PAG ile gerçek zamanlı lokasyon bazlı görevler yapın ve ödülleri saniyeler içinde kazanın.
-              </p>
             </div>
 
-            {/* Middle Section: Social Logins and Email Login */}
-            <div className="my-4 flex flex-col gap-3.5">
-              
-              {/* E-posta ile Giriş Formu */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl backdrop-blur-xl flex flex-col gap-3">
-                <span className="text-[10px] text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-indigo-400" /> E-posta ile Giriş Yap
-                </span>
+            {/* Login Options */}
+            <div className="flex-1 flex flex-col gap-4">
+              <AnimatePresence mode="wait">
+                {!showEmailForm ? (
+                  <motion.div
+                    key="social-login"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="flex flex-col gap-3"
+                  >
+                    <button
+                      onClick={() => {
+                        setIsLoginLoading(true);
+                        setTimeout(() => {
+                          setIsLoginLoading(false);
+                          setIsLoggedIn(true);
+                        }, 600);
+                      }}
+                      className="bg-white hover:bg-white/95 text-slate-900 rounded-xl py-3.5 px-4 text-sm font-black tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Chrome className="w-5 h-5 text-rose-500" />
+                      <span>Google ile Giriş Yap</span>
+                    </button>
 
-                <div className="flex flex-col gap-2.5">
-                  <div>
-                    <label className="block text-[9px] text-white/50 font-bold mb-1 uppercase tracking-wider">E-POSTA ADRESİNİZ</label>
-                    <input 
-                      type="email"
-                      placeholder="adiniz@eposta.com"
-                      value={loginEmail}
-                      onChange={(e) => setLoginEmail(e.target.value)}
-                      className="w-full bg-[#0a0c14]/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all"
-                    />
-                  </div>
+                    <button
+                      onClick={() => {
+                        setIsLoginLoading(true);
+                        setTimeout(() => {
+                          setIsLoginLoading(false);
+                          setIsLoggedIn(true);
+                        }, 600);
+                      }}
+                      className="bg-black hover:bg-neutral-950 text-white border border-white/15 rounded-xl py-3.5 px-4 text-sm font-black tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <span className="text-lg leading-none font-bold"></span>
+                      <span>Apple ile Giriş Yap</span>
+                    </button>
 
-                  <div>
-                    <label className="block text-[9px] text-white/50 font-bold mb-1 uppercase tracking-wider">ŞİFRE</label>
-                    <input 
-                      type="password"
-                      placeholder="••••••••"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="w-full bg-[#0a0c14]/40 border border-white/10 rounded-xl px-3 py-2 text-xs text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all"
-                    />
-                  </div>
-                </div>
+                    <div className="flex items-center gap-3 my-2 px-4">
+                      <div className="flex-1 h-[1px] bg-white/10"></div>
+                      <span className="text-[10px] text-white/30 font-black tracking-widest uppercase">VEYA</span>
+                      <div className="flex-1 h-[1px] bg-white/10"></div>
+                    </div>
 
-                <button
-                  onClick={() => {
-                    setIsLoginLoading(true);
-                    setTimeout(() => {
-                      setIsLoginLoading(false);
-                      setIsLoggedIn(true);
-                    }, 800);
-                  }}
-                  className="w-full h-10 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-black tracking-wide transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg border border-indigo-500/30"
-                  disabled={isLoginLoading}
-                >
-                  {isLoginLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
-                  ) : (
-                    <>
-                      <span>Giriş Yap veya Hesap Aç</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    </>
-                  )}
-                </button>
-              </div>
+                    <button
+                      onClick={() => setShowEmailForm(true)}
+                      className="bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl py-3.5 px-4 text-sm font-black tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer backdrop-blur-md"
+                    >
+                      <Mail className="w-5 h-5 text-indigo-400" />
+                      <span>E-posta ile Giriş Yap</span>
+                    </button>
+                    
+                    {/* Quick Demo Bypass */}
+                    <div className="mt-4 text-center">
+                      <button
+                        onClick={() => setIsLoggedIn(true)}
+                        className="text-[10px] text-white/40 hover:text-white font-bold flex items-center gap-1.5 justify-center mx-auto transition-all cursor-pointer py-1.5 px-4 bg-white/5 hover:bg-white/10 rounded-full border border-white/5"
+                      >
+                        <span>Şifresiz Demo Girişi</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="email-login"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="flex flex-col gap-4"
+                  >
+                    <button 
+                      onClick={() => setShowEmailForm(false)}
+                      className="self-start text-xs text-white/50 hover:text-white flex items-center gap-1 mb-2 transition-colors cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4 rotate-180" />
+                      Geri Dön
+                    </button>
+                    
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-5 shadow-xl backdrop-blur-xl flex flex-col gap-4">
+                      <span className="text-xs text-indigo-400 font-extrabold uppercase tracking-wider flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-indigo-400" /> E-posta ile Giriş
+                      </span>
 
-              {/* VEYA Ayırıcı */}
-              <div className="flex items-center gap-2 px-2">
-                <div className="flex-1 h-[1px] bg-white/10"></div>
-                <span className="text-[9px] text-white/30 font-black tracking-widest uppercase">VEYA</span>
-                <div className="flex-1 h-[1px] bg-white/10"></div>
-              </div>
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <label className="block text-[10px] text-white/50 font-bold mb-1.5 uppercase tracking-wider">E-posta Adresiniz</label>
+                          <input 
+                            type="email"
+                            placeholder="adiniz@eposta.com"
+                            value={loginEmail}
+                            onChange={(e) => setLoginEmail(e.target.value)}
+                            className="w-full bg-[#0a0c14]/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all"
+                          />
+                        </div>
 
-              {/* Sosyal Giriş Butonları */}
-              <div className="grid grid-cols-2 gap-2.5">
-                <button
-                  onClick={() => {
-                    setIsLoginLoading(true);
-                    setTimeout(() => {
-                      setIsLoginLoading(false);
-                      setIsLoggedIn(true);
-                    }, 600);
-                  }}
-                  className="bg-white hover:bg-white/95 text-slate-900 rounded-xl py-2 px-3 text-xs font-black tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                >
-                  <Chrome className="w-4 h-4 text-rose-500" />
-                  <span>Google</span>
-                </button>
+                        <div>
+                          <label className="block text-[10px] text-white/50 font-bold mb-1.5 uppercase tracking-wider">Şifre</label>
+                          <input 
+                            type="password"
+                            placeholder="••••••••"
+                            value={loginPassword}
+                            onChange={(e) => setLoginPassword(e.target.value)}
+                            className="w-full bg-[#0a0c14]/40 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all"
+                          />
+                        </div>
+                      </div>
 
-                <button
-                  onClick={() => {
-                    setIsLoginLoading(true);
-                    setTimeout(() => {
-                      setIsLoginLoading(false);
-                      setIsLoggedIn(true);
-                    }, 600);
-                  }}
-                  className="bg-black hover:bg-neutral-950 text-white border border-white/15 rounded-xl py-2 px-3 text-xs font-black tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                >
-                  <span className="text-sm leading-none font-bold"></span>
-                  <span>Apple</span>
-                </button>
-              </div>
-
-            </div>
-
-            {/* Location Permission Promotion Banner */}
-            <div className="bg-gradient-to-br from-indigo-950/80 to-slate-900 border border-white/10 rounded-2xl p-3.5 flex flex-col gap-1.5 shadow-2xl relative overflow-hidden">
-              <div className="absolute -top-10 -right-10 w-24 h-24 bg-indigo-500/10 rounded-full blur-xl"></div>
-              
-              <div className="flex items-center gap-2 text-indigo-400">
-                <MapPin className="w-4 h-4 text-indigo-400 animate-bounce" />
-                <span className="text-[9px] font-black tracking-wider uppercase">Lokasyon Odaklı Güç (Antalya AVM)</span>
-              </div>
-
-              <p className="text-[10px] text-slate-300 leading-relaxed font-semibold">
-                Antalya'da bir AVM'de gezerken, yanından geçtiğiniz mağazaların (örn. <span className="text-white font-bold">McDonald's</span>) size özel anlık anket ve <span className="text-pink-400 font-bold">Hediye Çeklerini</span> anında yakalayın!
-              </p>
-
-              <div className="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
-                <span className="text-[8px] text-slate-400 font-bold">"Her Zaman İzin Ver" seçeneğine:</span>
-                <span className="text-[8px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-black px-2 py-0.5 rounded-full">
-                  +100 XP Profil Gücü!
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 mt-1">
-                <button
-                  onClick={() => {
-                    setLocationPermGranted('granted');
-                    setUserProfile(prev => ({
-                      ...prev,
-                      xp: prev.xp + 100
-                    }));
-                  }}
-                  className={`py-1.5 px-1 rounded-xl text-[9px] font-black transition-all cursor-pointer text-center border ${
-                    locationPermGranted === 'granted'
-                      ? 'bg-emerald-600/30 text-emerald-200 border-emerald-500/50'
-                      : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  {locationPermGranted === 'granted' ? '✓ İzin Verildi' : 'Her Zaman İzin Ver'}
-                </button>
-                <button
-                  onClick={() => setLocationPermGranted('denied')}
-                  className={`py-1.5 px-1 rounded-xl text-[9px] font-black transition-all cursor-pointer text-center border ${
-                    locationPermGranted === 'denied'
-                      ? 'bg-rose-600/20 text-rose-300 border-rose-500/30'
-                      : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10'
-                  }`}
-                >
-                  İzin Verme
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Demo Bypass */}
-            <div className="mt-3.5 text-center">
-              <button
-                onClick={() => setIsLoggedIn(true)}
-                className="text-[10px] text-white/40 hover:text-white font-bold flex items-center gap-1.5 justify-center mx-auto transition-all cursor-pointer py-1 px-3 bg-white/5 hover:bg-white/10 rounded-full border border-white/5"
-              >
-                <span>Giriş Yapmadan Şifresiz İlerle</span>
-                <ArrowRight className="w-3 h-3" />
-              </button>
+                      <button
+                        onClick={() => {
+                          setIsLoginLoading(true);
+                          setTimeout(() => {
+                            setIsLoginLoading(false);
+                            setIsLoggedIn(true);
+                          }, 800);
+                        }}
+                        className="w-full h-12 mt-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-sm font-black tracking-wide transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-lg border border-indigo-500/30"
+                        disabled={isLoginLoading}
+                      >
+                        {isLoginLoading ? (
+                          <Loader2 className="w-5 h-5 animate-spin text-white" />
+                        ) : (
+                          <>
+                            <span>Giriş Yap / Kayıt Ol</span>
+                            <ArrowRight className="w-4 h-4" />
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         ) : (
@@ -923,7 +928,7 @@ export default function Page() {
           <div className="flex flex-col">
             
             {/* Horizontal circular "Stories" strip (Instagram tarzı hikayeler) */}
-            <div className="bg-transparent py-3 border-b border-white/5 overflow-x-auto scrollbar-none flex gap-3 px-4 z-10 sticky top-0 backdrop-blur-md">
+            <div className="bg-transparent py-3 border-b border-white/5 overflow-x-auto scrollbar-none flex gap-3 px-4">
               
               {/* User Profile Story (En soldaki ilk daire) */}
               <div 
