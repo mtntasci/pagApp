@@ -8,8 +8,8 @@ import {
   Info, ShieldCheck, Zap, MapPin, Lock, Smartphone, Shield, Mail, Chrome
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem, SpeedCampaignState } from '../../../packages/shared/types';
-import { INITIAL_USER_PROFILE, INITIAL_STORIES, INITIAL_TRANSACTIONS, INITIAL_SURVEYS, DEMOGRAPHIC_QUESTIONS } from '../../../packages/shared/data';
+import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem, SpeedCampaignState } from '../../../../packages/shared/types';
+import { INITIAL_USER_PROFILE, INITIAL_STORIES, INITIAL_TRANSACTIONS, INITIAL_SURVEYS, DEMOGRAPHIC_QUESTIONS } from '../../../../packages/shared/data';
 
 export default function MobileAppPage() {
   // Login states
