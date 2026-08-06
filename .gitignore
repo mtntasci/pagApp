@@ -1,0 +1,22 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Local Environment & Secrets
+.env
+.env.local
+.env.*.local
+serviceAccountKey.json
+*.pem
+
+# Build outputs
+dist
+dist-server
+.vercel
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.log

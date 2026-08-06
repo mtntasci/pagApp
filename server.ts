@@ -232,25 +232,115 @@ Return ONLY raw JSON, with no markdown code blocks or backticks.`;
   }
 });
 
-// Setup Vite development server or production build static asset serving
-async function startServer() {
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+// Import Firebase Admin DB instance
+import { db } from "./src/lib/firebase-admin";
+
+// API: Get Permanent Profile Questions (XP rewards only)
+app.get("/api/profile-questions", async (req, res) => {
+  try {
+    if (db) {
+      const snapshot = await db.collection("profile_questions").get();
+      if (!snapshot.empty) {
+        const questions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        return res.json({ source: 'firestore', questions });
+      }
+    }
+  } catch (err) {
+    console.error("Firestore Profile Questions Error:", err);
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`PAG Server running on port ${PORT}`);
-  });
+  // Default fallback data if Firestore is empty or connecting
+  const defaultQuestions = [
+    {
+      id: 'pq-1',
+      category: 'lokasyon',
+      text: 'Hangi şehirde ikamet ediyorsunuz?',
+      options: ['İstanbul (Avrupa)', 'İstanbul (Anadolu)', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Diğer'],
+      rewardXp: 25
+    },
+    {
+      id: 'pq-2',
+      category: 'demografi',
+      text: 'Hangi taraftarı olduğunuz futbol/spor takımı hangisidir?',
+      options: ['Galatasaray', 'Fenerbahçe', 'Beşiktaş', 'Trabzonspor', 'Diğer Takım', 'Takım Tutmuyorum'],
+      rewardXp: 20
+    },
+    {
+      id: 'pq-3',
+      category: 'inanc',
+      text: 'İnanç ve dünya görüşü tercihinizi paylaşmak ister misiniz?',
+      options: ['Müslüman', 'Deist / Agnostik', 'Ateist', 'Hristiyan / Musevi', 'Belirtmek İstemiyorum'],
+      rewardXp: 30
+    },
+    {
+      id: 'pq-4',
+      category: 'demografi',
+      text: 'En son mezun olduğunuz eğitim seviyeniz nedir?',
+      options: ['Lise veya Altı', 'Üniversite Öğrencisi', 'Lisans Mezunu', 'Yüksek Lisans / Doktora'],
+      rewardXp: 25
+    },
+    {
+      id: 'pq-5',
+      category: 'demografi',
+      text: 'Aylık ortalama hane halkı gelir segmentiniz hangisidir?',
+      options: ['25.000 ₺ altı', '25.000 ₺ - 50.000 ₺', '50.000 ₺ - 85.000 ₺', '85.000 ₺ ve üzeri'],
+      rewardXp: 35
+    }
+  ];
+  return res.json({ source: 'local', questions: defaultQuestions });
+});
+
+// API: Submit Speed Campaign Run (Firebase Admin SDK Serverless Transaction)
+app.post("/api/speed-run/submit", async (req, res) => {
+  const { userId, userName, completionTimeMs, userXp } = req.body;
+
+  if (!userName || typeof completionTimeMs !== 'number') {
+    return res.status(400).json({ error: "Geçersiz yarışma verisi." });
+  }
+
+  try {
+    if (db) {
+      const submissionRef = db.collection("speed_submissions").doc();
+      await submissionRef.set({
+        userId: userId || 'anonymous',
+        userName,
+        completionTimeMs,
+        userXp: userXp || 0,
+        createdAt: new Date().toISOString()
+      });
+      console.log(`✅ Speed run submission saved to Firestore for ${userName}: ${completionTimeMs}ms`);
+    }
+  } catch (err) {
+    console.error("Firestore Speed Run Error:", err);
+  }
+
+  return res.json({ success: true, completionTimeMs });
+});
+
+// Setup Vite development server or production build static asset serving
+async function startServer() {
+  if (process.env.VERCEL !== "1") {
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
+
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`PAG Server running on port ${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;
+

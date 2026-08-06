@@ -5,8 +5,8 @@ import {
   Coins, HelpCircle, Check, Loader2, Landmark, CreditCard, ChevronRight,
   Info, ShieldCheck, Zap, MapPin, Lock, Smartphone, Shield, Mail, Chrome
 } from 'lucide-react';
-import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem, SpeedCampaignState } from '../types';
-import { DEMOGRAPHIC_QUESTIONS, INITIAL_STORIES } from '../data';
+import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem, SpeedCampaignState, ProfileQuestion } from '../types';
+import { DEMOGRAPHIC_QUESTIONS, INITIAL_STORIES, INITIAL_PROFILE_QUESTIONS } from '../data';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface MobileAppProps {
@@ -128,7 +128,51 @@ export default function MobileApp({
 
   // Filter & Search inside "Anketlerim"
   const [surveyTab, setSurveyTab] = useState<'active' | 'completed'>('active');
+  const [surveyTypeTab, setSurveyTypeTab] = useState<'campaign' | 'profile'>('campaign');
+  const [profileQuestions, setProfileQuestions] = useState<ProfileQuestion[]>(INITIAL_PROFILE_QUESTIONS);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Load backend profile questions from API if available
+  useEffect(() => {
+    fetch('/api/profile-questions')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.questions && Array.isArray(data.questions)) {
+          setProfileQuestions(data.questions);
+        }
+      })
+      .catch(err => console.log('Using local profile questions'));
+  }, []);
+
+  const handleAnswerProfileQuestion = (questionId: string, optionIdx: number, rewardXp: number, text: string) => {
+    if (userProfile.completedProfileQuestionIds?.includes(questionId)) return;
+
+    setUserProfile(prev => ({
+      ...prev,
+      xp: prev.xp + rewardXp,
+      demographicsCompletedCount: prev.demographicsCompletedCount + 1,
+      completedProfileQuestionIds: [...(prev.completedProfileQuestionIds || []), questionId]
+    }));
+
+    setTransactions(prev => [
+      {
+        id: `tx-pq-${Date.now()}`,
+        type: 'profile',
+        title: `Profil Sorusu: ${text.length > 22 ? text.substring(0, 20) + '...' : text}`,
+        amount: 0,
+        xp: rewardXp,
+        date: new Date().toISOString().split('T')[0]
+      },
+      ...prev
+    ]);
+
+    setCelebration({
+      show: true,
+      cash: 0,
+      xp: rewardXp,
+      title: 'Profil XP Puanı Kazanıldı!'
+    });
+  };
 
   // Triggered when a survey category story is clicked
   const handleStoryClick = (story: StoryItem) => {
@@ -1126,126 +1170,211 @@ export default function MobileApp({
 
         {/* ==================== 2. SURVEYS TAB ==================== */}
         {activeTab === 'surveys' && (
-          <div className="px-4 pt-4">
-            <h2 className="text-base font-extrabold text-white mb-3">Fırsat Marketim</h2>
+          <div className="px-4 pt-4 pb-12">
+            <h2 className="text-base font-extrabold text-white mb-3">Fırsat & Profil Marketim</h2>
 
-            {/* In-app Subtabs */}
-            <div className="flex bg-white/5 border border-white/5 rounded-xl p-1 mb-4">
+            {/* Type selector: Normal (Kampanya) vs Profil (Süresiz XP) */}
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <button
-                onClick={() => setSurveyTab('active')}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  surveyTab === 'active' 
-                    ? 'bg-white/10 text-white border border-white/10 shadow-sm' 
-                    : 'text-white/40 hover:text-white/80'
+                onClick={() => setSurveyTypeTab('campaign')}
+                className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                  surveyTypeTab === 'campaign'
+                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white border-indigo-400/30 shadow-lg shadow-indigo-500/20'
+                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
                 }`}
               >
-                Aktif ({surveys.filter(s => !s.isCompleted).length})
+                <Coins className="w-3.5 h-3.5 text-amber-400" />
+                <span>Marka Anketleri (₺ + XP)</span>
               </button>
               <button
-                onClick={() => setSurveyTab('completed')}
-                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                  surveyTab === 'completed' 
-                    ? 'bg-white/10 text-white border border-white/10 shadow-sm' 
-                    : 'text-white/40 hover:text-white/80'
+                onClick={() => setSurveyTypeTab('profile')}
+                className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                  surveyTypeTab === 'profile'
+                    ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white border-emerald-400/30 shadow-lg shadow-emerald-500/20'
+                    : 'bg-white/5 text-white/60 border-white/10 hover:bg-white/10'
                 }`}
               >
-                Tamamlananlar ({surveys.filter(s => s.isCompleted).length})
+                <Zap className="w-3.5 h-3.5 text-yellow-300 animate-pulse" />
+                <span>Profil Anketleri (XP)</span>
               </button>
             </div>
 
-            {/* Filter Categories Chips */}
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-3 mb-2">
-              <button
-                onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1 text-[10px] font-bold rounded-full border flex-shrink-0 transition-all cursor-pointer ${
-                  selectedCategory === 'all'
-                    ? 'bg-indigo-600 text-white border-indigo-500/50 shadow-md'
-                    : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10'
-                }`}
-              >
-                Hepsi
-              </button>
-              {['gida', 'teknoloji', 'finans', 'moda', 'spor', 'genel'].map((cat) => {
-                const meta = getCategoryMeta(cat);
-                return (
+            {surveyTypeTab === 'campaign' ? (
+              <>
+                {/* In-app Subtabs */}
+                <div className="flex bg-white/5 border border-white/5 rounded-xl p-1 mb-4">
                   <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
+                    onClick={() => setSurveyTab('active')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      surveyTab === 'active' 
+                        ? 'bg-white/10 text-white border border-white/10 shadow-sm' 
+                        : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    Aktif ({surveys.filter(s => !s.isCompleted).length})
+                  </button>
+                  <button
+                    onClick={() => setSurveyTab('completed')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      surveyTab === 'completed' 
+                        ? 'bg-white/10 text-white border border-white/10 shadow-sm' 
+                        : 'text-white/40 hover:text-white/80'
+                    }`}
+                  >
+                    Tamamlananlar ({surveys.filter(s => s.isCompleted).length})
+                  </button>
+                </div>
+
+                {/* Filter Categories Chips */}
+                <div className="flex gap-1.5 overflow-x-auto scrollbar-none pb-3 mb-2">
+                  <button
+                    onClick={() => setSelectedCategory('all')}
                     className={`px-3 py-1 text-[10px] font-bold rounded-full border flex-shrink-0 transition-all cursor-pointer ${
-                      selectedCategory === cat
+                      selectedCategory === 'all'
                         ? 'bg-indigo-600 text-white border-indigo-500/50 shadow-md'
                         : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10'
                     }`}
                   >
-                    {meta.label}
+                    Hepsi
                   </button>
-                );
-              })}
-            </div>
+                  {['gida', 'teknoloji', 'finans', 'moda', 'spor', 'genel'].map((cat) => {
+                    const meta = getCategoryMeta(cat);
+                    return (
+                      <button
+                        key={cat}
+                        onClick={() => setSelectedCategory(cat)}
+                        className={`px-3 py-1 text-[10px] font-bold rounded-full border flex-shrink-0 transition-all cursor-pointer ${
+                          selectedCategory === cat
+                            ? 'bg-indigo-600 text-white border-indigo-500/50 shadow-md'
+                            : 'bg-white/5 text-white/70 border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        {meta.label}
+                      </button>
+                    );
+                  })}
+                </div>
 
-            {/* Survey Cards Feed */}
-            <div className="flex flex-col gap-3">
-              {surveys
-                .filter(s => (surveyTab === 'active' ? !s.isCompleted : s.isCompleted))
-                .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
-                .map((survey) => {
-                  const meta = getCategoryMeta(survey.category);
-                  return (
-                    <div 
-                      key={survey.id}
-                      className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col backdrop-blur-md"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${meta.color}`}>
-                          {meta.label}
-                        </span>
-                        <div className="flex items-center gap-1 text-white/40 text-[10px] font-semibold">
-                          <span>{survey.questionsCount} Soru</span>
+                {/* Campaign Survey Cards Feed */}
+                <div className="flex flex-col gap-3">
+                  {surveys
+                    .filter(s => (surveyTab === 'active' ? !s.isCompleted : s.isCompleted))
+                    .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
+                    .map((survey) => {
+                      const meta = getCategoryMeta(survey.category);
+                      return (
+                        <div 
+                          key={survey.id}
+                          className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col backdrop-blur-md"
+                        >
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${meta.color}`}>
+                                {meta.label}
+                              </span>
+                              {survey.expiresAt && (
+                                <span className="text-[9px] font-bold text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">
+                                  ⏳ Son: {survey.expiresAt}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 text-white/40 text-[10px] font-semibold">
+                              <span>{survey.questionsCount} Soru</span>
+                            </div>
+                          </div>
+
+                          <h4 className="text-xs font-bold text-white leading-snug mb-3">
+                            {survey.title}
+                          </h4>
+
+                          <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                            <div className="flex gap-2">
+                              <span className="text-xs font-black text-emerald-400 font-display">
+                                {survey.rewardCash.toFixed(2)} ₺
+                              </span>
+                              <span className="text-xs font-semibold text-indigo-400">
+                                +{survey.rewardXp} XP
+                              </span>
+                            </div>
+
+                            {surveyTab === 'active' ? (
+                              <button
+                                onClick={() => startSurvey(survey)}
+                                className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-indigo-500/30 shadow-md"
+                              >
+                                <span>Doldur</span>
+                                <ArrowRight className="w-3 h-3 text-emerald-400" />
+                              </button>
+                            ) : (
+                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
+                                <Check className="w-3.5 h-3.5" /> Tamamlandı
+                              </span>
+                            )}
+                          </div>
                         </div>
+                      );
+                    })}
+
+                  {surveys
+                    .filter(s => (surveyTab === 'active' ? !s.isCompleted : s.isCompleted))
+                    .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
+                    .length === 0 && (
+                    <div className="bg-white/5 border border-dashed border-white/10 rounded-2xl py-8 text-center text-white/50 backdrop-blur-md">
+                      <p className="text-xs font-semibold">Gösterilecek marka anketi bulunamadı.</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* PROFIL ANKETLERI (Kalıcı, XP Ödüllü, Süresiz) */
+              <div className="flex flex-col gap-3">
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 text-xs text-emerald-200 leading-relaxed mb-1">
+                  <div className="flex items-center gap-1.5 font-bold mb-1">
+                    <Zap className="w-4 h-4 text-emerald-400" />
+                    <span>Kalıcı Profil Puanı Havuzu</span>
+                  </div>
+                  Bu bölümdeki sorular **süresizdir ve asla silinmez**. Cevapladıkça kümülatif XP puanınız sürekli artar!
+                </div>
+
+                {profileQuestions.map((pq) => {
+                  const isCompleted = userProfile.completedProfileQuestionIds?.includes(pq.id);
+                  return (
+                    <div key={pq.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 shadow-xl flex flex-col backdrop-blur-md">
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[9px] uppercase tracking-wider font-extrabold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                          {pq.category} • Kalıcı Sorular
+                        </span>
+                        <span className="text-xs font-bold text-yellow-300 bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                          +{pq.rewardXp} XP
+                        </span>
                       </div>
 
-                      <h4 className="text-xs font-bold text-white leading-snug mb-3">
-                        {survey.title}
+                      <h4 className="text-xs font-bold text-white mb-3 leading-snug">
+                        {pq.text}
                       </h4>
 
-                      <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                        <div className="flex gap-2">
-                          <span className="text-xs font-black text-emerald-400 font-display">
-                            {survey.rewardCash.toFixed(2)} ₺
-                          </span>
-                          <span className="text-xs font-semibold text-indigo-400">
-                            +{survey.rewardXp} XP
-                          </span>
+                      {isCompleted ? (
+                        <div className="text-[10px] font-extrabold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-2 rounded-xl text-center flex items-center justify-center gap-1.5">
+                          <Check className="w-3.5 h-3.5" /> Cevaplandı (+{pq.rewardXp} XP Kazanıldı)
                         </div>
-
-                        {surveyTab === 'active' ? (
-                          <button
-                            onClick={() => startSurvey(survey)}
-                            className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-xl transition-all flex items-center gap-1 cursor-pointer border border-indigo-500/30 shadow-md"
-                          >
-                            <span>Doldur</span>
-                            <ArrowRight className="w-3 h-3 text-emerald-400" />
-                          </button>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Tamamlandı
-                          </span>
-                        )}
-                      </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {pq.options.map((opt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleAnswerProfileQuestion(pq.id, idx, pq.rewardXp, pq.text)}
+                              className="px-3 py-2 bg-white/5 hover:bg-emerald-600/30 text-white/90 hover:text-white text-[10px] font-bold rounded-xl border border-white/10 hover:border-emerald-500/50 transition-all text-left cursor-pointer"
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-
-              {surveys
-                .filter(s => (surveyTab === 'active' ? !s.isCompleted : s.isCompleted))
-                .filter(s => selectedCategory === 'all' || s.category === selectedCategory)
-                .length === 0 && (
-                <div className="bg-white/5 border border-dashed border-white/10 rounded-2xl py-8 text-center text-white/50 backdrop-blur-md">
-                  <p className="text-xs font-semibold">Gösterilecek anket bulunamadı.</p>
-                  <p className="text-[10px] mt-1 text-white/30">Filtreleri değiştirmeyi deneyebilirsiniz.</p>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
 

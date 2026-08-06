@@ -1,4 +1,4 @@
-import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem } from './types';
+import { Survey, Question, UserProfile, WithdrawalRequest, Transaction, StoryItem, ProfileQuestion } from './types';
 
 export const INITIAL_USER_PROFILE: UserProfile = {
   name: "Mert Yılmaz",
@@ -7,8 +7,49 @@ export const INITIAL_USER_PROFILE: UserProfile = {
   balance: 245.50,
   completedSurveysCount: 8,
   demographicsCompletedCount: 1,
-  watchedVideosCount: 3
+  watchedVideosCount: 3,
+  completedProfileQuestionIds: [],
+  locationSharingEnabled: false
 };
+
+// Kalıcı Profil Soruları (Sadece XP kazandırır, süresizdir, kümülatif puan artışı sağlar)
+export const INITIAL_PROFILE_QUESTIONS: ProfileQuestion[] = [
+  {
+    id: 'pq-1',
+    category: 'lokasyon',
+    text: 'Hangi şehirde ikamet ediyorsunuz?',
+    options: ['İstanbul (Avrupa)', 'İstanbul (Anadolu)', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Diğer'],
+    rewardXp: 25
+  },
+  {
+    id: 'pq-2',
+    category: 'demografi',
+    text: 'Hangi taraftarı olduğunuz futbol/spor takımı hangisidir?',
+    options: ['Galatasaray', 'Fenerbahçe', 'Beşiktaş', 'Trabzonspor', 'Diğer Takım', 'Takım Tutmuyorum'],
+    rewardXp: 20
+  },
+  {
+    id: 'pq-3',
+    category: 'inanc',
+    text: 'İnanç ve dünya görüşü tercihinizi paylaşmak ister misiniz?',
+    options: ['Müslüman', 'Deist / Agnostik', 'Ateist', 'Hristiyan / Musevi', 'Belirtmek İstemiyorum'],
+    rewardXp: 30
+  },
+  {
+    id: 'pq-4',
+    category: 'demografi',
+    text: 'En son mezun olduğunuz eğitim seviyeniz nedir?',
+    options: ['Lise veya Altı', 'Üniversite Öğrencisi', 'Lisans Mezunu', 'Yüksek Lisans / Doktora'],
+    rewardXp: 25
+  },
+  {
+    id: 'pq-5',
+    category: 'demografi',
+    text: 'Aylık ortalama hane halkı gelir segmentiniz hangisidir?',
+    options: ['25.000 ₺ altı', '25.000 ₺ - 50.000 ₺', '50.000 ₺ - 85.000 ₺', '85.000 ₺ ve üzeri'],
+    rewardXp: 35
+  }
+];
 
 export const INITIAL_STORIES: StoryItem[] = [
   {
@@ -83,12 +124,15 @@ export const INITIAL_SURVEYS: Survey[] = [
   {
     id: 'survey-1',
     title: 'Yeni Nesil Kahve Alışkanlıkları',
+    type: 'campaign',
+    brandName: 'Starbucks / Kahve Dünyası',
     rewardCash: 15.00,
     rewardXp: 40,
     questionsCount: 3,
     estimatedMinutes: 2,
     category: 'gida',
     isCompleted: false,
+    expiresAt: '2026-08-31',
     questions: [
       {
         id: 's1-q1',
@@ -110,12 +154,15 @@ export const INITIAL_SURVEYS: Survey[] = [
   {
     id: 'survey-2',
     title: 'Dijital Yayın Platformları ve Dizi Tercihleri',
+    type: 'campaign',
+    brandName: 'Netflix / BluTV',
     rewardCash: 20.00,
     rewardXp: 50,
     questionsCount: 3,
     estimatedMinutes: 2,
     category: 'teknoloji',
     isCompleted: false,
+    expiresAt: '2026-08-25',
     questions: [
       {
         id: 's2-q1',
@@ -137,12 +184,15 @@ export const INITIAL_SURVEYS: Survey[] = [
   {
     id: 'survey-3',
     title: 'Finansal Yatırım Eğilimleri Araştırması',
+    type: 'campaign',
+    brandName: 'Garanti BBVA / Midas',
     rewardCash: 35.00,
     rewardXp: 80,
     questionsCount: 3,
     estimatedMinutes: 3,
     category: 'finans',
     isCompleted: false,
+    expiresAt: '2026-09-10',
     questions: [
       {
         id: 's3-q1',
@@ -164,12 +214,15 @@ export const INITIAL_SURVEYS: Survey[] = [
   {
     id: 'survey-4',
     title: 'Hızlı Tüketim Gıdaları ve Atıştırmalık Seçimleri',
+    type: 'campaign',
+    brandName: 'Ülker / Eti',
     rewardCash: 12.50,
     rewardXp: 30,
     questionsCount: 3,
     estimatedMinutes: 2,
     category: 'gida',
     isCompleted: false,
+    expiresAt: '2026-08-20',
     questions: [
       {
         id: 's4-q1',
@@ -185,33 +238,6 @@ export const INITIAL_SURVEYS: Survey[] = [
         id: 's4-q3',
         text: 'Atıştırmalık satın alırken paketlerin üzerindeki kalori değerlerine dikkat eder misiniz?',
         options: ['Her zaman', 'Bazen', 'Hiçbir zaman', 'Sadece diyet yaparken']
-      }
-    ]
-  },
-  {
-    id: 'survey-5',
-    title: 'Akıllı Ev Teknolojileri Farkındalığı',
-    rewardCash: 45.00,
-    rewardXp: 100,
-    questionsCount: 3,
-    estimatedMinutes: 3,
-    category: 'teknoloji',
-    isCompleted: false,
-    questions: [
-      {
-        id: 's5-q1',
-        text: 'Evinizde akıllı bir cihaz (akıllı robot süpürge, akıllı lamba vb.) kullanıyor musunuz?',
-        options: ['Evet, birden fazla', 'Evet, sadece bir tane', 'Hayır ama almayı düşünüyorum', 'Hayır, ilgilenmiyorum']
-      },
-      {
-        id: 's5-q2',
-        text: 'Akıllı ev sistemlerinde size göre en önemli fayda hangisidir?',
-        options: ['Enerji tasarrufu', 'Güvenlik ve kontrol kolaylığı', 'Zaman tasarrufu / konfor', 'Teknolojik prestij']
-      },
-      {
-        id: 's5-q3',
-        text: 'Bir robot süpürge için en önemli özellik sizce hangisidir?',
-        options: ['Haritalama ve navigasyon kalitesi', 'Emiş gücü', 'Paspas / Islak silme performansı', 'Fiyat ve garanti süresi']
       }
     ]
   }
