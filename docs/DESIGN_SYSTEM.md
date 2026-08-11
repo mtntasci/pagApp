@@ -1,5 +1,7 @@
 # PAG Design System
 
+Visual Baseline Approved
+
 ## 1. Purpose
 
 This document defines the approved visual design language for PAG across:
