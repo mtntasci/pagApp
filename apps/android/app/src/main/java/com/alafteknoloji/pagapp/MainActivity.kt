@@ -28,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.alafteknoloji.pagapp.ui.screens.home.HomeScreen
 import com.alafteknoloji.pagapp.ui.screens.profile.ProfileScreen
 import com.alafteknoloji.pagapp.ui.screens.rewards.RewardsScreen
+import com.alafteknoloji.pagapp.models.HomeRoute
 import com.alafteknoloji.pagapp.ui.screens.surveys.SurveysTab
 import com.alafteknoloji.pagapp.ui.screens.auth.SplashScreen
 import com.alafteknoloji.pagapp.ui.screens.auth.LoginScreen
@@ -65,6 +66,7 @@ class AppState {
     var selectedSurveyId by mutableStateOf<String?>(null)
     var isAuthenticated by mutableStateOf(false)
     var showSplash by mutableStateOf(true)
+    var homeRoute by mutableStateOf(HomeRoute.HOME)
     
     fun navigateToSurvey(id: String) {
         selectedSurveyId = id
@@ -75,6 +77,12 @@ class AppState {
     fun goBackToSurveys() {
         surveyRoute = SurveyRoute.LIST
     }
+    
+    fun navigateToSurveyFlow(id: String) {
+        selectedSurveyId = id
+        surveyRoute = SurveyRoute.FLOW
+        selectedTab = 1
+    }
 }
 
 @Composable
@@ -84,7 +92,7 @@ fun MainScreen(appState: AppState) {
         TabItem("Ana Sayfa", Icons.Filled.Home) { 
             HomeScreen(
                 modifier = Modifier.fillMaxSize(),
-                onNavigateToSurvey = { id -> appState.navigateToSurvey(id) }
+                appState = appState
             ) 
         },
         TabItem("Anketler", Icons.AutoMirrored.Filled.List) { 

@@ -27,51 +27,73 @@ import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.components.PAGCard
 import com.alafteknoloji.pagapp.ui.components.SurveyCard
+import com.alafteknoloji.pagapp.ui.screens.home.story.PAGStoryBar
+import com.alafteknoloji.pagapp.models.StoryItemType
+import com.alafteknoloji.pagapp.models.HomeRoute
+import com.alafteknoloji.pagapp.AppState
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onNavigateToSurvey: (String) -> Unit = {}
+    appState: AppState
 ) {
     val userProfile = UserProfileMock.sample
     val surveys = SurveyMock.sampleList
+    
+    val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
+    if (surveys.isNotEmpty()) storyItems.add(StoryItemType.Survey(surveys[0]))
+    if (surveys.size > 1) storyItems.add(StoryItemType.Survey(surveys[1]))
+    storyItems.add(StoryItemType.EarnProfileScore)
+    if (surveys.size > 2) storyItems.add(StoryItemType.Survey(surveys[2]))
+    if (surveys.size > 3) storyItems.add(StoryItemType.Survey(surveys[3]))
+    
+    if (appState.homeRoute == HomeRoute.EARN_PROFILE_SCORE) {
+        EarnProfileScoreScreen(
+            onBack = { appState.homeRoute = HomeRoute.HOME },
+            modifier = modifier
+        )
+        return
+    }
 
     Scaffold(
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Merhaba, ${userProfile.name} 👋",
-                        style = PAGTheme.typography.title,
-                        color = PAGTheme.colors.textPrimary
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = PAGTheme.colors.backgroundPrimary
-                )
-            )
-        },
         containerColor = PAGTheme.colors.backgroundPrimary
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues),
-            contentPadding = PaddingValues(PAGTheme.spacing.md),
+            contentPadding = PaddingValues(bottom = PAGTheme.spacing.md),
             verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xl)
         ) {
             item {
-                UserProfileCard(userProfile = userProfile)
+                PAGStoryBar(
+                    items = storyItems,
+                    onSelect = { item ->
+                        when (item) {
+                            is StoryItemType.Home -> { /* Already home */ }
+                            is StoryItemType.Survey -> { appState.navigateToSurveyFlow(item.survey.id) }
+                            is StoryItemType.EarnProfileScore -> { appState.homeRoute = HomeRoute.EARN_PROFILE_SCORE }
+                        }
+                    }
+                )
+            }
+            
+            item {
+                Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
+                    UserProfileCard(userProfile = userProfile)
+                }
             }
 
             item {
-                ActiveSurveysSection(
-                    surveys = surveys,
-                    onNavigateToSurvey = onNavigateToSurvey
-                )
+                Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
+                    ActiveSurveysSection(
+                        surveys = surveys,
+                        onNavigateToSurvey = { id -> appState.navigateToSurvey(id) }
+                    )
+                }
             }
         }
     }

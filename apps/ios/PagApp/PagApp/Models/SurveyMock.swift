@@ -18,7 +18,7 @@ public enum SurveyType: String {
     case organization = "ORGANIZATION"
 }
 
-public struct SurveyMock: Identifiable {
+public struct SurveyMock: Identifiable, Hashable, Equatable {
     public let id: String
     public let title: String
     public let ownerName: String

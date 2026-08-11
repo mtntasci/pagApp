@@ -1,6 +1,6 @@
 import Foundation
 
-public struct QuestionMock: Identifiable {
+public struct QuestionMock: Identifiable, Hashable, Equatable {
     public let id: String
     public let text: String
     public let options: [String]
