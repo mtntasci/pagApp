@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.PAG" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/pag_midnight</item>
+        <item name="android:navigationBarColor">@color/pag_midnight</item>
+    </style>
+</resources>
