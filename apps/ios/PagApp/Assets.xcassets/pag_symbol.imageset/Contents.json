@@ -1,8 +1,8 @@
 {
   "images" : [
     {
+      "filename" : "pag_app_icon.png",
       "idiom" : "universal",
-      "filename" : "pagApp_app_icon.png",
       "scale" : "1x"
     },
     {
