@@ -1,31 +1,137 @@
 import SwiftUI
 
 public struct ProfileView: View {
+    @State private var notificationsEnabled = false
+    
     public init() {}
     
     public var body: some View {
         NavigationStack {
             ZStack {
-                PAGTheme.backgroundPrimary
-                    .ignoresSafeArea()
+                PAGTheme.backgroundPrimary.ignoresSafeArea()
                 
-                VStack(spacing: PAGSpacing.md) {
-                    Image(systemName: "person.crop.circle.fill")
-                        .font(.system(size: 64))
-                        .foregroundColor(PAGTheme.brandMidnight)
-                    
-                    Text("Profilim")
-                        .font(PAGTypography.title)
-                        .foregroundColor(PAGTheme.textPrimary)
-                    
-                    Text("Kullanıcı bilgilerin, demografik yanıtların ve hesap ayarların burada yönetilecek.")
-                        .font(PAGTypography.body)
-                        .foregroundColor(PAGTheme.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, PAGSpacing.xl)
+                ScrollView {
+                    VStack(spacing: PAGSpacing.xl) {
+                        
+                        // Header
+                        VStack(spacing: PAGSpacing.sm) {
+                            Image(systemName: "person.crop.circle.fill")
+                                .font(.system(size: 80))
+                                .foregroundColor(PAGTheme.brandMidnight)
+                            
+                            Text("Ali Yılmaz")
+                                .font(PAGTypography.title)
+                                .foregroundColor(PAGTheme.textPrimary)
+                            
+                            PAGBadge(title: "1.250 Profil Puanı", iconName: "bolt.fill", style: .profileScore)
+                        }
+                        .padding(.top, PAGSpacing.lg)
+                        
+                        // Notification Permission UI
+                        VStack(alignment: .leading, spacing: PAGSpacing.md) {
+                            Toggle(isOn: $notificationsEnabled) {
+                                Text("Bildirim İzinleri")
+                                    .font(PAGTypography.heading)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                            }
+                            .tint(PAGTheme.brandLime)
+                            
+                            if !notificationsEnabled {
+                                Text("Bildirimler kapalıysa yeni ve yüksek ödüllü anketlerden zamanında haberdar olamayabilirsin.")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(PAGTheme.textMuted)
+                            }
+                        }
+                        .padding()
+                        .background(PAGTheme.surfacePrimary)
+                        .cornerRadius(PAGRadius.medium)
+                        .padding(.horizontal, PAGSpacing.md)
+                        
+                        // Verifications
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text("Doğrulamalar")
+                                .font(PAGTypography.title)
+                                .foregroundColor(PAGTheme.textPrimary)
+                                .padding(.horizontal, PAGSpacing.md)
+                                .padding(.bottom, PAGSpacing.sm)
+                            
+                            VStack(spacing: 0) {
+                                VerificationRow(title: "Telefon", status: "Doğrulandı", isVerified: true, showDivider: true)
+                                VerificationRow(title: "E-posta", status: "Doğrulanmadı", isVerified: false, showDivider: true)
+                                VerificationRow(title: "Kimlik / KYC", status: "Henüz yapılmadı", isVerified: false, showDivider: false)
+                            }
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .padding(.horizontal, PAGSpacing.md)
+                        }
+                        
+                        // Profile Surveys Section (Link / Info)
+                        VStack(alignment: .leading, spacing: PAGSpacing.md) {
+                            Text("Profil Anketleri")
+                                .font(PAGTypography.title)
+                                .foregroundColor(PAGTheme.textPrimary)
+                                .padding(.horizontal, PAGSpacing.md)
+                            
+                            VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+                                Text("Sana özel anketleri yakalamak için profilini güncel tut. Verdiğin yanıtları istediğin zaman değiştirebilirsin.")
+                                    .font(PAGTypography.body)
+                                    .foregroundColor(PAGTheme.textSecondary)
+                                
+                                Spacer().frame(height: 4)
+                                
+                                NavigationLink(destination: Text("Profil Anketleri Listesi").font(PAGTypography.title)) {
+                                    HStack {
+                                        Text("Profil Anketlerimi Gör")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.brandBlue)
+                                        Spacer()
+                                        Image(systemName: "chevron.right")
+                                            .foregroundColor(PAGTheme.textMuted)
+                                    }
+                                    .padding()
+                                    .background(PAGTheme.surfaceSecondary)
+                                    .cornerRadius(PAGRadius.medium)
+                                }
+                            }
+                            .padding(.horizontal, PAGSpacing.md)
+                        }
+                        
+                        Spacer().frame(height: 40)
+                    }
                 }
             }
             .navigationTitle("Profil")
+        }
+    }
+}
+
+private struct VerificationRow: View {
+    let title: String
+    let status: String
+    let isVerified: Bool
+    let showDivider: Bool
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(title)
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(PAGTheme.textPrimary)
+                Spacer()
+                Text(status)
+                    .font(PAGTypography.body)
+                    .foregroundColor(isVerified ? PAGTheme.success : PAGTheme.textMuted)
+                if !isVerified {
+                    Image(systemName: "exclamationmark.circle")
+                        .foregroundColor(PAGTheme.warning)
+                }
+            }
+            .padding()
+            
+            if showDivider {
+                Divider().background(PAGTheme.borderDefault)
+                    .padding(.leading)
+            }
         }
     }
 }

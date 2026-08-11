@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -25,7 +26,7 @@ import androidx.compose.ui.Modifier
 import com.alafteknoloji.pagapp.ui.screens.home.HomeScreen
 import com.alafteknoloji.pagapp.ui.screens.profile.ProfileScreen
 import com.alafteknoloji.pagapp.ui.screens.rewards.RewardsScreen
-import com.alafteknoloji.pagapp.ui.screens.surveys.SurveysScreen
+import com.alafteknoloji.pagapp.ui.screens.surveys.SurveysTab
 import com.alafteknoloji.pagapp.ui.theme.PAGAppTheme
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
@@ -52,8 +53,9 @@ fun MainScreen() {
     
     val tabs = listOf(
         TabItem("Ana Sayfa", Icons.Filled.Home) { HomeScreen(modifier = Modifier.fillMaxSize()) },
-        TabItem("Anketler", Icons.Filled.List) { SurveysScreen(modifier = Modifier.fillMaxSize()) },
+        TabItem("Anketler", Icons.AutoMirrored.Filled.List) { SurveysTab(modifier = Modifier.fillMaxSize()) },
         TabItem("Ödüller", Icons.Filled.Star) { RewardsScreen(modifier = Modifier.fillMaxSize()) },
+
         TabItem("Profil", Icons.Filled.Person) { ProfileScreen(modifier = Modifier.fillMaxSize()) }
     )
 
