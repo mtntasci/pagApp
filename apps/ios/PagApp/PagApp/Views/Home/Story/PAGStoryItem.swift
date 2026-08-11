@@ -40,29 +40,17 @@ public struct PAGStoryItem: View {
     private var iconView: some View {
         switch type {
         case .home:
-            Image(systemName: "circle.hexagongrid.fill")
+            Image("pag_symbol")
                 .resizable()
-                .scaledToFit()
-                .frame(width: 32, height: 32)
-                .foregroundColor(PAGTheme.textPrimary)
-        case .survey(let survey):
-            if survey.surveyType == .profile {
-                Image(systemName: "person.crop.circle")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 28, height: 28)
-                    .foregroundColor(PAGTheme.brandBlue)
-            } else {
-                Text(String(survey.ownerName.prefix(1)).uppercased())
-                    .font(PAGTypography.heading)
-                    .foregroundColor(PAGTheme.textPrimary)
-            }
-        case .earnProfileScore:
-            Image(systemName: "bolt.fill")
+                .scaledToFill()
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
+        case .story(let story):
+            Image(story.image)
                 .resizable()
-                .scaledToFit()
-                .frame(width: 28, height: 28)
-                .foregroundColor(PAGTheme.brandLime)
+                .scaledToFill()
+                .frame(width: 60, height: 60)
+                .clipShape(Circle())
         }
     }
     
@@ -70,10 +58,11 @@ public struct PAGStoryItem: View {
         switch type {
         case .home:
             return PAGTheme.borderDefault
-        case .survey(let survey):
-            return survey.surveyType == .profile ? PAGTheme.brandBlue : PAGTheme.borderStrong
-        case .earnProfileScore:
-            return PAGTheme.brandLime
+        case .story(let story):
+            if story.type == .earnProfileScore {
+                return PAGTheme.brandLime
+            }
+            return PAGTheme.borderStrong
         }
     }
     
@@ -81,10 +70,8 @@ public struct PAGStoryItem: View {
         switch type {
         case .home:
             return "PAG"
-        case .survey(let survey):
-            return survey.ownerName
-        case .earnProfileScore:
-            return "Puan Kazan"
+        case .story(let story):
+            return story.shortLabel
         }
     }
 }

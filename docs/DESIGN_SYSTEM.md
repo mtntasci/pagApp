@@ -901,3 +901,10 @@ Platform-specific asset directories (e.g. iOS `Assets.xcassets/AppIcon.appiconse
 7. **Alternative Symbol Designs**: Never draw or use alternative versions of the P symbol.
 8. **Cross-Platform Divergence**: Never use different logo designs or brand symbols for iOS vs Android.
 
+
+## PAG Story Bar
+- **Home Item**: The first item is always the real PAG Symbol. It cannot be changed by the admin.
+- **Images**: Survey story items use content-related imagery (selected by PAG Admin) instead of text initials or generic icons.
+- **Style**: Images are displayed with a circular crop, centered focus, and a PAG-specific colored ring (no Instagram-style gradient copies). Organization logos are not mandatory.
+- **Earn Score Item**: Semantic `Lime` treatment is used for the +Puan item.
+- **Order**: Story order is controlled by admin configuration, allowing dynamic sorting without hardcoded positions.

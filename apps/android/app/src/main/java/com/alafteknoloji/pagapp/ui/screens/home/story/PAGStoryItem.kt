@@ -18,8 +18,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import com.alafteknoloji.pagapp.R
 import com.alafteknoloji.pagapp.models.StoryItemType
-import com.alafteknoloji.pagapp.models.SurveyType
+import com.alafteknoloji.pagapp.models.StoryType
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
 @Composable
@@ -30,14 +35,14 @@ fun PAGStoryItem(
 ) {
     val ringColor = when (item) {
         is StoryItemType.Home -> PAGTheme.colors.borderDefault
-        is StoryItemType.Survey -> if (item.survey.surveyType == SurveyType.PROFILE) PAGTheme.colors.brandBlue else PAGTheme.colors.borderStrong
-        is StoryItemType.EarnProfileScore -> PAGTheme.colors.brandLime
+        is StoryItemType.Story -> {
+            if (item.story.type == StoryType.EARN_PROFILE_SCORE) PAGTheme.colors.brandLime else PAGTheme.colors.borderStrong
+        }
     }
     
     val label = when (item) {
         is StoryItemType.Home -> "PAG"
-        is StoryItemType.Survey -> item.survey.ownerName
-        is StoryItemType.EarnProfileScore -> "Puan Kazan"
+        is StoryItemType.Story -> item.story.shortLabel
     }
 
     Column(
@@ -58,35 +63,25 @@ fun PAGStoryItem(
         ) {
             when (item) {
                 is StoryItemType.Home -> {
-                    Icon(
-                        imageVector = Icons.Filled.Star,
+                    Image(
+                        painter = painterResource(id = R.drawable.pag_symbol),
                         contentDescription = null,
-                        tint = PAGTheme.colors.textPrimary,
-                        modifier = Modifier.size(32.dp)
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(CircleShape)
                     )
                 }
-                is StoryItemType.Survey -> {
-                    if (item.survey.surveyType == SurveyType.PROFILE) {
-                        Icon(
-                            imageVector = Icons.Filled.Person,
-                            contentDescription = null,
-                            tint = PAGTheme.colors.brandBlue,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    } else {
-                        Text(
-                            text = item.survey.ownerName.take(1).uppercase(),
-                            style = PAGTheme.typography.heading,
-                            color = PAGTheme.colors.textPrimary
-                        )
-                    }
-                }
-                is StoryItemType.EarnProfileScore -> {
-                    Icon(
-                        imageVector = Icons.Filled.PlayArrow,
+                is StoryItemType.Story -> {
+                    val context = LocalContext.current
+                    val resId = context.resources.getIdentifier(item.story.image, "drawable", context.packageName)
+                    Image(
+                        painter = painterResource(id = if (resId != 0) resId else R.drawable.pag_symbol),
                         contentDescription = null,
-                        tint = PAGTheme.colors.brandLime,
-                        modifier = Modifier.size(28.dp)
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(CircleShape)
                     )
                 }
             }

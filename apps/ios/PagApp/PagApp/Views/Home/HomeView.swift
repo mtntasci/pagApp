@@ -10,13 +10,11 @@ public struct HomeView: View {
     private var storyItems: [StoryItemType] {
         var items: [StoryItemType] = [.home]
         
-        // Mock order: Home -> 2 Surveys -> Earn -> 2 Surveys
-        if surveys.count > 0 { items.append(.survey(surveys[0])) }
-        if surveys.count > 1 { items.append(.survey(surveys[1])) }
-        items.append(.earnProfileScore)
-        if surveys.count > 2 { items.append(.survey(surveys[2])) }
-        if surveys.count > 3 { items.append(.survey(surveys[3])) }
-        
+        let sortedStories = StoryMock.sampleList
+            .filter { $0.isActive }
+            .sorted { $0.position < $1.position }
+            
+        items.append(contentsOf: sortedStories.map { .story($0) })
         return items
     }
     
@@ -35,10 +33,14 @@ public struct HomeView: View {
                                 if !navPath.isEmpty {
                                     navPath = NavigationPath()
                                 }
-                            case .survey(let survey):
-                                navPath.append(HomeRoute.surveyFlow(survey.id))
-                            case .earnProfileScore:
-                                navPath.append(HomeRoute.earnProfileScore)
+                            case .story(let story):
+                                if story.type == .survey {
+                                    if let sid = story.surveyId {
+                                        navPath.append(HomeRoute.surveyFlow(sid))
+                                    }
+                                } else if story.type == .earnProfileScore {
+                                    navPath.append(HomeRoute.earnProfileScore)
+                                }
                             }
                         }
                         

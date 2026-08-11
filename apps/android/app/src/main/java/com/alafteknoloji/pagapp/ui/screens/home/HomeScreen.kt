@@ -30,6 +30,8 @@ import com.alafteknoloji.pagapp.ui.components.SurveyCard
 import com.alafteknoloji.pagapp.ui.screens.home.story.PAGStoryBar
 import com.alafteknoloji.pagapp.models.StoryItemType
 import com.alafteknoloji.pagapp.models.HomeRoute
+import com.alafteknoloji.pagapp.models.StoryMock
+import com.alafteknoloji.pagapp.models.StoryType
 import com.alafteknoloji.pagapp.AppState
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
@@ -43,11 +45,8 @@ fun HomeScreen(
     val surveys = SurveyMock.sampleList
     
     val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
-    if (surveys.isNotEmpty()) storyItems.add(StoryItemType.Survey(surveys[0]))
-    if (surveys.size > 1) storyItems.add(StoryItemType.Survey(surveys[1]))
-    storyItems.add(StoryItemType.EarnProfileScore)
-    if (surveys.size > 2) storyItems.add(StoryItemType.Survey(surveys[2]))
-    if (surveys.size > 3) storyItems.add(StoryItemType.Survey(surveys[3]))
+    val sortedStories = StoryMock.sampleList.filter { it.isActive }.sortedBy { it.position }
+    storyItems.addAll(sortedStories.map { StoryItemType.Story(it) })
     
     if (appState.homeRoute == HomeRoute.EARN_PROFILE_SCORE) {
         EarnProfileScoreScreen(
@@ -74,8 +73,13 @@ fun HomeScreen(
                     onSelect = { item ->
                         when (item) {
                             is StoryItemType.Home -> { /* Already home */ }
-                            is StoryItemType.Survey -> { appState.navigateToSurveyFlow(item.survey.id) }
-                            is StoryItemType.EarnProfileScore -> { appState.homeRoute = HomeRoute.EARN_PROFILE_SCORE }
+                            is StoryItemType.Story -> {
+                                if (item.story.type == StoryType.SURVEY && item.story.surveyId != null) {
+                                    appState.navigateToSurveyFlow(item.story.surveyId)
+                                } else if (item.story.type == StoryType.EARN_PROFILE_SCORE) {
+                                    appState.homeRoute = HomeRoute.EARN_PROFILE_SCORE
+                                }
+                            }
                         }
                     }
                 )
