@@ -3,7 +3,7 @@ package com.alafteknoloji.pagapp.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Brand Colors
-val PAGMidnight = Color(0xFF101827)
+val PAGMidnight = Color(0xFF011033)
 val PAGLime     = Color(0xFFB7F34A)
 val PAGBlue     = Color(0xFF3977F6)
 

@@ -31,7 +31,7 @@ extension Color {
 // MARK: - PAG Centralized Design Tokens
 public enum PAGTheme {
     // Brand Colors
-    public static let brandMidnight = Color(hex: "#101827")
+    public static let brandMidnight = Color(hex: "#011033")
     public static let brandLime     = Color(hex: "#B7F34A")
     public static let brandBlue     = Color(hex: "#3977F6")
 

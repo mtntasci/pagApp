@@ -30,7 +30,7 @@ fun LoginScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(PAGTheme.colors.backgroundPrimary)
+            .background(PAGTheme.colors.brandMidnight)
             .padding(PAGTheme.spacing.lg)
     ) {
         Column(
@@ -49,13 +49,13 @@ fun LoginScreen(
             Text(
                 text = "PAG'a Hoş Geldiniz",
                 style = PAGTheme.typography.display,
-                color = PAGTheme.colors.textPrimary
+                color = Color.White
             )
             Spacer(modifier = Modifier.height(PAGTheme.spacing.sm))
             Text(
                 text = "Anketlere katıl, Profil Puanı kazan ve ödüllerde öne geç.",
                 style = PAGTheme.typography.body,
-                color = PAGTheme.colors.textSecondary,
+                color = Color.White.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = PAGTheme.spacing.lg)
             )

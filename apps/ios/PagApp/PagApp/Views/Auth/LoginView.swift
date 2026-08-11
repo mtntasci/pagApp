@@ -9,7 +9,7 @@ public struct LoginView: View {
     
     public var body: some View {
         ZStack {
-            PAGTheme.backgroundPrimary.ignoresSafeArea()
+            PAGTheme.brandMidnight.ignoresSafeArea()
             
             VStack(spacing: PAGSpacing.xl) {
                 Spacer()
@@ -23,11 +23,11 @@ public struct LoginView: View {
                     
                     Text("PAG'a Hoş Geldiniz")
                         .font(PAGTypography.display)
-                        .foregroundColor(PAGTheme.textPrimary)
+                        .foregroundColor(.white)
                     
                     Text("Anketlere katıl, Profil Puanı kazan ve ödüllerde öne geç.")
                         .font(PAGTypography.body)
-                        .foregroundColor(PAGTheme.textSecondary)
+                        .foregroundColor(.white.opacity(0.8))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, PAGSpacing.lg)
                 }
