@@ -1851,4 +1851,334 @@ Unless explicitly approved later, the following are NOT current implementation r
 * complex pause/resume campaign orchestration
 * unsupported question types
 
+
+# PAG — PLATFORM & MONOREPO ADDENDUM
+
+## MONOREPO STRUCTURE
+
+PAG is developed as a single monorepo.
+
+Repository root:
+
+`pagApp/`
+
+Expected top-level structure:
+
+```text
+pagApp/
+├── apps/
+│   ├── ios/
+│   ├── android/
+│   ├── admin-web/
+│   └── customer-web/
+├── packages/
+│   ├── api-contracts/
+│   ├── design-tokens/
+│   └── shared-config/
+├── backend/
+│   ├── functions/
+│   └── firebase/
+├── docs/
+│   ├── DESIGN_SYSTEM.md
+│   └── ARCHITECTURE.md
+├── AGENTS.md
+└── README.md
+```
+
+Do not create separate repositories for iOS, Android, admin web, customer web, or backend unless explicitly approved later.
+
+---
+
+# NATIVE MOBILE TECHNOLOGY
+
+PAG mobile applications are native.
+
+## iOS
+
+Technology:
+
+* Swift
+* SwiftUI
+
+The iOS project will be created manually using Xcode.
+
+Agents must NOT generate a replacement Xcode project or recreate the project structure unless explicitly requested.
+
+Expected project location:
+
+`pagApp/apps/ios/`
+
+The Xcode project should live directly under this location.
+
+Avoid accidental nested structures such as:
+
+`apps/ios/ios/...`
+
+The preferred structure is conceptually:
+
+```text
+apps/
+└── ios/
+    ├── PAG.xcodeproj
+    └── PAG/
+```
+
+Exact Xcode-generated support files may differ.
+
+---
+
+## Android
+
+Technology:
+
+* Kotlin
+* Jetpack Compose
+
+Expected Android project location:
+
+`pagApp/apps/android/`
+
+Do not introduce Flutter, React Native, Xamarin, Capacitor, or another cross-platform mobile framework unless explicitly approved.
+
+---
+
+# MOBILE DEVELOPMENT STRATEGY
+
+iOS and Android development will proceed in parallel.
+
+The first physical test device is an iPhone.
+
+This means:
+
+* early device validation may happen on iOS first,
+* this does NOT make PAG an iOS-first product architecture,
+* Android must not be treated as a later rewrite,
+* shared API contracts must support both platforms from the beginning.
+
+Feature behavior should remain functionally consistent across both platforms unless a platform-specific UX rule is intentionally approved.
+
+Do not force identical visual implementation where Apple and Android platform conventions differ.
+
+Use:
+
+* SwiftUI-native patterns on iOS
+* Jetpack Compose-native patterns on Android
+
+while preserving the same PAG business behavior.
+
+---
+
+# WEB TECHNOLOGY
+
+PAG web applications will run on Vercel.
+
+Approved web stack:
+
+* Next.js
+* TypeScript
+* React
+* Vercel
+
+Applications:
+
+* PAG Admin Web
+* PAG Customer Web
+
+Expected locations:
+
+`apps/admin-web/`
+
+`apps/customer-web/`
+
+---
+
+# WEB BACKEND ACCESS
+
+Privileged web operations must use a server-side API layer.
+
+Preferred flow:
+
+```text
+Browser
+→ Next.js Server / API
+→ Firebase Admin SDK
+→ Firebase services
+```
+
+Firebase Admin SDK must run only in trusted server-side environments.
+
+Never expose Firebase Admin credentials or service-account material to the browser.
+
+Do not import `firebase-admin` into client-side React components.
+
+Privileged operations such as:
+
+* Profile Score modification
+* Reward modification
+* Voucher allocation
+* Withdrawal processing
+* Campaign execution
+* Organization administration
+* privileged reporting
+
+must be handled through trusted server-side code.
+
+---
+
+# API CONTRACTS
+
+iOS, Android, Admin Web, and Customer Web must not independently invent different backend payload structures for the same operation.
+
+Shared API contracts must be documented centrally.
+
+Where technically practical, web/backend TypeScript types may be shared through:
+
+`packages/api-contracts/`
+
+Native applications must implement compatible models based on the same documented API contract.
+
+Backend API evolution must consider all active clients.
+
+Breaking contract changes require explicit consideration of:
+
+* iOS compatibility
+* Android compatibility
+* Admin Web compatibility
+* Customer Web compatibility
+
+---
+
+# DESIGN TOKENS
+
+PAG visual identity is now partially approved.
+
+Approved visual direction:
+
+* dark navy / midnight foundation
+* electric lime / green primary brand accent
+* visual language should communicate trust, progress, priority, and reward
+
+Primary approved app-icon direction:
+
+* dark navy rounded-square background
+* lime PAG / P pulse symbol
+* modern, minimal, premium appearance
+
+The green accent may suggest:
+
+* reward
+* progress
+* gain
+* priority
+
+The dark navy foundation may suggest:
+
+* trust
+* stability
+* security
+
+Exact production token values will be maintained in:
+
+`docs/DESIGN_SYSTEM.md`
+
+Where feasible, shared semantic token definitions should also exist under:
+
+`packages/design-tokens/`
+
+Do not copy raw hex values throughout application components.
+
+Use semantic tokens such as:
+
+* brandPrimary
+* brandAccent
+* backgroundPrimary
+* surfacePrimary
+* textPrimary
+* textSecondary
+* reward
+* success
+* warning
+* error
+* border
+
+The PAG lime brand color must NOT automatically be reused as the generic success-state color.
+
+Brand accent and semantic success are separate concepts.
+
+---
+
+# BRAND ASSETS
+
+Do not redraw, reinterpret, or replace the approved PAG icon direction without approval.
+
+Once final production logo assets are approved, maintain:
+
+* master logo
+* app icon
+* monochrome variant
+* dark-background variant
+* light-background variant
+
+as controlled brand assets.
+
+Temporary generated previews are references until final export assets are approved.
+
+---
+
+# PLATFORM-SPECIFIC UI RULE
+
+PAG should share one brand identity, but native applications should respect platform conventions.
+
+For example:
+
+iOS may use:
+
+* NavigationStack
+* native sheets
+* native haptics
+* SwiftUI controls where appropriate
+
+Android may use:
+
+* Compose Navigation
+* Material-compatible interaction patterns
+* Android-native system behavior
+
+Do not make Android look like an iPhone application.
+
+Do not make iOS look like an Android Material clone.
+
+Shared branding does not mean identical platform chrome.
+
+---
+
+# DEVELOPMENT PRIORITY
+
+Because the first physical test device is an iPhone, initial end-to-end device testing may occur on iOS.
+
+However:
+
+Every significant mobile feature should be tracked for both:
+
+* iOS
+* Android
+
+A feature must not be described as fully mobile-complete if only one platform is implemented.
+
+Use explicit completion terminology, for example:
+
+* iOS implemented
+* Android pending
+
+or:
+
+* iOS tested on device
+* Android emulator tested
+
+rather than simply:
+
+"Mobile complete."
+
+
+
 Keep PAG focused on the approved product.
