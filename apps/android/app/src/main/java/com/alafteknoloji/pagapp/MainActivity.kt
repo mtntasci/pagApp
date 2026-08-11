@@ -40,15 +40,21 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+data class TabItem(
+    val title: String,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val content: @Composable () -> Unit
+)
+
 @Composable
 fun MainScreen() {
     var selectedTab by remember { mutableIntStateOf(0) }
     
     val tabs = listOf(
-        Triple("Ana Sayfa", Icons.Filled.Home, { HomeScreen(modifier = Modifier.fillMaxSize()) }),
-        Triple("Anketler", Icons.Filled.List, { SurveysScreen(modifier = Modifier.fillMaxSize()) }),
-        Triple("Ödüller", Icons.Filled.Star, { RewardsScreen(modifier = Modifier.fillMaxSize()) }),
-        Triple("Profil", Icons.Filled.Person, { ProfileScreen(modifier = Modifier.fillMaxSize()) })
+        TabItem("Ana Sayfa", Icons.Filled.Home) { HomeScreen(modifier = Modifier.fillMaxSize()) },
+        TabItem("Anketler", Icons.Filled.List) { SurveysScreen(modifier = Modifier.fillMaxSize()) },
+        TabItem("Ödüller", Icons.Filled.Star) { RewardsScreen(modifier = Modifier.fillMaxSize()) },
+        TabItem("Profil", Icons.Filled.Person) { ProfileScreen(modifier = Modifier.fillMaxSize()) }
     )
 
     Scaffold(
@@ -59,8 +65,8 @@ fun MainScreen() {
             ) {
                 tabs.forEachIndexed { index, tab ->
                     NavigationBarItem(
-                        icon = { Icon(tab.second, contentDescription = tab.first) },
-                        label = { Text(tab.first, style = PAGTheme.typography.caption) },
+                        icon = { Icon(tab.icon, contentDescription = tab.title) },
+                        label = { Text(tab.title, style = PAGTheme.typography.caption) },
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
                         colors = NavigationBarItemDefaults.colors(
@@ -79,7 +85,7 @@ fun MainScreen() {
         androidx.compose.foundation.layout.Box(
             modifier = Modifier.padding(innerPadding).fillMaxSize()
         ) {
-            tabs[selectedTab].third()
+            tabs[selectedTab].content()
         }
     }
 }

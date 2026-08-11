@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Centered PAG P/Pulse symbol vector inside 66dp safe-zone boundary -->
+    <path
+        android:fillColor="#B7F34A"
+        android:pathData="M42,28 h16 c8.8,0 16,7.2 16,16 c0,8.8 -7.2,16 -16,16 h-8 v20 h-8 V28 z M58,48 c4.4,0 8,-3.6 8,-8 c0,-4.4 -3.6,-8 -8,-8 h-8 v16 h8 z" />
+    <path
+        android:fillColor="#B7F34A"
+        android:pathData="M34,44 h5 v36 h-5 z" />
+</vector>

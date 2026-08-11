@@ -1,0 +1,19 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.alafteknoloji.pagapp-mergeDebugResources-45:/values-v30/values-v30.xml",
+            "map": [
+                {
+                    "source": "/Users/mt/.gradle/caches/9.7.0/transforms/b2e531c27724f24517ddf1ba1675e98a/transformed/material3-release/res/values-v30/values-v30.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endColumns": "72",
+                        "endOffsets": "123"
+                    }
+                }
+            ]
+        }
+    ]
+}
