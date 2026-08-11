@@ -1,5 +1,6 @@
 package com.alafteknoloji.pagapp.ui.screens.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.alafteknoloji.pagapp.R
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.delay
 
@@ -34,10 +37,9 @@ fun SplashScreen(
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Filled.Star, // Mock icon
+            Image(
+                painter = painterResource(id = R.drawable.pag_symbol),
                 contentDescription = "PAG Logo",
-                tint = PAGTheme.colors.brandLime,
                 modifier = Modifier.size(80.dp)
             )
             Text(

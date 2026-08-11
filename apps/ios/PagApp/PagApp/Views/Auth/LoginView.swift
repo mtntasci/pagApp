@@ -16,11 +16,10 @@ public struct LoginView: View {
                 
                 // PAG Logo Top
                 VStack(spacing: PAGSpacing.md) {
-                    Image(systemName: "circle.hexagongrid.fill")
+                    Image("pag_symbol")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 60, height: 60)
-                        .foregroundColor(PAGTheme.brandLime)
                     
                     Text("PAG'a Hoş Geldiniz")
                         .font(PAGTypography.display)

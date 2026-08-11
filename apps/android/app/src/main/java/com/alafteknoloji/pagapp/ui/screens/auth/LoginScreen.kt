@@ -1,5 +1,6 @@
 package com.alafteknoloji.pagapp.ui.screens.auth
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,8 +16,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.alafteknoloji.pagapp.R
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
 @Composable
@@ -36,10 +39,9 @@ fun LoginScreen(
             verticalArrangement = Arrangement.Center
         ) {
             // PAG Logo Top
-            Icon(
-                imageVector = Icons.Filled.Star,
+            Image(
+                painter = painterResource(id = R.drawable.pag_symbol),
                 contentDescription = "PAG Logo",
-                tint = PAGTheme.colors.brandLime,
                 modifier = Modifier.size(60.dp)
             )
             Spacer(modifier = Modifier.height(PAGTheme.spacing.md))

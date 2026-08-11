@@ -9,11 +9,10 @@ public struct SplashView: View {
             
             VStack {
                 // Mock PAG Symbol
-                Image(systemName: "circle.hexagongrid.fill")
+                Image("pag_symbol")
                     .resizable()
                     .scaledToFit()
                     .frame(width: 80, height: 80)
-                    .foregroundColor(PAGTheme.brandLime)
                 
                 Text("PAG")
                     .font(PAGTypography.display)
