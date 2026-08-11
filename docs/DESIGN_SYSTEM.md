@@ -833,3 +833,71 @@ Agents working on PAG UI must:
 - not claim a design is approved unless it has been explicitly approved
 
 If the design system does not define a needed pattern, use the closest existing semantic rule and mark the decision for review instead of inventing a new permanent brand rule.
+
+---
+
+# 34. Brand Assets & App Icon Standard
+
+## 34.1 Master Asset Principle
+All platform brand assets (iOS, Android, Admin Web, Customer Web) must be derived from a single canonical master asset location:
+
+`packages/design-tokens/assets/brand/`
+
+Subdirectories:
+- `pag-symbol/`: Master standalone P / Pulse vector assets.
+- `pag-logo/`: Primary logo variants (Symbol + Wordmark).
+- `app-icon/`: Master application icon exports (1024x1024 master).
+
+Platform-specific asset directories (e.g. iOS `Assets.xcassets/AppIcon.appiconset`, Android `res/mipmap-*` and `res/drawable/`) MUST be derived from these master files.
+
+## 34.2 Asset Hierarchy & Terminology
+- **PAG Symbol**: Standalone P / Pulse icon mark (Electric Lime `#B7F34A`).
+- **PAG Wordmark**: Custom "PAG" typography text.
+- **PAG Primary Logo**: PAG Symbol + PAG Wordmark composition.
+- **App Icon**: PAG Symbol centered on solid Midnight Navy (`#101827`) background. NO text, NO currency symbols, NO checklist/survey graphics.
+
+## 34.3 iOS App Icon Standard
+- Master Image: Opaque 1024x1024 PNG with full-bleed `#101827` background.
+- Corner Radius: Must NOT bake artificial rounded corners or fake masks into the image file. iOS applies system squircle masking dynamically.
+- Safe Area: Keep centered PAG Symbol within inner 80% boundary to prevent edge clipping during OS masking.
+
+## 34.4 Android Adaptive Icon Standard
+- Architecture: Android 8.0+ (API 26+) Adaptive Icons framework (`res/mipmap-anydpi-v26/ic_launcher.xml`).
+- Background Layer (`drawable/ic_launcher_background.xml`): Solid Midnight Navy (`#101827`).
+- Foreground Layer (`drawable/ic_launcher_foreground.xml`): PAG Electric Lime (`#B7F34A`) Symbol centered within 108dp x 108dp viewport.
+- Safe Zone Rule: The symbol MUST fit entirely inside a centered 66dp diameter circle (safe zone). This guarantees the symbol remains intact regardless of device OEM masks (circle, squircle, rounded square, teardrop).
+- Folder Structure:
+  ```text
+  res/
+  ├── drawable/
+  │   ├── ic_launcher_background.xml
+  │   └── ic_launcher_foreground.xml
+  └── mipmap-anydpi-v26/
+      ├── ic_launcher.xml
+      └── ic_launcher_round.xml
+  ```
+
+## 34.5 Splash / Launch Screen Standard
+- Visual Tone: Clean, minimalist, and instant loading.
+- Elements allowed: Midnight Navy background (`#101827`) + centered Electric Lime (`#B7F34A`) PAG Symbol.
+- Explicitly Prohibited on Launch Screen:
+  - NO advertisements or promotional banners
+  - NO marketing slogans or taglines
+  - NO progress bars or loading spinners
+  - NO complex animations or video splash loops
+- Platform Consistency: Both iOS (`LaunchScreen`) and Android (`SplashScreen` API) must share identical visual identity while adhering to native system launch practices.
+
+## 34.6 Clear Space & Usage Rules
+- Minimum Clear Space: At least 50% of symbol height around all edges of logo.
+- Minimum Digital Size: Symbol height minimum 16px.
+
+## 34.7 Explicit Brand Asset Prohibitions (Yasaklar)
+1. **Color Alteration**: Never change Lime (`#B7F34A`) or Midnight Navy (`#101827`) to arbitrary hex values.
+2. **Gradients**: Never apply unapproved multi-color gradients across the PAG symbol.
+3. **Inconsistent Effects**: Never add 3D drop shadows, outer glows, or bevel effects that differ across platforms.
+4. **Proportion Distortion**: Never stretch, squeeze, or alter aspect ratio of the P / Pulse symbol.
+5. **Text in App Icon**: Never put "PAG" wordmark or any text inside the app icon container.
+6. **Currency & Survey Icons**: Never add TL/dollar/coin symbols, checkboxes, or survey sheets to brand assets or app icons.
+7. **Alternative Symbol Designs**: Never draw or use alternative versions of the P symbol.
+8. **Cross-Platform Divergence**: Never use different logo designs or brand symbols for iOS vs Android.
+
