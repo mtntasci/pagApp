@@ -29,6 +29,8 @@ import com.alafteknoloji.pagapp.ui.screens.home.HomeScreen
 import com.alafteknoloji.pagapp.ui.screens.profile.ProfileScreen
 import com.alafteknoloji.pagapp.ui.screens.rewards.RewardsScreen
 import com.alafteknoloji.pagapp.ui.screens.surveys.SurveysTab
+import com.alafteknoloji.pagapp.ui.screens.auth.SplashScreen
+import com.alafteknoloji.pagapp.ui.screens.auth.LoginScreen
 import com.alafteknoloji.pagapp.ui.theme.PAGAppTheme
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
@@ -37,7 +39,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PAGAppTheme {
-                MainScreen()
+                val appState = remember { AppState() }
+                
+                if (appState.showSplash) {
+                    SplashScreen(onSplashFinished = { appState.showSplash = false })
+                } else if (!appState.isAuthenticated) {
+                    LoginScreen(onLoginSuccess = { appState.isAuthenticated = true })
+                } else {
+                    MainScreen(appState)
+                }
             }
         }
     }
@@ -53,6 +63,8 @@ class AppState {
     var selectedTab by mutableIntStateOf(0)
     var surveyRoute by mutableStateOf(SurveyRoute.LIST)
     var selectedSurveyId by mutableStateOf<String?>(null)
+    var isAuthenticated by mutableStateOf(false)
+    var showSplash by mutableStateOf(true)
     
     fun navigateToSurvey(id: String) {
         selectedSurveyId = id
@@ -66,8 +78,7 @@ class AppState {
 }
 
 @Composable
-fun MainScreen() {
-    val appState = remember { AppState() }
+fun MainScreen(appState: AppState) {
     
     val tabs = listOf(
         TabItem("Ana Sayfa", Icons.Filled.Home) { 
