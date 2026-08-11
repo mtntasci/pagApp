@@ -32,7 +32,8 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigateToSurvey: (String) -> Unit = {}
 ) {
     val userProfile = UserProfileMock.sample
     val surveys = SurveyMock.sampleList
@@ -67,7 +68,10 @@ fun HomeScreen(
             }
 
             item {
-                ActiveSurveysSection(surveys = surveys)
+                ActiveSurveysSection(
+                    surveys = surveys,
+                    onNavigateToSurvey = onNavigateToSurvey
+                )
             }
         }
     }
@@ -124,7 +128,10 @@ private fun UserProfileCard(userProfile: UserProfileMock) {
 }
 
 @Composable
-private fun ActiveSurveysSection(surveys: List<SurveyMock>) {
+private fun ActiveSurveysSection(
+    surveys: List<SurveyMock>,
+    onNavigateToSurvey: (String) -> Unit
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
     ) {
@@ -157,7 +164,7 @@ private fun ActiveSurveysSection(surveys: List<SurveyMock>) {
             surveys.forEach { survey ->
                 SurveyCard(
                     survey = survey,
-                    onTakeSurvey = { /* TODO Handle Survey Click */ }
+                    onTakeSurvey = { onNavigateToSurvey(survey.id) }
                 )
             }
         }

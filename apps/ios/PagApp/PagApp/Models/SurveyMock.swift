@@ -12,15 +12,23 @@ public enum SurveyStatus: String {
     case expired = "Süresi Doldu"
 }
 
+public enum SurveyType: String {
+    case profile = "PROFILE"
+    case pag = "PAG"
+    case organization = "ORGANIZATION"
+}
+
 public struct SurveyMock: Identifiable {
     public let id: String
     public let title: String
     public let ownerName: String
     public let description: String
     public let profileScoreReward: Int
-    public let rewardPoolText: String?
+    public let rewardType: RewardType
+    public let rewardAmount: Double?
+    public let voucherTitle: String?
     public let estimatedDurationMinutes: Int
-    public let isProfileSurvey: Bool
+    public let surveyType: SurveyType
     public let category: SurveyCategory
     public let status: SurveyStatus
     public let endDate: Date?
@@ -39,9 +47,11 @@ public struct SurveyMock: Identifiable {
             ownerName: "PAG",
             description: "Mobil uygulama alışkanlıklarınızı ve beklentilerinizi anlamak için kısa bir araştırma.",
             profileScoreReward: 50,
-            rewardPoolText: "1.000 TL Ödül Havuzu",
+            rewardType: .profileScoreAndMoney,
+            rewardAmount: 1000.0,
+            voucherTitle: nil,
             estimatedDurationMinutes: 2,
-            isProfileSurvey: false,
+            surveyType: .pag,
             category: .forYou,
             status: .active,
             endDate: Date().addingTimeInterval(86400 * 2), // 2 days from now
@@ -53,9 +63,11 @@ public struct SurveyMock: Identifiable {
             ownerName: "McDonald's",
             description: "Hızlı tüketim restoranlarındaki tercihlerinizi ölçümleyen pazar araştırması.",
             profileScoreReward: 35,
-            rewardPoolText: "Hediye Çeki",
+            rewardType: .profileScoreAndVoucher,
+            rewardAmount: nil,
+            voucherTitle: "Hediye Çeki",
             estimatedDurationMinutes: 3,
-            isProfileSurvey: false,
+            surveyType: .organization,
             category: .new,
             status: .active,
             endDate: Date().addingTimeInterval(86400 * 5),
@@ -67,9 +79,11 @@ public struct SurveyMock: Identifiable {
             ownerName: "Ford",
             description: "Geleceğin mobilite çözümleri hakkında kullanıcı görüşleri.",
             profileScoreReward: 75,
-            rewardPoolText: "500 TL Ödül Havuzu",
+            rewardType: .profileScoreAndMoney,
+            rewardAmount: 500.0,
+            voucherTitle: nil,
             estimatedDurationMinutes: 1,
-            isProfileSurvey: false,
+            surveyType: .organization,
             category: .completed,
             status: .completed,
             endDate: nil,
@@ -81,9 +95,11 @@ public struct SurveyMock: Identifiable {
             ownerName: "PAG",
             description: "Sana daha uygun anketler sunabilmemiz için profilini güncelle.",
             profileScoreReward: 25,
-            rewardPoolText: nil,
+            rewardType: .profileScoreOnly,
+            rewardAmount: nil,
+            voucherTitle: nil,
             estimatedDurationMinutes: 1,
-            isProfileSurvey: true,
+            surveyType: .profile,
             category: .forYou,
             status: .active,
             endDate: nil,

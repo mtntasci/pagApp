@@ -4,8 +4,11 @@ public struct SurveyDetailView: View {
     public let survey: SurveyMock
     @Environment(\.dismiss) private var dismiss
     
-    public init(survey: SurveyMock) {
+    @Binding public var navPath: NavigationPath
+    
+    public init(survey: SurveyMock, navPath: Binding<NavigationPath>) {
         self.survey = survey
+        self._navPath = navPath
     }
     
     public var body: some View {
@@ -19,7 +22,7 @@ public struct SurveyDetailView: View {
                     VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                         PAGBadge(
                             title: survey.ownerName,
-                            iconName: survey.isProfileSurvey ? "person.crop.circle" : "building.2",
+                            iconName: survey.surveyType == .profile ? "person.crop.circle" : "building.2",
                             style: .tag
                         )
                         
@@ -60,13 +63,22 @@ public struct SurveyDetailView: View {
                                 icon: "bolt.fill"
                             )
                             
-                            if let rewardPool = survey.rewardPoolText {
-                                RewardBox(
-                                    title: "Ödül Havuzu",
-                                    value: rewardPool,
-                                    color: PAGTheme.brandBlue,
-                                    icon: "gift.fill"
-                                )
+                            if survey.surveyType != .profile {
+                                if let amount = survey.rewardAmount {
+                                    RewardBox(
+                                        title: "Ödül Havuzu",
+                                        value: "\(Int(amount)) TL",
+                                        color: PAGTheme.brandBlue,
+                                        icon: "gift.fill"
+                                    )
+                                } else if let voucher = survey.voucherTitle {
+                                    RewardBox(
+                                        title: "Ödül",
+                                        value: voucher,
+                                        color: PAGTheme.brandBlue,
+                                        icon: "gift.fill"
+                                    )
+                                }
                             }
                         }
                     }
@@ -84,7 +96,7 @@ public struct SurveyDetailView: View {
                         .font(PAGTypography.caption)
                         .foregroundColor(PAGTheme.textMuted)
                     
-                    NavigationLink(destination: SurveyFlowView(survey: survey)) {
+                    NavigationLink(destination: SurveyFlowView(survey: survey, navPath: $navPath)) {
                         Text("ANKETE BAŞLA")
                             .font(PAGTypography.heading)
                             .frame(maxWidth: .infinity)

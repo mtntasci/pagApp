@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.alafteknoloji.pagapp.models.SurveyType
 import com.alafteknoloji.pagapp.models.RewardResultMock
 import com.alafteknoloji.pagapp.models.RewardType
 import com.alafteknoloji.pagapp.models.SurveyMock
@@ -33,13 +34,12 @@ fun SurveyResultScreen(
     onBackToHome: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Generate mock result based on survey
-    val mockResult = if (survey.rewardPoolText?.contains("Hediye Çeki") == true) {
-        RewardResultMock.sampleVoucher
-    } else if (survey.rewardPoolText != null) {
-        RewardResultMock.sampleMoney
-    } else {
+    val mockResult = if (survey.surveyType == SurveyType.PROFILE) {
         RewardResultMock.sampleProfileOnly
+    } else if (survey.voucherTitle != null) {
+        RewardResultMock.sampleVoucher
+    } else {
+        RewardResultMock.sampleMoney
     }
 
     Box(

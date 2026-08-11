@@ -5,9 +5,10 @@ public struct HomeView: View {
     private let surveys: [SurveyMock] = SurveyMock.sampleList
     
     public init() {}
+    @State private var navPath = NavigationPath()
     
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ZStack {
                 PAGTheme.backgroundPrimary
                     .ignoresSafeArea()
@@ -17,11 +18,10 @@ public struct HomeView: View {
                         // Profile Score & Advantage Card
                         ProfileScoreCard(user: user)
                         
-                        // Active Surveys Section
                         ActiveSurveysSection(
                             surveys: surveys,
                             onSelectSurvey: { survey in
-                                // CTA action preview
+                                navPath.append(survey.id)
                             }
                         )
                     }
@@ -37,6 +37,11 @@ public struct HomeView: View {
                         Image(systemName: "bell")
                             .foregroundColor(PAGTheme.textPrimary)
                     }
+                }
+            }
+            .navigationDestination(for: String.self) { surveyId in
+                if let survey = surveys.first(where: { $0.id == surveyId }) {
+                    SurveyDetailView(survey: survey, navPath: $navPath)
                 }
             }
         }

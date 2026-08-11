@@ -65,36 +65,6 @@ public struct ProfileView: View {
                             .padding(.horizontal, PAGSpacing.md)
                         }
                         
-                        // Profile Surveys Section (Link / Info)
-                        VStack(alignment: .leading, spacing: PAGSpacing.md) {
-                            Text("Profil Anketleri")
-                                .font(PAGTypography.title)
-                                .foregroundColor(PAGTheme.textPrimary)
-                                .padding(.horizontal, PAGSpacing.md)
-                            
-                            VStack(alignment: .leading, spacing: PAGSpacing.sm) {
-                                Text("Sana özel anketleri yakalamak için profilini güncel tut. Verdiğin yanıtları istediğin zaman değiştirebilirsin.")
-                                    .font(PAGTypography.body)
-                                    .foregroundColor(PAGTheme.textSecondary)
-                                
-                                Spacer().frame(height: 4)
-                                
-                                NavigationLink(destination: Text("Profil Anketleri Listesi").font(PAGTypography.title)) {
-                                    HStack {
-                                        Text("Profil Anketlerimi Gör")
-                                            .font(PAGTypography.heading)
-                                            .foregroundColor(PAGTheme.brandBlue)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .foregroundColor(PAGTheme.textMuted)
-                                    }
-                                    .padding()
-                                    .background(PAGTheme.surfaceSecondary)
-                                    .cornerRadius(PAGRadius.medium)
-                                }
-                            }
-                            .padding(.horizontal, PAGSpacing.md)
-                        }
                         
                         Spacer().frame(height: 40)
                     }

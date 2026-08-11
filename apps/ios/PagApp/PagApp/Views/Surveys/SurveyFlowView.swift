@@ -8,8 +8,11 @@ public struct SurveyFlowView: View {
     @State private var selectedOption: String? = nil
     @State private var showResult = false
     
-    public init(survey: SurveyMock) {
+    @Binding public var navPath: NavigationPath
+    
+    public init(survey: SurveyMock, navPath: Binding<NavigationPath>) {
         self.survey = survey
+        self._navPath = navPath
     }
     
     public var body: some View {
@@ -18,9 +21,7 @@ public struct SurveyFlowView: View {
             
             if showResult {
                 SurveyResultView(survey: survey, onBackToHome: {
-                    // In a real app with proper NavigationStack, we would pop to root.
-                    // For now, dismiss twice or handle navigation state.
-                    dismiss()
+                    navPath = NavigationPath()
                 })
             } else if let question = survey.questions[safe: currentIndex] {
                 VStack(alignment: .leading, spacing: PAGSpacing.xl) {

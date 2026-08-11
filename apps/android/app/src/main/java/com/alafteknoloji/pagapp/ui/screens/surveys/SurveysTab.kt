@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -20,19 +21,28 @@ enum class SurveyRoute {
 }
 
 @Composable
-fun SurveysTab(modifier: Modifier = Modifier) {
-    var currentRoute by remember { mutableStateOf(SurveyRoute.LIST) }
-    var selectedSurveyId by remember { mutableStateOf<String?>(null) }
+fun SurveysTab(
+    modifier: Modifier = Modifier,
+    currentRoute: SurveyRoute = SurveyRoute.LIST,
+    selectedSurveyId: String? = null,
+    onRouteChanged: (SurveyRoute) -> Unit = {},
+    onSurveySelected: (String?) -> Unit = {},
+    onNavigateToHome: () -> Unit = {}
+) {
     
     val selectedSurvey = SurveyMock.sampleList.find { it.id == selectedSurveyId }
+
+    BackHandler(enabled = currentRoute != SurveyRoute.LIST) {
+        onRouteChanged(SurveyRoute.LIST)
+    }
 
     Box(modifier = modifier.fillMaxSize().background(PAGTheme.colors.backgroundPrimary)) {
         when (currentRoute) {
             SurveyRoute.LIST -> {
                 SurveysScreen(
                     onNavigateToDetail = { surveyId ->
-                        selectedSurveyId = surveyId
-                        currentRoute = SurveyRoute.DETAIL
+                        onSurveySelected(surveyId)
+                        onRouteChanged(SurveyRoute.DETAIL)
                     }
                 )
             }
@@ -41,7 +51,7 @@ fun SurveysTab(modifier: Modifier = Modifier) {
                     SurveyDetailScreen(
                         survey = survey,
                         onStartSurvey = {
-                            currentRoute = SurveyRoute.FLOW
+                            onRouteChanged(SurveyRoute.FLOW)
                         }
                     )
                 }
@@ -51,11 +61,10 @@ fun SurveysTab(modifier: Modifier = Modifier) {
                     SurveyFlowScreen(
                         survey = survey,
                         onComplete = {
-                            currentRoute = SurveyRoute.RESULT
+                            onRouteChanged(SurveyRoute.RESULT)
                         },
                         onExit = {
-                            // Erken çıkış: partial state tutulmuyor
-                            currentRoute = SurveyRoute.LIST
+                            onRouteChanged(SurveyRoute.LIST)
                         }
                     )
                 }
@@ -64,9 +73,7 @@ fun SurveysTab(modifier: Modifier = Modifier) {
                 selectedSurvey?.let { survey ->
                     SurveyResultScreen(
                         survey = survey,
-                        onBackToHome = {
-                            currentRoute = SurveyRoute.LIST
-                        }
+                        onBackToHome = onNavigateToHome
                     )
                 }
             }

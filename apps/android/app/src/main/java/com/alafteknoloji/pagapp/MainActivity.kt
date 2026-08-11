@@ -23,6 +23,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.alafteknoloji.pagapp.ui.screens.surveys.SurveyRoute
+import androidx.compose.runtime.mutableStateOf
 import com.alafteknoloji.pagapp.ui.screens.home.HomeScreen
 import com.alafteknoloji.pagapp.ui.screens.profile.ProfileScreen
 import com.alafteknoloji.pagapp.ui.screens.rewards.RewardsScreen
@@ -47,15 +49,47 @@ data class TabItem(
     val content: @Composable () -> Unit
 )
 
+class AppState {
+    var selectedTab by mutableIntStateOf(0)
+    var surveyRoute by mutableStateOf(SurveyRoute.LIST)
+    var selectedSurveyId by mutableStateOf<String?>(null)
+    
+    fun navigateToSurvey(id: String) {
+        selectedSurveyId = id
+        surveyRoute = SurveyRoute.DETAIL
+        selectedTab = 1
+    }
+    
+    fun goBackToSurveys() {
+        surveyRoute = SurveyRoute.LIST
+    }
+}
+
 @Composable
 fun MainScreen() {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val appState = remember { AppState() }
     
     val tabs = listOf(
-        TabItem("Ana Sayfa", Icons.Filled.Home) { HomeScreen(modifier = Modifier.fillMaxSize()) },
-        TabItem("Anketler", Icons.AutoMirrored.Filled.List) { SurveysTab(modifier = Modifier.fillMaxSize()) },
+        TabItem("Ana Sayfa", Icons.Filled.Home) { 
+            HomeScreen(
+                modifier = Modifier.fillMaxSize(),
+                onNavigateToSurvey = { id -> appState.navigateToSurvey(id) }
+            ) 
+        },
+        TabItem("Anketler", Icons.AutoMirrored.Filled.List) { 
+            SurveysTab(
+                modifier = Modifier.fillMaxSize(),
+                currentRoute = appState.surveyRoute,
+                selectedSurveyId = appState.selectedSurveyId,
+                onRouteChanged = { route -> appState.surveyRoute = route },
+                onSurveySelected = { id -> appState.selectedSurveyId = id },
+                onNavigateToHome = { 
+                    appState.goBackToSurveys()
+                    appState.selectedTab = 0 
+                }
+            ) 
+        },
         TabItem("Ödüller", Icons.Filled.Star) { RewardsScreen(modifier = Modifier.fillMaxSize()) },
-
         TabItem("Profil", Icons.Filled.Person) { ProfileScreen(modifier = Modifier.fillMaxSize()) }
     )
 
@@ -69,8 +103,8 @@ fun MainScreen() {
                     NavigationBarItem(
                         icon = { Icon(tab.icon, contentDescription = tab.title) },
                         label = { Text(tab.title, style = PAGTheme.typography.caption) },
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
+                        selected = appState.selectedTab == index,
+                        onClick = { appState.selectedTab = index },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = PAGTheme.colors.brandLime,
                             selectedTextColor = PAGTheme.colors.brandLime,
@@ -87,7 +121,7 @@ fun MainScreen() {
         androidx.compose.foundation.layout.Box(
             modifier = Modifier.padding(innerPadding).fillMaxSize()
         ) {
-            tabs[selectedTab].content()
+            tabs[appState.selectedTab].content()
         }
     }
 }

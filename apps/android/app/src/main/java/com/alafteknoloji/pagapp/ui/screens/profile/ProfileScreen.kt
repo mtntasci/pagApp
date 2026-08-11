@@ -127,37 +127,6 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             }
 
             Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-
-            // Profile Surveys Section
-            Text(
-                text = "Profil Anketleri",
-                style = PAGTheme.typography.title,
-                color = PAGTheme.colors.textPrimary,
-                modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)
-            )
-            Spacer(modifier = Modifier.height(PAGTheme.spacing.sm))
-            
-            Column(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                Text(
-                    text = "Sana özel anketleri yakalamak için profilini güncel tut. Verdiğin yanıtları istediğin zaman değiştirebilirsin.",
-                    style = PAGTheme.typography.body,
-                    color = PAGTheme.colors.textSecondary
-                )
-                Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(PAGTheme.colors.surfaceSecondary, PAGTheme.radius.md)
-                        .padding(PAGTheme.spacing.md),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(text = "Profil Anketlerimi Gör", style = PAGTheme.typography.heading, color = PAGTheme.colors.brandBlue)
-                    Icon(imageVector = Icons.Filled.Warning, contentDescription = null, tint = PAGTheme.colors.textMuted) // Right arrow placeholder
-                }
-            }
-            
-            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

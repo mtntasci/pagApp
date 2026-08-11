@@ -23,7 +23,7 @@ public struct SurveyCard: View {
                 HStack {
                     PAGBadge(
                         title: survey.ownerName,
-                        iconName: survey.isProfileSurvey ? "person.crop.circle" : "building.2",
+                        iconName: survey.surveyType == .profile ? "person.crop.circle" : "building.2",
                         style: .tag
                     )
                     
@@ -55,12 +55,27 @@ public struct SurveyCard: View {
                         style: .profileScore
                     )
                     
-                    if let rewardPool = survey.rewardPoolText {
+                    
+                    if survey.surveyType == .profile {
                         PAGBadge(
-                            title: rewardPool,
-                            iconName: "gift.fill",
-                            style: .rewardPool
+                            title: "Profil",
+                            iconName: "person.fill",
+                            style: .info
                         )
+                    } else {
+                        if let amount = survey.rewardAmount {
+                            PAGBadge(
+                                title: "\(Int(amount)) TL Ödül Havuzu",
+                                iconName: "gift.fill",
+                                style: .rewardPool
+                            )
+                        } else if let voucher = survey.voucherTitle {
+                            PAGBadge(
+                                title: voucher,
+                                iconName: "gift.fill",
+                                style: .rewardPool
+                            )
+                        }
                     }
                 }
                 .padding(.top, 2)

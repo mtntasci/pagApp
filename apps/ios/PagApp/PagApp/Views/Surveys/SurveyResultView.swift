@@ -62,12 +62,12 @@ public struct SurveyResultView: View {
     }
     
     private func getMockResult(for survey: SurveyMock) -> RewardResultMock {
-        if let pool = survey.rewardPoolText, pool.contains("Hediye Çeki") {
-            return .sampleVoucher
-        } else if survey.rewardPoolText != nil {
-            return .sampleMoney
-        } else {
+        if survey.surveyType == .profile {
             return .sampleProfileOnly
+        } else if survey.voucherTitle != nil {
+            return .sampleVoucher
+        } else {
+            return .sampleMoney
         }
     }
 }

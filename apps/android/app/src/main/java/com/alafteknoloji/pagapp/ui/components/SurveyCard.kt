@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.alafteknoloji.pagapp.models.SurveyType
 import com.alafteknoloji.pagapp.models.SurveyMock
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
@@ -50,7 +51,7 @@ fun SurveyCard(
             ) {
                 PAGBadge(
                     title = survey.ownerName,
-                    icon = if (survey.isProfileSurvey) Icons.Rounded.Person else Icons.Rounded.Star, // Using Star as placeholder for building
+                    icon = if (survey.surveyType == SurveyType.PROFILE) Icons.Rounded.Person else Icons.Rounded.Star, // Using Star as placeholder for building
                     style = PAGBadgeStyle.Tag
                 )
 
@@ -91,12 +92,26 @@ fun SurveyCard(
                     style = PAGBadgeStyle.ProfileScore
                 )
 
-                survey.rewardPoolText?.let { rewardPool ->
+                if (survey.surveyType == SurveyType.PROFILE) {
                     PAGBadge(
-                        title = rewardPool,
-                        icon = Icons.Filled.Star, // Placeholder for gift.fill
-                        style = PAGBadgeStyle.RewardPool
+                        title = "Profil",
+                        icon = Icons.Filled.Person,
+                        style = PAGBadgeStyle.Info
                     )
+                } else {
+                    survey.rewardAmount?.let { amount ->
+                        PAGBadge(
+                            title = "${amount.toInt()} TL Ödül Havuzu",
+                            icon = Icons.Filled.Star, // Placeholder for gift.fill
+                            style = PAGBadgeStyle.RewardPool
+                        )
+                    } ?: survey.voucherTitle?.let { voucher ->
+                        PAGBadge(
+                            title = voucher,
+                            icon = Icons.Filled.Star, // Placeholder for gift.fill
+                            style = PAGBadgeStyle.RewardPool
+                        )
+                    }
                 }
             }
 

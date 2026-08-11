@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.alafteknoloji.pagapp.models.SurveyType
 import com.alafteknoloji.pagapp.models.SurveyMock
 import com.alafteknoloji.pagapp.models.SurveyStatus
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
@@ -58,7 +59,7 @@ fun SurveyDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
                     PAGBadge(
                         title = survey.ownerName,
-                        icon = if (survey.isProfileSurvey) Icons.Filled.Person else Icons.Filled.Star,
+                        icon = if (survey.surveyType == SurveyType.PROFILE) Icons.Filled.Person else Icons.Filled.Star,
                         style = PAGBadgeStyle.Tag
                     )
                     Text(
@@ -107,13 +108,24 @@ fun SurveyDetailScreen(
                             color = PAGTheme.colors.brandLime,
                             modifier = Modifier.weight(1f)
                         )
-                        survey.rewardPoolText?.let { poolText ->
-                            RewardBox(
-                                title = "Ödül Havuzu",
-                                value = poolText,
-                                color = PAGTheme.colors.brandBlue,
-                                modifier = Modifier.weight(1f)
-                            )
+                        
+                        if (survey.surveyType != SurveyType.PROFILE) {
+                            survey.rewardAmount?.let { amount ->
+                                RewardBox(
+                                    title = "Ödül Havuzu",
+                                    value = "${amount.toInt()} TL",
+                                    color = PAGTheme.colors.brandBlue,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            survey.voucherTitle?.let { voucher ->
+                                RewardBox(
+                                    title = "Ödül",
+                                    value = voucher,
+                                    color = PAGTheme.colors.brandBlue,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                 }

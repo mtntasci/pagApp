@@ -4,9 +4,10 @@ public struct SurveysView: View {
     @State private var selectedCategory: SurveyCategory = .forYou
     
     public init() {}
+    @State private var navPath = NavigationPath()
     
     public var body: some View {
-        NavigationStack {
+        NavigationStack(path: $navPath) {
             ZStack {
                 PAGTheme.backgroundPrimary.ignoresSafeArea()
                 
@@ -47,7 +48,9 @@ public struct SurveysView: View {
                                     .padding(.top, 40)
                             } else {
                                 ForEach(filtered) { survey in
-                                    NavigationLink(destination: SurveyDetailView(survey: survey)) {
+                                    Button(action: {
+                                        navPath.append(survey.id)
+                                    }) {
                                         SurveyCard(survey: survey)
                                     }
                                     .buttonStyle(PlainButtonStyle())
@@ -59,6 +62,11 @@ public struct SurveysView: View {
                 }
             }
             .navigationTitle("Anketler")
+            .navigationDestination(for: String.self) { surveyId in
+                if let survey = SurveyMock.sampleList.first(where: { $0.id == surveyId }) {
+                    SurveyDetailView(survey: survey, navPath: $navPath)
+                }
+            }
         }
     }
 }
