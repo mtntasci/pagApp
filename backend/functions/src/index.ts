@@ -15,6 +15,10 @@ import {
   manageVoucherPoolAdminHandler,
   manageStoryBarAdminHandler
 } from './admin';
+import {
+  getBasicProfileHandler,
+  updateBasicProfileHandler
+} from './profile';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -33,6 +37,12 @@ export const getEligibleSurveys = functions.https.onCall(getEligibleSurveysHandl
 export const getSurveyDetail = functions.https.onCall(getSurveyDetailHandler);
 export const submitSurveyResponse = functions.https.onCall(submitSurveyResponseHandler);
 export const updateProfileSurveyResponse = functions.https.onCall(updateProfileSurveyResponseHandler);
+
+/**
+ * Basic User Profile Callable Functions.
+ */
+export const getBasicProfile = functions.https.onCall(getBasicProfileHandler);
+export const updateBasicProfile = functions.https.onCall(updateBasicProfileHandler);
 
 /**
  * User Ranking Foundation Callable Function.
