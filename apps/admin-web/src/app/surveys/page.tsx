@@ -299,15 +299,58 @@ export default function SurveysPage() {
             {/* Step 3: Targeting */}
             {wizardStep === 3 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>3. Adım: Hedef Kitle (Targeting)</h4>
-                <select
-                  value={formTargeting} onChange={(e) => setFormTargeting(e.target.value)}
-                  style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
-                >
-                  <option value="ALL">Herkese Açık (Tüm PAG Kullanıcıları)</option>
-                  <option value="PROFILE">Profil Hedefli (Yaş/Cinsiyet/Medeni Durum)</option>
-                  <option value="LOCATION">Lokasyon Hedefli (İl/İlçe/Mahalle)</option>
-                </select>
+                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>3. Adım: Hedef Kitle (Targeting - Temel Profil Bağlantısı)</h4>
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Hedefleme Tipi</label>
+                  <select
+                    value={formTargeting} onChange={(e) => setFormTargeting(e.target.value)}
+                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                  >
+                    <option value="ALL">Herkese Açık (Tüm PAG Kullanıcıları)</option>
+                    <option value="PROFILE">Temel Profil Hedefli (Yaş / Medeni Durum / Çocuk / Adres)</option>
+                    <option value="LOCATION">Lokasyon Hedefli (İl / İlçe / Mahalle)</option>
+                  </select>
+                </div>
+
+                {formTargeting === 'PROFILE' && (
+                  <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Desteklenen Temel Profil Filtreleri</p>
+                    
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Yaş Aralığı (Min - Max)</label>
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                          <input type="number" placeholder="Min Yaş (Örn: 18)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                          <input type="number" placeholder="Max Yaş (Örn: 45)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Medeni Durum</label>
+                        <select style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                          <option value="ALL">Fark Etmez</option>
+                          <option value="SINGLE">Bekar</option>
+                          <option value="MARRIED">Evli</option>
+                          <option value="DIVORCED">Boşanmış</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Çocuk Durumu</label>
+                        <select style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                          <option value="ALL">Fark Etmez</option>
+                          <option value="HAS_CHILDREN">Çocuğu Var</option>
+                          <option value="NO_CHILDREN">Çocuğu Yok</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Memleket (İl)</label>
+                        <input type="text" placeholder="Örn: Ankara" style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

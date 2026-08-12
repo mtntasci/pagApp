@@ -1,5 +1,6 @@
 import {
   calculateBasicProfileCompletion,
+  calculateAgeFromBirthDate,
   updateBasicProfileHandler
 } from './profile';
 
@@ -10,6 +11,12 @@ describe('Basic User Profile Engine Unit Tests', () => {
       token: { email: 'user@example.com' }
     }
   } as any;
+
+  test('Dynamic age calculation from YYYY-MM-DD', () => {
+    const age = calculateAgeFromBirthDate('1990-05-15');
+    expect(typeof age).toBe('number');
+    expect(age).toBeGreaterThanOrEqual(30);
+  });
 
   test('Completion percentage calculation: Partial profile', () => {
     const partialProfile = {
@@ -63,6 +70,16 @@ describe('Basic User Profile Engine Unit Tests', () => {
     const res = calculateBasicProfileCompletion(fullProfile);
     expect(res.percentage).toBe(100);
     expect(res.completedCategories.length).toBe(5);
+  });
+
+  test('Invalid birthDate format throws invalid-argument error', async () => {
+    await expect(
+      updateBasicProfileHandler({
+        birthDetails: {
+          birthDate: '15/05/1990'
+        }
+      }, fakeAuthContext)
+    ).rejects.toThrow('birthDate must be in YYYY-MM-DD format.');
   });
 
   test('Invalid maritalStatus throws invalid-argument error', async () => {
