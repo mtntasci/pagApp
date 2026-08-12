@@ -8,6 +8,11 @@ node_modules
 .env.*.local
 serviceAccountKey.json
 *.pem
+GoogleService-Info.plist
+google-services.json
+**/GoogleService-Info.plist
+**/google-services.json
+
 
 # Build outputs
 dist

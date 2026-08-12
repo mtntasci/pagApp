@@ -10,6 +10,8 @@
 		0B1FCEBB3ED975C38CE73C46 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = C42F83B5718E3C79EF6F3C78 /* GoogleSignInSwift */; };
 		16FDF28930A82589F2AEE846 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 48A13732652ADFEFB509F6DC /* GoogleSignInSwift */; };
 		38C3643D853117004618E1CC /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = BFE8BAE90311D892706B1B8D /* GoogleService-Info.plist */; };
+		6E9B9519302C2B7400E4C2EB /* (null) in Frameworks */ = {isa = PBXBuildFile; };
+		6E9B951A302C2B7400E4C2EB /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 7F7ED62FD5207F4FAC4F562A /* GoogleSignIn */; };
 		A1EDD5382D171EE77674B44E /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 7D381F11208CEEBF6D4D8379 /* FirebaseAuth */; };
 		EC8548767F99FD22A0EFD492 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 7F7ED62FD5207F4FAC4F562A /* GoogleSignIn */; };
 /* End PBXBuildFile section */
@@ -35,7 +37,7 @@
 		6EA16C6A302B21C400E8DD10 /* PagApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PagApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		6EA16C77302B21C500E8DD10 /* PagAppTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PagAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6EA16C81302B21C500E8DD10 /* PagAppUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = PagAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		BFE8BAE90311D892706B1B8D /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; lastKnownFileType = text.plist; name = "GoogleService-Info.plist"; path = "PagApp/GoogleService-Info.plist"; sourceTree = "<group>"; };
+		BFE8BAE90311D892706B1B8D /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; name = "GoogleService-Info.plist"; path = "PagApp/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -71,8 +73,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EC8548767F99FD22A0EFD492 /* GoogleSignIn in Frameworks */,
+				6E9B9519302C2B7400E4C2EB /* (null) in Frameworks */,
 				16FDF28930A82589F2AEE846 /* GoogleSignInSwift in Frameworks */,
+				6E9B951A302C2B7400E4C2EB /* GoogleSignIn in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -420,11 +423,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PagApp/PagApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NL34RBMGJ5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -436,10 +441,8 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.alafteknoloji.PagApp;
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = com.alafteknoloji.pagapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -456,11 +459,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = PagApp/PagApp.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NL34RBMGJ5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -471,11 +476,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+
 				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-ObjC",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.alafteknoloji.PagApp;
+				OTHER_LDFLAGS = "-ObjC";
+				PRODUCT_BUNDLE_IDENTIFIER = com.alafteknoloji.pagapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

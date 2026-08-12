@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct PagAppApp: App {
@@ -21,7 +22,11 @@ struct PagAppApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(authService)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }
+
 

@@ -1,8 +1,10 @@
 import Foundation
 import Combine
+import FirebaseCore
 import FirebaseAuth
 import GoogleSignIn
 import AuthenticationServices
+
 
 @MainActor
 public final class AuthService: ObservableObject {
@@ -49,7 +51,13 @@ public final class AuthService: ObservableObject {
             return
         }
 
+        if GIDSignIn.sharedInstance.configuration == nil,
+           let clientID = FirebaseApp.app()?.options.clientID {
+            GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        }
+
         GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController) { [weak self] result, error in
+
             guard let self = self else { return }
 
             if let error = error {
