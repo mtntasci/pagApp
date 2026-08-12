@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "1011540629150",
+    "project_id": "pagwebapp",
+    "storage_bucket": "pagwebapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011540629150:android:03c06de3ae8f3a8db5cd8f",
+        "android_client_info": {
+          "package_name": "com.alafteknoloji.pagapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1011540629150-7eoq9e295804jjgtmtl6je7i2c72a7qn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdKrD6E3X8Yaz1GfYZjBE7DBrTytGO2Vg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1011540629150-7eoq9e295804jjgtmtl6je7i2c72a7qn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1011540629150-2q50noosi1n2jlv5135gsaset6l90lnn.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.alafteknoloji.pagapp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

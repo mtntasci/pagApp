@@ -35,17 +35,22 @@ import com.alafteknoloji.pagapp.ui.screens.auth.LoginScreen
 import com.alafteknoloji.pagapp.ui.theme.PAGAppTheme
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
+import androidx.compose.runtime.collectAsState
+import com.alafteknoloji.pagapp.services.AuthService
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             PAGAppTheme {
                 val appState = remember { AppState() }
-                
-                if (appState.showSplash) {
-                    SplashScreen(onSplashFinished = { appState.showSplash = false })
-                } else if (!appState.isAuthenticated) {
-                    LoginScreen(onLoginSuccess = { appState.isAuthenticated = true })
+                val isAuthenticated by AuthService.isAuthenticated.collectAsState()
+                var showSplash by remember { mutableStateOf(true) }
+
+                if (showSplash) {
+                    SplashScreen(onSplashFinished = { showSplash = false })
+                } else if (!isAuthenticated) {
+                    LoginScreen(activity = this)
                 } else {
                     MainScreen(appState)
                 }
@@ -53,6 +58,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 
 data class TabItem(
     val title: String,

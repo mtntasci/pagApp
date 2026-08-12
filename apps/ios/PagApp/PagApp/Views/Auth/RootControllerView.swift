@@ -1,11 +1,11 @@
 import SwiftUI
 
 public struct RootControllerView: View {
+    @EnvironmentObject private var authService: AuthService
     @State private var showSplash = true
-    @State private var isAuthenticated = false
-    
+
     public init() {}
-    
+
     public var body: some View {
         Group {
             if showSplash {
@@ -17,12 +17,8 @@ public struct RootControllerView: View {
                             }
                         }
                     }
-            } else if !isAuthenticated {
-                LoginView(onLogin: {
-                    withAnimation {
-                        isAuthenticated = true
-                    }
-                })
+            } else if !authService.isAuthenticated {
+                LoginView()
             } else {
                 MainTabView()
             }
@@ -32,4 +28,6 @@ public struct RootControllerView: View {
 
 #Preview {
     RootControllerView()
+        .environmentObject(AuthService())
 }
+
