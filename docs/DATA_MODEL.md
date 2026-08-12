@@ -241,61 +241,68 @@ Customer APIs must validate membership server-side.
 
 Client-provided organizationId is not proof of authorization.
 
-9. SURVEYS
+9. SURVEYS & CAMPAIGN CONFIGURATION
 surveys/{surveyId}
 
 Fields:
-
 surveyId
-
-ownerType
-organizationId
-
-surveyType
-
+ownerType ("PAG" | "ORGANIZATION")
+organizationId (optional)
+surveyType ("PAG" | "ORGANIZATION" | "PROFILE")
+category ("Automotive" | "Food" | "Technology" | "Sports" | "General")
 title
 description
 
-status
+status ("DRAFT" | "PENDING_APPROVAL" | "APPROVED" | "SCHEDULED" | "ACTIVE" | "ENDED" | "CANCELLED" | "ARCHIVED")
+isArchived (boolean)
 
 startAt
 endAt
 
-questionCount
+questionCount (max 3)
+questions[]
+questionSnapshot[] (immutable array created at approval time)
 
-targeting
+targeting ({ type: "ALL" | "PROFILE" | "LOCATION", filters: {} })
 
-profileScoreReward
+rewardConfig:
+  profileScoreReward: number
+  financialReward: "NONE" | "MONEY" | "VOUCHER"
+  moneyConfig:
+    distributionModel: "RANKED" | "EQUAL"
+    totalBudget: number
+    rankedRules: [{ rankFrom, rankTo, amount }]
+    equalPerUserAmount: number
+  voucherConfig:
+    poolId: string
+    poolName: string
+    bulkCodes: string[]
 
-rewardDefinitionId
+storyConfig:
+  showInStory: boolean
+  shortLabel: string
+  position: number
+  imageSourceType: "PRESET" | "CUSTOM_URL"
+  imageUrl: string
+  category: string
+
+approvalInfo:
+  submittedBy: string
+  submittedAt: timestamp
+  approvedBy: string
+  approvedAt: timestamp
 
 createdBy
 createdAt
 updatedAt
 publishedAt
 
-Possible:
-
-ownerType:
-PAG
-ORGANIZATION
-
-Survey type:
-
-PROFILE
-PAG
-ORGANIZATION
-
-Status may conceptually include:
-
-DRAFT
-APPROVED
-SCHEDULED
-ACTIVE
-ENDED
-CANCELLED
-
-Exact state machine must be finalized before implementation.
+Status Lifecycle & Immutability:
+- DRAFT: Editable by author / staff.
+- PENDING_APPROVAL: Submitted for Super Admin review.
+- APPROVED / SCHEDULED / ACTIVE: Locked against all mutations by normal users or staff. Question snapshot is frozen.
+- ENDED: Completed survey campaign.
+- ARCHIVED: Soft-deleted item (isArchived = true) preserving full audit & financial ledger history.
 
 10. SURVEY QUESTIONS
 

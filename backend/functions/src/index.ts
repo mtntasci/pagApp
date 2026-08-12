@@ -12,6 +12,9 @@ import { getUserRewardsHandler } from './reward';
 import {
   getAdminDashboardMetricsHandler,
   createOrUpdateSurveyAdminHandler,
+  submitSurveyForApprovalAdminHandler,
+  approveSurveyAdminHandler,
+  archiveSurveyAdminHandler,
   manageVoucherPoolAdminHandler,
   manageStoryBarAdminHandler
 } from './admin';
@@ -59,5 +62,8 @@ export const getUserRewards = functions.https.onCall(getUserRewardsHandler);
  */
 export const getAdminDashboardMetrics = functions.https.onCall(getAdminDashboardMetricsHandler);
 export const createOrUpdateSurveyAdmin = functions.https.onCall(createOrUpdateSurveyAdminHandler);
+export const submitSurveyForApprovalAdmin = functions.https.onCall(submitSurveyForApprovalAdminHandler);
+export const approveSurveyAdmin = functions.https.onCall(approveSurveyAdminHandler);
+export const archiveSurveyAdmin = functions.https.onCall(archiveSurveyAdminHandler);
 export const manageVoucherPoolAdmin = functions.https.onCall(manageVoucherPoolAdminHandler);
 export const manageStoryBarAdmin = functions.https.onCall(manageStoryBarAdminHandler);
