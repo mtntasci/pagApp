@@ -31,9 +31,13 @@ public final class AuthService: ObservableObject {
                 if let user = user {
                     self?.currentUser = AuthUser(user: user)
                     self?.isAuthenticated = true
+                    Task {
+                        await UserService.shared.bootstrapCurrentUser()
+                    }
                 } else {
                     self?.currentUser = nil
                     self?.isAuthenticated = false
+                    UserService.shared.clearUserSession()
                 }
             }
         }
@@ -128,6 +132,7 @@ public final class AuthService: ObservableObject {
             try Auth.auth().signOut()
             self.currentUser = nil
             self.isAuthenticated = false
+            UserService.shared.clearUserSession()
         } catch {
             self.errorMessage = "Çıkış yapılırken bir hata oluştu."
         }

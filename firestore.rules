@@ -1,0 +1,100 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.admin == true;
+    }
+
+    function isOrgMember(orgId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/organizations/$(orgId)/members/$(request.auth.uid));
+    }
+
+    // Users Collection Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Clients CANNOT modify profileScore, registeredAt, status, kycStatus, rewardBalance, profileCompleted
+      allow update: if isOwner(userId) && 
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'profileScore', 
+          'registeredAt', 
+          'status', 
+          'kycStatus', 
+          'rewardBalance',
+          'profileCompleted'
+        ]);
+        
+      allow create, delete: if false; // All creation and deletion managed via trusted backend
+
+      match /profile/current {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // Devices Collection Rules
+    match /devices/{deviceId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Device registration updated via trusted backend or owner
+      allow write: if isAuthenticated() && (
+        (request.resource.data.userId == request.auth.uid) ||
+        (resource != null && resource.data.userId == request.auth.uid)
+      );
+    }
+
+    // Survey Responses: READ by owner/admin, WRITE strictly prohibited for client SDKs
+    match /surveyResponses/{responseId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow write: if false; // All writes via Cloud Functions Admin SDK
+    }
+
+    // Profile Score Ledger: READ by owner, WRITE prohibited for clients
+    match /profileScoreLedgers/{ledgerId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Reward Ledger: READ by owner, WRITE prohibited for clients
+    match /rewardLedger/{eventId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // Voucher Pools & Vouchers: Restricted
+    match /voucherPools/{poolId} {
+      allow read: if isOrgMember(resource.data.orgId) || isAdmin();
+      allow write: if false;
+      
+      match /vouchers/{voucherId} {
+        allow read: if isAuthenticated() && resource.data.assignedUserId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    // Organization Data: Enforces Tenant Isolation
+    match /organizations/{orgId} {
+      allow read: if isOrgMember(orgId) || isAdmin();
+      allow write: if isAdmin();
+      
+      match /members/{memberId} {
+        allow read: if isOrgMember(orgId) || isAdmin();
+        allow write: if isAdmin();
+      }
+    }
+
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

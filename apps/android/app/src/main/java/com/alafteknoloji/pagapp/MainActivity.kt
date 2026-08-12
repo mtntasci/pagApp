@@ -38,21 +38,73 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import androidx.compose.runtime.collectAsState
 import com.alafteknoloji.pagapp.services.AuthService
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.Button
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
+import com.alafteknoloji.pagapp.services.UserService
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             PAGAppTheme {
                 val appState = remember { AppState() }
+                val userService = remember { UserService(applicationContext) }
                 val isAuthenticated by AuthService.isAuthenticated.collectAsState()
+                val isBootstrapping by userService.isBootstrapping.collectAsState()
+                val bootstrapError by userService.bootstrapError.collectAsState()
                 var showSplash by remember { mutableStateOf(true) }
+                val scope = rememberCoroutineScope()
 
-                if (showSplash) {
+                LaunchedEffect(isAuthenticated) {
+                    if (isAuthenticated) {
+                        userService.bootstrapCurrentUser()
+                    } else {
+                        userService.clearUserSession()
+                    }
+                }
+
+                if (showSplash || (isAuthenticated && isBootstrapping)) {
                     SplashScreen(onSplashFinished = { showSplash = false })
                 } else if (!isAuthenticated) {
                     LoginScreen(activity = this)
+                } else if (bootstrapError != null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(PAGTheme.colors.backgroundPrimary)
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = bootstrapError ?: "",
+                            style = PAGTheme.typography.body,
+                            color = PAGTheme.colors.error,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    userService.bootstrapCurrentUser()
+                                }
+                            }
+                        ) {
+                            Text("Yeniden Dene")
+                        }
+                    }
                 } else {
-                    MainScreen(appState)
+                    MainScreen(appState, userService)
                 }
             }
         }
@@ -92,13 +144,14 @@ class AppState {
 }
 
 @Composable
-fun MainScreen(appState: AppState) {
+fun MainScreen(appState: AppState, userService: UserService? = null) {
     
     val tabs = listOf(
         TabItem("Ana Sayfa", Icons.Filled.Home) { 
             HomeScreen(
                 modifier = Modifier.fillMaxSize(),
-                appState = appState
+                appState = appState,
+                userService = userService
             ) 
         },
         TabItem("Anketler", Icons.AutoMirrored.Filled.List) { 
@@ -115,7 +168,7 @@ fun MainScreen(appState: AppState) {
             ) 
         },
         TabItem("Ödüller", Icons.Filled.Star) { RewardsScreen(modifier = Modifier.fillMaxSize()) },
-        TabItem("Profil", Icons.Filled.Person) { ProfileScreen(modifier = Modifier.fillMaxSize()) }
+        TabItem("Profil", Icons.Filled.Person) { ProfileScreen(modifier = Modifier.fillMaxSize(), userService = userService) }
     )
 
     Scaffold(

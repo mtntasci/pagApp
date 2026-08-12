@@ -1,10 +1,22 @@
 import SwiftUI
 
 public struct ProfileScoreCard: View {
+    @ObservedObject private var userService = UserService.shared
     private let user: UserProfileMock
     
     public init(user: UserProfileMock = .sample) {
         self.user = user
+    }
+    
+    private var greetingText: String {
+        if let displayName = userService.currentUser?.displayName, !displayName.isEmpty {
+            return "Merhaba, \(displayName) 👋"
+        }
+        return "Merhaba 👋"
+    }
+    
+    private var currentScore: Int {
+        return userService.currentUser?.profileScore ?? 0
     }
     
     public var body: some View {
@@ -12,7 +24,7 @@ public struct ProfileScoreCard: View {
             // Greeting row
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Merhaba, \(user.name) 👋")
+                    Text(greetingText)
                         .font(PAGTypography.heading)
                         .foregroundColor(Color(hex: "#F8FAFC"))
                     
@@ -44,7 +56,7 @@ public struct ProfileScoreCard: View {
             
             // Score Display
             HStack(alignment: .lastTextBaseline, spacing: PAGSpacing.xxs) {
-                Text(formattedScore(user.profileScore))
+                Text(formattedScore(currentScore))
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(PAGTheme.brandLime)
                 

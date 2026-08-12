@@ -34,14 +34,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.alafteknoloji.pagapp.services.AuthService
+import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
 @Composable
-fun ProfileScreen(modifier: Modifier = Modifier) {
+fun ProfileScreen(
+    modifier: Modifier = Modifier,
+    userService: UserService? = null
+) {
     var notificationsEnabled by remember { mutableStateOf(false) }
-    val user by AuthService.currentUser.collectAsState()
+    val authUser by AuthService.currentUser.collectAsState()
+    val pagUser by (userService?.currentUser ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsState()
+
+    val displayName = pagUser?.displayName ?: authUser?.displayName ?: authUser?.email ?: "Kullanıcı"
+    val email = pagUser?.email ?: authUser?.email
+    val score = pagUser?.profileScore ?: 0
 
     Box(
         modifier = modifier
@@ -67,18 +76,18 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.size(80.dp)
                 )
                 Text(
-                    text = user?.displayName ?: user?.email ?: "Kullanıcı",
+                    text = displayName,
                     style = PAGTheme.typography.title,
                     color = PAGTheme.colors.textPrimary
                 )
-                if (user?.email != null && user?.displayName != null) {
+                if (email != null && email != displayName) {
                     Text(
-                        text = user?.email ?: "",
+                        text = email,
                         style = PAGTheme.typography.caption,
                         color = PAGTheme.colors.textMuted
                     )
                 }
-                PAGBadge(title = "1.250 Profil Puanı", icon = Icons.Filled.Warning, style = PAGBadgeStyle.ProfileScore)
+                PAGBadge(title = "$score Profil Puanı", icon = Icons.Filled.Warning, style = PAGBadgeStyle.ProfileScore)
             }
 
             Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
@@ -135,7 +144,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
                     .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
             ) {
                 VerificationRow("Telefon", "Doğrulandı", true, true)
-                VerificationRow("E-posta", if (user?.email != null) "Doğrulandı" else "Doğrulanmadı", user?.email != null, true)
+                VerificationRow("E-posta", if (email != null) "Doğrulandı" else "Doğrulanmadı", email != null, true)
                 VerificationRow("Kimlik / KYC", "Henüz yapılmadı", false, false)
             }
 

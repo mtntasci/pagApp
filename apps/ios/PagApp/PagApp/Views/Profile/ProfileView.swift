@@ -2,9 +2,31 @@ import SwiftUI
 
 public struct ProfileView: View {
     @EnvironmentObject private var authService: AuthService
+    @StateObject private var userService = UserService.shared
     @State private var notificationsEnabled = false
 
     public init() {}
+
+    private var userDisplayName: String {
+        if let name = userService.currentUser?.displayName, !name.isEmpty {
+            return name
+        }
+        if let name = authService.currentUser?.displayName, !name.isEmpty {
+            return name
+        }
+        if let email = userService.currentUser?.email ?? authService.currentUser?.email {
+            return email
+        }
+        return "Kullanıcı"
+    }
+
+    private var userEmail: String? {
+        return userService.currentUser?.email ?? authService.currentUser?.email
+    }
+
+    private var profileScore: Int {
+        return userService.currentUser?.profileScore ?? 0
+    }
 
     public var body: some View {
         NavigationStack {
@@ -20,17 +42,17 @@ public struct ProfileView: View {
                                 .font(.system(size: 80))
                                 .foregroundColor(PAGTheme.brandMidnight)
 
-                            Text(authService.currentUser?.displayName ?? authService.currentUser?.email ?? "Kullanıcı")
+                            Text(userDisplayName)
                                 .font(PAGTypography.title)
                                 .foregroundColor(PAGTheme.textPrimary)
 
-                            if let email = authService.currentUser?.email, authService.currentUser?.displayName != nil {
+                            if let email = userEmail, email != userDisplayName {
                                 Text(email)
                                     .font(PAGTypography.caption)
                                     .foregroundColor(PAGTheme.textMuted)
                             }
 
-                            PAGBadge(title: "1.250 Profil Puanı", iconName: "bolt.fill", style: .profileScore)
+                            PAGBadge(title: "\(profileScore) Profil Puanı", iconName: "bolt.fill", style: .profileScore)
                         }
                         .padding(.top, PAGSpacing.lg)
 

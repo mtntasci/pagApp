@@ -31,6 +31,46 @@
 
 ## 2. Mobile Client API Contracts
 
+### 2.0 Firebase HTTPS Callable: `bootstrapCurrentUser`
+- **Actor**: Authenticated Mobile User.
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**:
+  ```json
+  {
+    "deviceId": "9C2A4B8F-1234-5678-ABCD-EF0123456789",
+    "platform": "IOS",
+    "appVersion": "1.0.0 (1)"
+  }
+  ```
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "userId": "usr_99812",
+      "email": "user@example.com",
+      "phone": null,
+      "displayName": "Metin",
+      "photoUrl": null,
+      "authProviders": ["GOOGLE"],
+      "status": "ACTIVE",
+      "profileScore": 0,
+      "profileCompleted": false,
+      "phoneVerified": false,
+      "emailVerified": true,
+      "kycStatus": "NOT_STARTED",
+      "activeDeviceId": "9C2A4B8F-1234-5678-ABCD-EF0123456789"
+    }
+  }
+  ```
+- **Backend Behavior**:
+  1. Validates `context.auth` identity.
+  2. Checks if `users/{userId}` exists. If new, creates user with `registeredAt = serverTimestamp()`, `profileScore = 0`, `status = "ACTIVE"`, `kycStatus = "NOT_STARTED"`.
+  3. If existing, syncs mutable identity fields (`displayName`, `photoUrl`, `authProviders`) while preserving `registeredAt`, `profileScore`, `status`, `kycStatus`.
+  4. Upserts active device record in `devices/{deviceId}` and sets `users/{userId}.activeDeviceId`.
+
+---
+
 ### 2.1 GET `/api/v1/user/profile`
 - **Actor**: Authenticated Mobile User.
 - **Auth**: Firebase Auth Token (Bearer).

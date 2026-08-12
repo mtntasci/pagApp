@@ -32,6 +32,10 @@ import com.alafteknoloji.pagapp.models.StoryItemType
 import com.alafteknoloji.pagapp.models.HomeRoute
 import com.alafteknoloji.pagapp.models.StoryMock
 import com.alafteknoloji.pagapp.models.StoryType
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import kotlinx.coroutines.flow.MutableStateFlow
+import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.AppState
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 
@@ -39,8 +43,10 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    appState: AppState
+    appState: AppState,
+    userService: UserService? = null
 ) {
+    val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
     val userProfile = UserProfileMock.sample
     val surveys = SurveyMock.sampleList
     
@@ -87,7 +93,7 @@ fun HomeScreen(
             
             item {
                 Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                    UserProfileCard(userProfile = userProfile)
+                    UserProfileCard(userProfile = userProfile, pagUser = pagUser)
                 }
             }
 
@@ -104,7 +110,14 @@ fun HomeScreen(
 }
 
 @Composable
-private fun UserProfileCard(userProfile: UserProfileMock) {
+private fun UserProfileCard(userProfile: UserProfileMock, pagUser: com.alafteknoloji.pagapp.models.PAGUser? = null) {
+    val greetingText = if (!pagUser?.displayName.isNullOrBlank()) {
+        "Merhaba, ${pagUser?.displayName} 👋"
+    } else {
+        "Merhaba 👋"
+    }
+    val score = pagUser?.profileScore ?: 0
+
     PAGCard(
         modifier = Modifier.fillMaxWidth(),
         backgroundColor = PAGTheme.colors.brandMidnight,
@@ -114,6 +127,12 @@ private fun UserProfileCard(userProfile: UserProfileMock) {
         Column(
             verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md)
         ) {
+            Text(
+                text = greetingText,
+                style = PAGTheme.typography.heading,
+                color = PAGTheme.colors.textPrimary
+            )
+
             Text(
                 text = "Profil Puanı",
                 style = PAGTheme.typography.body,
@@ -125,7 +144,7 @@ private fun UserProfileCard(userProfile: UserProfileMock) {
                 horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xs)
             ) {
                 Text(
-                    text = "${userProfile.profileScore}",
+                    text = "$score",
                     style = PAGTheme.typography.display,
                     color = PAGTheme.colors.brandLime
                 )
