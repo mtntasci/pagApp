@@ -3,7 +3,7 @@
 import './globals.css';
 import Link from 'next/link';
 import React from 'react';
-import { AuthProvider, useAuth } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
 
 function NavigationWrapper({ children }: { children: React.ReactNode }) {

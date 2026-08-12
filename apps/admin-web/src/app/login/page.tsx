@@ -2,7 +2,7 @@
 
 import React, { useState, Suspense } from 'react';
 import { signInWithPopup, signOut } from 'firebase/auth';
-import { auth, googleProvider, appleProvider } from '../../lib/firebase';
+import { auth, googleProvider, appleProvider } from '@/lib/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function LoginContent() {
