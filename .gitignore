@@ -15,8 +15,8 @@ dist-server
 .turbo
 **/.turbo
 
-# TypeScript Build Outputs
-**/lib/
+# TypeScript Build Outputs (backend function build outputs only)
+backend/functions/lib/
 
 # Test & Coverage
 coverage
