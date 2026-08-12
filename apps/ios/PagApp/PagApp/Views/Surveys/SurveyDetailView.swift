@@ -1,13 +1,16 @@
 import SwiftUI
 
 public struct SurveyDetailView: View {
-    public let survey: SurveyMock
-    @Environment(\.dismiss) private var dismiss
-    
+    public let surveyId: String
     @Binding public var navPath: NavigationPath
     
-    public init(survey: SurveyMock, navPath: Binding<NavigationPath>) {
-        self.survey = survey
+    @StateObject private var surveyService = SurveyService.shared
+    @State private var survey: PAGSurvey? = nil
+    @State private var isLoading: Bool = true
+    @State private var errorMessage: String? = nil
+    
+    public init(surveyId: String, navPath: Binding<NavigationPath>) {
+        self.surveyId = surveyId
         self._navPath = navPath
     }
     
@@ -15,105 +18,121 @@ public struct SurveyDetailView: View {
         ZStack {
             PAGTheme.backgroundPrimary.ignoresSafeArea()
             
-            ScrollView {
-                VStack(alignment: .leading, spacing: PAGSpacing.lg) {
+            if isLoading {
+                ProgressView("Anket Yükleniyor...")
+                    .tint(PAGTheme.brandLime)
+            } else if let error = errorMessage {
+                VStack(spacing: PAGSpacing.md) {
+                    Text(error)
+                        .font(PAGTypography.body)
+                        .foregroundColor(PAGTheme.error)
+                        .multilineTextAlignment(.center)
                     
-                    // Header
-                    VStack(alignment: .leading, spacing: PAGSpacing.sm) {
-                        PAGBadge(
-                            title: survey.ownerName,
-                            iconName: survey.surveyType == .profile ? "person.crop.circle" : "building.2",
-                            style: .tag
-                        )
-                        
-                        Text(survey.title)
-                            .font(PAGTypography.display)
-                            .foregroundColor(PAGTheme.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-                        
-                        Text(survey.description)
-                            .font(PAGTypography.body)
-                            .foregroundColor(PAGTheme.textSecondary)
-                    }
-                    
-                    Divider().background(PAGTheme.borderDefault)
-                    
-                    // Details Grid
-                    VStack(spacing: PAGSpacing.md) {
-                        DetailRow(icon: "list.bullet.clipboard", title: "Soru Sayısı", value: "\(survey.questions.count) Soru")
-                        DetailRow(icon: "clock", title: "Yaklaşık Süre", value: "\(survey.estimatedDurationMinutes) Dakika")
-                        if let date = survey.endDate {
-                            DetailRow(icon: "calendar", title: "Son Katılım", value: date.formatted(date: .numeric, time: .omitted))
+                    Button("Tekrar Dene") {
+                        Task {
+                            await loadDetail()
                         }
                     }
-                    
-                    Divider().background(PAGTheme.borderDefault)
-                    
-                    // Rewards
-                    VStack(alignment: .leading, spacing: PAGSpacing.sm) {
-                        Text("Kazanımlar")
-                            .font(PAGTypography.title)
-                            .foregroundColor(PAGTheme.textPrimary)
+                    .font(PAGTypography.heading)
+                    .foregroundColor(PAGTheme.brandLime)
+                }
+                .padding(PAGSpacing.lg)
+            } else if let survey = survey {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: PAGSpacing.lg) {
                         
-                        HStack(spacing: PAGSpacing.md) {
-                            RewardBox(
-                                title: "Profil Puanı",
-                                value: "+\(survey.profileScoreReward)",
-                                color: PAGTheme.brandLime,
-                                icon: "bolt.fill"
+                        // Header
+                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+                            PAGBadge(
+                                title: survey.ownerDisplayName,
+                                iconName: survey.surveyType == "PROFILE" ? "person.crop.circle" : "building.2",
+                                style: .tag
                             )
                             
-                            if survey.surveyType != .profile {
-                                if let amount = survey.rewardAmount {
-                                    RewardBox(
-                                        title: "Ödül Havuzu",
-                                        value: "\(Int(amount)) TL",
-                                        color: PAGTheme.brandBlue,
-                                        icon: "gift.fill"
-                                    )
-                                } else if let voucher = survey.voucherTitle {
-                                    RewardBox(
-                                        title: "Ödül",
-                                        value: voucher,
-                                        color: PAGTheme.brandBlue,
-                                        icon: "gift.fill"
-                                    )
-                                }
+                            Text(survey.title)
+                                .font(PAGTypography.display)
+                                .foregroundColor(PAGTheme.textPrimary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            
+                            Text(survey.description)
+                                .font(PAGTypography.body)
+                                .foregroundColor(PAGTheme.textSecondary)
+                        }
+                        
+                        Divider().background(PAGTheme.borderDefault)
+                        
+                        // Details Grid
+                        VStack(spacing: PAGSpacing.md) {
+                            DetailRow(icon: "list.bullet.clipboard", title: "Soru Sayısı", value: "\(survey.questionCount) Soru (Max 3)")
+                            DetailRow(icon: "clock", title: "Yaklaşık Süre", value: survey.estimatedDurationText)
+                            DetailRow(icon: "shield.checkmark", title: "Anket Tipi", value: survey.surveyType == "PROFILE" ? "Profil Anketi (Güncellenebilir)" : "Standart Anket")
+                        }
+                        
+                        Divider().background(PAGTheme.borderDefault)
+                        
+                        // Rewards
+                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+                            Text("Potansiyel Kazanım")
+                                .font(PAGTypography.title)
+                                .foregroundColor(PAGTheme.textPrimary)
+                            
+                            HStack(spacing: PAGSpacing.md) {
+                                RewardBox(
+                                    title: "Profil Puanı Potansiyeli",
+                                    value: "+\(survey.profileScoreReward)",
+                                    color: PAGTheme.brandLime,
+                                    icon: "bolt.fill"
+                                )
                             }
                         }
+                        
+                        Spacer().frame(height: 100)
                     }
-                    
-                    Spacer().frame(height: 100)
+                    .padding(PAGSpacing.md)
                 }
-                .padding(PAGSpacing.md)
-            }
-            
-            // Bottom Action
-            VStack {
-                Spacer()
-                VStack(spacing: PAGSpacing.sm) {
-                    Text("Hızlı tamamla, ödül sıralamasında öne geç.")
-                        .font(PAGTypography.caption)
-                        .foregroundColor(PAGTheme.textMuted)
-                    
-                    NavigationLink(destination: SurveyFlowView(survey: survey, navPath: $navPath)) {
-                        Text("ANKETE BAŞLA")
-                            .font(PAGTypography.heading)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(survey.status == .active ? PAGTheme.brandLime : PAGTheme.borderDefault)
-                            .foregroundColor(survey.status == .active ? PAGTheme.brandMidnight : PAGTheme.textMuted)
-                            .cornerRadius(PAGRadius.medium)
+                
+                // Bottom Action
+                VStack {
+                    Spacer()
+                    VStack(spacing: PAGSpacing.sm) {
+                        Text(survey.isCompleted ? "Bu anketi daha önce tamamladınız." : "Hızlı tamamla, profil puanı sıralamasında öne geç.")
+                            .font(PAGTypography.caption)
+                            .foregroundColor(PAGTheme.textMuted)
+                        
+                        NavigationLink(destination: SurveyFlowView(survey: survey, navPath: $navPath)) {
+                            Text(survey.surveyType == "PROFILE" && survey.isCompleted ? "ANKETİ GÜNCELLE" : "ANKETE BAŞLA")
+                                .font(PAGTypography.heading)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(survey.status == "ACTIVE" ? PAGTheme.brandLime : PAGTheme.borderDefault)
+                                .foregroundColor(survey.status == "ACTIVE" ? PAGTheme.brandMidnight : PAGTheme.textMuted)
+                                .cornerRadius(PAGRadius.medium)
+                        }
+                        .disabled(survey.status != "ACTIVE" || (survey.isCompleted && survey.surveyType != "PROFILE"))
                     }
-                    .disabled(survey.status != .active)
+                    .padding()
+                    .background(PAGTheme.surfacePrimary.opacity(0.95))
+                    .shadow(color: Color.black.opacity(0.05), radius: 10, y: -5)
                 }
-                .padding()
-                .background(PAGTheme.surfacePrimary.opacity(0.95))
-                .shadow(color: Color.black.opacity(0.05), radius: 10, y: -5)
             }
         }
         .navigationTitle("Anket Detayı")
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadDetail()
+        }
+    }
+    
+    private func loadDetail() async {
+        self.isLoading = true
+        self.errorMessage = nil
+        do {
+            self.survey = try await surveyService.fetchSurveyDetail(surveyId: surveyId)
+            self.isLoading = false
+        } catch {
+            self.errorMessage = "Anket detayları alınamadı."
+            self.isLoading = false
+        }
     }
 }
 

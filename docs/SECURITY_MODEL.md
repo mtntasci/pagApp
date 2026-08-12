@@ -40,7 +40,9 @@
 | **9** | **Unauthorized Admin Operation** | HIGH | Admin endpoints check Custom User Claims (`request.auth.token.admin == true`). Direct client calls without claims fail with 403 Forbidden. |
 | **10** | **Service Account Leakage** | CRITICAL | Service account JSON keys are NEVER committed to git or exposed to web browsers. Next.js environment variables use server-only scoping (`FIREBASE_ADMIN_KEY`). |
 | **11** | **Replay Requests** | MEDIUM | State-mutating endpoints enforce `X-Idempotency-Key` headers stored in Redis/Firestore idempotency cache for 24 hours. |
-| **12** | **Direct Firestore Client Write** | HIGH | Comprehensive Firestore Security Rules reject write attempts on non-whitelisted paths and enforce strict schema field validation. |
+| **13** | **Profile Score Forgery via Client Request Amount** | CRITICAL | Score amounts supplied in client HTTP payloads are ignored; `profileScoreReward` is read strictly from authoritative `surveys/{surveyId}` document inside backend transaction. |
+| **14** | **Concurrent Duplicate Score Claim** | CRITICAL | Score transaction uses pessimistic locking with deterministic ledger key `profileScoreLedgers/SURVEY_{surveyId}_{userId}`. Simultaneous requests process exactly once. |
+| **15** | **Profile Survey Repeated Reward Abuse** | HIGH | `updateProfileSurveyResponse` checks ledger existence; awards `profileScoreReward` ONCE on initial submission and 0 score on subsequent answer updates. |
 
 ---
 

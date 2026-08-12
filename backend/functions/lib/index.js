@@ -33,17 +33,29 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bootstrapCurrentUser = void 0;
+exports.getCurrentUserRanking = exports.updateProfileSurveyResponse = exports.submitSurveyResponse = exports.getSurveyDetail = exports.getEligibleSurveys = exports.bootstrapCurrentUser = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions"));
 const bootstrap_1 = require("./bootstrap");
+const survey_1 = require("./survey");
+const ranking_1 = require("./ranking");
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
     admin.initializeApp();
 }
 /**
  * Trusted Backend User Bootstrap Callable Function.
- * Verifies Auth identity via ID token, creates/syncs user and device records in Firestore.
  */
 exports.bootstrapCurrentUser = functions.https.onCall(bootstrap_1.bootstrapCurrentUserHandler);
+/**
+ * Survey Domain Callable Functions.
+ */
+exports.getEligibleSurveys = functions.https.onCall(survey_1.getEligibleSurveysHandler);
+exports.getSurveyDetail = functions.https.onCall(survey_1.getSurveyDetailHandler);
+exports.submitSurveyResponse = functions.https.onCall(survey_1.submitSurveyResponseHandler);
+exports.updateProfileSurveyResponse = functions.https.onCall(survey_1.updateProfileSurveyResponseHandler);
+/**
+ * User Ranking Foundation Callable Function.
+ */
+exports.getCurrentUserRanking = functions.https.onCall(ranking_1.getCurrentUserRankingHandler);
 //# sourceMappingURL=index.js.map

@@ -15,159 +15,155 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.Divider
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.alafteknoloji.pagapp.models.SurveyType
-import com.alafteknoloji.pagapp.models.SurveyMock
-import com.alafteknoloji.pagapp.models.SurveyStatus
+import com.alafteknoloji.pagapp.models.PAGSurvey
+import com.alafteknoloji.pagapp.services.SurveyService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
-import java.text.DateFormat
 
 @Composable
 fun SurveyDetailScreen(
-    survey: SurveyMock,
-    onStartSurvey: () -> Unit,
-    modifier: Modifier = Modifier
+    surveyId: String,
+    onStartSurvey: (PAGSurvey) -> Unit,
+    modifier: Modifier = Modifier,
+    surveyService: SurveyService = remember { SurveyService() }
 ) {
+    var survey by remember { mutableStateOf<PAGSurvey?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(surveyId) {
+        isLoading = true
+        survey = surveyService.fetchSurveyDetail(surveyId)
+        isLoading = false
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(PAGTheme.colors.backgroundPrimary)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 120.dp) // Leave space for bottom CTA
-        ) {
+        if (isLoading || survey == null) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PAGTheme.colors.brandLime)
+            }
+        } else {
+            val currentSurvey = survey!!
             Column(
-                modifier = Modifier.padding(PAGTheme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.lg)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 120.dp)
             ) {
-                // Header
-                Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
-                    PAGBadge(
-                        title = survey.ownerName,
-                        icon = if (survey.surveyType == SurveyType.PROFILE) Icons.Filled.Person else Icons.Filled.Star,
-                        style = PAGBadgeStyle.Tag
-                    )
-                    Text(
-                        text = survey.title,
-                        style = PAGTheme.typography.display,
-                        color = PAGTheme.colors.textPrimary
-                    )
-                    Text(
-                        text = survey.description,
-                        style = PAGTheme.typography.body,
-                        color = PAGTheme.colors.textSecondary
-                    )
-                }
-
-                Divider(color = PAGTheme.colors.borderDefault)
-
-                // Details Grid
-                Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md)) {
-                    DetailRow(icon = Icons.Filled.List, title = "Soru Sayısı", value = "${survey.questions.size} Soru")
-                    DetailRow(icon = Icons.Filled.List, title = "Yaklaşık Süre", value = "${survey.estimatedDurationMinutes} Dakika")
-                    survey.endDate?.let { date ->
-                        DetailRow(
-                            icon = Icons.Filled.List,
-                            title = "Son Katılım",
-                            value = DateFormat.getDateInstance(DateFormat.MEDIUM).format(date)
+                Column(
+                    modifier = Modifier.padding(PAGTheme.spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.lg)
+                ) {
+                    // Header
+                    Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
+                        PAGBadge(
+                            title = currentSurvey.ownerDisplayName,
+                            icon = if (currentSurvey.surveyType == "PROFILE") Icons.Filled.Person else Icons.Filled.Star,
+                            style = PAGBadgeStyle.Tag
+                        )
+                        Text(
+                            text = currentSurvey.title,
+                            style = PAGTheme.typography.display,
+                            color = PAGTheme.colors.textPrimary
+                        )
+                        Text(
+                            text = currentSurvey.description,
+                            style = PAGTheme.typography.body,
+                            color = PAGTheme.colors.textSecondary
                         )
                     }
-                }
 
-                Divider(color = PAGTheme.colors.borderDefault)
+                    HorizontalDivider(color = PAGTheme.colors.borderDefault)
 
-                // Rewards
-                Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
-                    Text(
-                        text = "Kazanımlar",
-                        style = PAGTheme.typography.title,
-                        color = PAGTheme.colors.textPrimary
-                    )
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        RewardBox(
-                            title = "Profil Puanı",
-                            value = "+${survey.profileScoreReward}",
-                            color = PAGTheme.colors.brandLime,
-                            modifier = Modifier.weight(1f)
+                    // Details Grid
+                    Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md)) {
+                        DetailRow(icon = Icons.AutoMirrored.Filled.List, title = "Soru Sayısı", value = "${currentSurvey.questionCount} Soru (Max 3)")
+                        DetailRow(icon = Icons.AutoMirrored.Filled.List, title = "Yaklaşık Süre", value = currentSurvey.estimatedDurationText)
+                        DetailRow(icon = Icons.Filled.Person, title = "Anket Tipi", value = if (currentSurvey.surveyType == "PROFILE") "Profil Anketi" else "Standart Anket")
+                    }
+
+                    HorizontalDivider(color = PAGTheme.colors.borderDefault)
+
+                    // Rewards
+                    Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
+                        Text(
+                            text = "Potansiyel Kazanım",
+                            style = PAGTheme.typography.title,
+                            color = PAGTheme.colors.textPrimary
                         )
-                        
-                        if (survey.surveyType != SurveyType.PROFILE) {
-                            survey.rewardAmount?.let { amount ->
-                                RewardBox(
-                                    title = "Ödül Havuzu",
-                                    value = "${amount.toInt()} TL",
-                                    color = PAGTheme.colors.brandBlue,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            survey.voucherTitle?.let { voucher ->
-                                RewardBox(
-                                    title = "Ödül",
-                                    value = voucher,
-                                    color = PAGTheme.colors.brandBlue,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            RewardBox(
+                                title = "Profil Puanı Potansiyeli",
+                                value = "+${currentSurvey.profileScoreReward}",
+                                color = PAGTheme.colors.brandLime,
+                                modifier = Modifier.weight(1f)
+                            )
                         }
                     }
                 }
             }
-        }
 
-        // Bottom Action
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .background(PAGTheme.colors.surfacePrimary.copy(alpha = 0.95f))
-                .padding(PAGTheme.spacing.md)
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm),
-                modifier = Modifier.fillMaxWidth()
+            // Bottom Action
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(PAGTheme.colors.surfacePrimary.copy(alpha = 0.95f))
+                    .padding(PAGTheme.spacing.md)
             ) {
-                Text(
-                    text = "Hızlı tamamla, ödül sıralamasında öne geç.",
-                    style = PAGTheme.typography.caption,
-                    color = PAGTheme.colors.textMuted
-                )
-                
-                val isActive = survey.status == SurveyStatus.ACTIVE
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                        .background(
-                            color = if (isActive) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
-                            shape = PAGTheme.radius.md
-                        )
-                        .clickable(enabled = isActive) { onStartSurvey() },
-                    contentAlignment = Alignment.Center
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "ANKETE BAŞLA",
-                        style = PAGTheme.typography.heading,
-                        color = if (isActive) PAGTheme.colors.brandMidnight else PAGTheme.colors.textMuted
+                        text = if (currentSurvey.isCompleted) "Bu anketi daha önce tamamladınız." else "Hızlı tamamla, profil puanı sıralamasında öne geç.",
+                        style = PAGTheme.typography.caption,
+                        color = PAGTheme.colors.textMuted
                     )
+
+                    val canStart = currentSurvey.status == "ACTIVE" && (!currentSurvey.isCompleted || currentSurvey.surveyType == "PROFILE")
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .background(
+                                color = if (canStart) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
+                                shape = PAGTheme.radius.md
+                            )
+                            .clickable(enabled = canStart) { onStartSurvey(currentSurvey) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (currentSurvey.surveyType == "PROFILE" && currentSurvey.isCompleted) "ANKETİ GÜNCELLE" else "ANKETE BAŞLA",
+                            style = PAGTheme.typography.heading,
+                            color = if (canStart) PAGTheme.colors.brandMidnight else PAGTheme.colors.textMuted
+                        )
+                    }
                 }
             }
         }

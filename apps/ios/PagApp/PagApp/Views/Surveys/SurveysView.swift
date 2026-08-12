@@ -1,10 +1,11 @@
 import SwiftUI
 
 public struct SurveysView: View {
-    @State private var selectedCategory: SurveyCategory = .forYou
+    @StateObject private var surveyService = SurveyService.shared
+    @State private var selectedCategory: String = "Sana Uygun"
+    @State private var navPath = NavigationPath()
     
     public init() {}
-    @State private var navPath = NavigationPath()
     
     public var body: some View {
         NavigationStack(path: $navPath) {
@@ -14,13 +15,13 @@ public struct SurveysView: View {
                 VStack(spacing: 0) {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: PAGSpacing.sm) {
-                            ForEach([SurveyCategory.forYou, .new, .completed], id: \.self) { category in
+                            ForEach(["Sana Uygun", "Yeni", "Tamamlanan"], id: \.self) { category in
                                 Button(action: {
                                     withAnimation {
                                         selectedCategory = category
                                     }
                                 }) {
-                                    Text(category.rawValue)
+                                    Text(category)
                                         .font(PAGTypography.bodyLarge)
                                         .padding(.vertical, 8)
                                         .padding(.horizontal, 16)
@@ -38,36 +39,138 @@ public struct SurveysView: View {
                         .padding(.vertical, PAGSpacing.sm)
                     }
                     
-                    ScrollView {
+                    if surveyService.isLoading {
+                        Spacer()
+                        ProgressView()
+                            .tint(PAGTheme.brandLime)
+                        Spacer()
+                    } else if let errorMsg = surveyService.errorMessage {
+                        Spacer()
                         VStack(spacing: PAGSpacing.md) {
-                            let filtered = SurveyMock.sampleList.filter { $0.category == selectedCategory }
-                            if filtered.isEmpty {
-                                Text("Bu kategoride anket bulunmuyor.")
-                                    .font(PAGTypography.body)
-                                    .foregroundColor(PAGTheme.textMuted)
-                                    .padding(.top, 40)
-                            } else {
-                                ForEach(filtered) { survey in
-                                    Button(action: {
-                                        navPath.append(survey.id)
-                                    }) {
-                                        SurveyCard(survey: survey)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
+                            Text(errorMsg)
+                                .font(PAGTypography.body)
+                                .foregroundColor(PAGTheme.error)
+                                .multilineTextAlignment(.center)
+                            
+                            Button(action: {
+                                Task {
+                                    await surveyService.fetchEligibleSurveys()
                                 }
+                            }) {
+                                Text("Yeniden Dene")
+                                    .font(PAGTypography.heading)
+                                    .foregroundColor(PAGTheme.brandMidnight)
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                                    .background(PAGTheme.brandLime)
+                                    .cornerRadius(PAGRadius.medium)
                             }
                         }
-                        .padding(PAGSpacing.md)
+                        .padding(PAGSpacing.lg)
+                        Spacer()
+                    } else {
+                        ScrollView {
+                            VStack(spacing: PAGSpacing.md) {
+                                let filtered = filteredSurveys(category: selectedCategory)
+                                if filtered.isEmpty {
+                                    Text("Bu kategoride anket bulunmuyor.")
+                                        .font(PAGTypography.body)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                        .padding(.top, 40)
+                                } else {
+                                    ForEach(filtered) { survey in
+                                        Button(action: {
+                                            navPath.append(survey.surveyId)
+                                        }) {
+                                            PAGSurveyCardView(survey: survey)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                            }
+                            .padding(PAGSpacing.md)
+                        }
                     }
                 }
             }
             .navigationTitle("Anketler")
             .navigationDestination(for: String.self) { surveyId in
-                if let survey = SurveyMock.sampleList.first(where: { $0.id == surveyId }) {
-                    SurveyDetailView(survey: survey, navPath: $navPath)
-                }
+                SurveyDetailView(surveyId: surveyId, navPath: $navPath)
+            }
+            .task {
+                await surveyService.fetchEligibleSurveys()
             }
         }
+    }
+    
+    private func filteredSurveys(category: String) -> [PAGSurvey] {
+        switch category {
+        case "Tamamlanan":
+            return surveyService.eligibleSurveys.filter { $0.isCompleted }
+        case "Yeni":
+            return surveyService.eligibleSurveys.filter { !$0.isCompleted && $0.surveyType != "PROFILE" }
+        default: // Sana Uygun
+            return surveyService.eligibleSurveys.filter { !$0.isCompleted }
+        }
+    }
+}
+
+public struct PAGSurveyCardView: View {
+    public let survey: PAGSurvey
+    
+    public init(survey: PAGSurvey) {
+        self.survey = survey
+    }
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+            HStack {
+                PAGBadge(
+                    title: survey.ownerDisplayName,
+                    iconName: survey.surveyType == "PROFILE" ? "person.crop.circle" : "building.2",
+                    style: .tag
+                )
+                Spacer()
+                PAGBadge(
+                    title: "+\(survey.profileScoreReward) Puan",
+                    iconName: "bolt.fill",
+                    style: .profileScore
+                )
+            }
+            
+            Text(survey.title)
+                .font(PAGTypography.heading)
+                .foregroundColor(PAGTheme.textPrimary)
+                .multilineTextAlignment(.leading)
+            
+            Text(survey.description)
+                .font(PAGTypography.bodySmall)
+                .foregroundColor(PAGTheme.textSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            
+            HStack {
+                Image(systemName: "clock")
+                    .foregroundColor(PAGTheme.textMuted)
+                Text(survey.estimatedDurationText)
+                    .font(PAGTypography.caption)
+                    .foregroundColor(PAGTheme.textMuted)
+                
+                Spacer()
+                
+                Text(survey.isCompleted ? "Tamamlandı" : "Katıl")
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(survey.isCompleted ? PAGTheme.textMuted : PAGTheme.brandLime)
+            }
+            .padding(.top, 4)
+        }
+        .padding(PAGSpacing.md)
+        .background(PAGTheme.surfacePrimary)
+        .cornerRadius(PAGRadius.medium)
+        .overlay(
+            RoundedRectangle(cornerRadius: PAGRadius.medium)
+                .stroke(PAGTheme.borderDefault, lineWidth: 1)
+        )
     }
 }
 

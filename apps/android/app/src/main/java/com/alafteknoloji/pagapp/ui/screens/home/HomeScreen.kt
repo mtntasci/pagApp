@@ -44,11 +44,17 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 fun HomeScreen(
     modifier: Modifier = Modifier,
     appState: AppState,
-    userService: UserService? = null
+    userService: UserService? = null,
+    surveyService: com.alafteknoloji.pagapp.services.SurveyService = androidx.compose.runtime.remember { com.alafteknoloji.pagapp.services.SurveyService() }
 ) {
     val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
+    val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()
+    val isLoadingSurveys by surveyService.isLoading.collectAsState()
     val userProfile = UserProfileMock.sample
-    val surveys = SurveyMock.sampleList
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        surveyService.fetchEligibleSurveys()
+    }
     
     val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
     val sortedStories = StoryMock.sampleList.filter { it.isActive }.sortedBy { it.position }
@@ -99,8 +105,9 @@ fun HomeScreen(
 
             item {
                 Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                    ActiveSurveysSection(
-                        surveys = surveys,
+                    RealActiveSurveysSection(
+                        surveys = eligibleSurveys,
+                        isLoading = isLoadingSurveys,
                         onNavigateToSurvey = { id -> appState.navigateToSurvey(id) }
                     )
                 }
@@ -173,8 +180,9 @@ private fun UserProfileCard(userProfile: UserProfileMock, pagUser: com.alaftekno
 }
 
 @Composable
-private fun ActiveSurveysSection(
-    surveys: List<SurveyMock>,
+private fun RealActiveSurveysSection(
+    surveys: List<com.alafteknoloji.pagapp.models.PAGSurvey>,
+    isLoading: Boolean,
     onNavigateToSurvey: (String) -> Unit
 ) {
     Column(
@@ -203,14 +211,26 @@ private fun ActiveSurveysSection(
             )
         }
 
-        Column(
-            verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
-        ) {
-            surveys.forEach { survey ->
-                SurveyCard(
-                    survey = survey,
-                    onTakeSurvey = { onNavigateToSurvey(survey.id) }
-                )
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
+                androidx.compose.material3.CircularProgressIndicator(color = PAGTheme.colors.brandLime)
+            }
+        } else if (surveys.isEmpty()) {
+            Text(
+                text = "Şu an katılabileceğiniz aktif anket bulunmuyor.",
+                style = PAGTheme.typography.bodySmall,
+                color = PAGTheme.colors.textMuted
+            )
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
+            ) {
+                surveys.take(5).forEach { survey ->
+                    com.alafteknoloji.pagapp.ui.screens.surveys.PAGSurveyCard(
+                        survey = survey,
+                        onTakeSurvey = { onNavigateToSurvey(survey.surveyId) }
+                    )
+                }
             }
         }
     }

@@ -164,7 +164,8 @@ fun MainScreen(appState: AppState, userService: UserService? = null) {
                 onNavigateToHome = { 
                     appState.goBackToSurveys()
                     appState.selectedTab = 0 
-                }
+                },
+                userService = userService
             ) 
         },
         TabItem("Ödüller", Icons.Filled.Star) { RewardsScreen(modifier = Modifier.fillMaxSize()) },

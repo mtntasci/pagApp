@@ -1,16 +1,19 @@
 import SwiftUI
 
 public struct SurveyResultView: View {
-    public let survey: SurveyMock
+    public let survey: PAGSurvey
+    public let result: PAGSurveyCompletionResult?
     public let onBackToHome: () -> Void
     
-    public init(survey: SurveyMock, onBackToHome: @escaping () -> Void) {
+    public init(survey: PAGSurvey, result: PAGSurveyCompletionResult? = nil, onBackToHome: @escaping () -> Void) {
         self.survey = survey
+        self.result = result
         self.onBackToHome = onBackToHome
     }
     
     public var body: some View {
-        let mockResult = getMockResult(for: survey)
+        let awardedScore = result?.profileScorePotential ?? 0
+        let isDuplicateOrZero = (result?.isDuplicate == true) || (awardedScore <= 0)
         
         ZStack {
             PAGTheme.backgroundPrimary.ignoresSafeArea()
@@ -22,30 +25,30 @@ public struct SurveyResultView: View {
                     .font(.system(size: 80))
                     .foregroundColor(PAGTheme.success)
                 
-                Text("Anket Tamamlandı")
+                Text(isDuplicateOrZero ? "Yanıtınız Güncellendi" : "Anket Tamamlandı")
                     .font(PAGTypography.display)
                     .foregroundColor(PAGTheme.textPrimary)
                 
                 VStack(spacing: PAGSpacing.md) {
-                    if let score = mockResult.profileScore {
-                        Text("+\(score) Profil Puanı")
-                            .font(PAGTypography.display)
+                    Text("Cevaplarınız güvenli şekilde kaydedildi.")
+                        .font(PAGTypography.bodyLarge)
+                        .foregroundColor(PAGTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                    
+                    if awardedScore > 0 {
+                        Text("+\(awardedScore) Profil Puanı Kazanıldı!")
+                            .font(PAGTypography.heading)
                             .foregroundColor(PAGTheme.brandLime)
-                    }
-                    
-                    if let money = mockResult.moneyAmount {
-                        Text("\(String(format: "%.0f", money)) TL kazandın")
-                            .font(PAGTypography.heading)
-                            .foregroundColor(PAGTheme.brandBlue)
-                    }
-                    
-                    if let voucher = mockResult.voucherInfo {
-                        Text("Hediye çeki kazandın:\n\(voucher)")
-                            .font(PAGTypography.heading)
-                            .foregroundColor(PAGTheme.warning)
+                    } else {
+                        Text("Profil cevaplarınız güncellendi. Daha önce kazanılan puanınız korundu.")
+                            .font(PAGTypography.bodySmall)
+                            .foregroundColor(PAGTheme.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                 }
+                .padding()
+                .background(PAGTheme.surfaceSecondary)
+                .cornerRadius(PAGRadius.medium)
                 
                 Spacer()
                 
@@ -59,15 +62,13 @@ public struct SurveyResultView: View {
             .padding(PAGSpacing.lg)
         }
         .navigationBarHidden(true)
-    }
-    
-    private func getMockResult(for survey: SurveyMock) -> RewardResultMock {
-        if survey.surveyType == .profile {
-            return .sampleProfileOnly
-        } else if survey.voucherTitle != nil {
-            return .sampleVoucher
-        } else {
-            return .sampleMoney
+        .onAppear {
+            if let newScore = result?.currentProfileScore {
+                UserService.shared.updateUserProfileScore(newScore: newScore)
+                Task {
+                    await UserService.shared.fetchUserRanking()
+                }
+            }
         }
     }
 }

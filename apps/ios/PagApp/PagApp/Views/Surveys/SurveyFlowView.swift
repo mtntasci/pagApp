@@ -1,33 +1,51 @@
 import SwiftUI
 
 public struct SurveyFlowView: View {
-    public let survey: SurveyMock
-    
-    @Environment(\.dismiss) private var dismiss
-    @State private var currentIndex: Int = 0
-    @State private var selectedOption: String? = nil
-    @State private var showResult = false
-    
+    public let survey: PAGSurvey
     @Binding public var navPath: NavigationPath
     
-    public init(survey: SurveyMock, navPath: Binding<NavigationPath>) {
+    @StateObject private var surveyService = SurveyService.shared
+    @State private var currentIndex: Int = 0
+    @State private var selectedOptionId: String? = nil
+    @State private var answersMap: [String: String] = [:] // questionId -> optionId
+    @State private var isSubmitting: Bool = false
+    @State private var submitError: String? = nil
+    @State private var completionResult: PAGSurveyCompletionResult? = nil
+    
+    public init(survey: PAGSurvey, navPath: Binding<NavigationPath>) {
         self.survey = survey
         self._navPath = navPath
+    }
+    
+    private var questions: [PAGQuestion] {
+        return Array((survey.questions ?? []).prefix(3))
     }
     
     public var body: some View {
         ZStack {
             PAGTheme.backgroundPrimary.ignoresSafeArea()
             
-            if showResult {
-                SurveyResultView(survey: survey, onBackToHome: {
+            if let result = completionResult {
+                SurveyResultView(survey: survey, result: result, onBackToHome: {
                     navPath = NavigationPath()
                 })
-            } else if let question = survey.questions[safe: currentIndex] {
+            } else if questions.isEmpty {
+                VStack(spacing: PAGSpacing.md) {
+                    Text("Bu ankete ait soru bulunamadı.")
+                        .font(PAGTypography.body)
+                        .foregroundColor(PAGTheme.textMuted)
+                    Button("Geri Dön") {
+                        navPath = NavigationPath()
+                    }
+                    .font(PAGTypography.heading)
+                    .foregroundColor(PAGTheme.brandLime)
+                }
+            } else if currentIndex < questions.count {
+                let question = questions[currentIndex]
                 VStack(alignment: .leading, spacing: PAGSpacing.xl) {
                     
                     // Progress
-                    ProgressView(value: Double(currentIndex + 1), total: Double(survey.questions.count))
+                    ProgressView(value: Double(currentIndex + 1), total: Double(questions.count))
                         .progressViewStyle(.linear)
                         .tint(PAGTheme.brandLime)
                     
@@ -36,15 +54,16 @@ public struct SurveyFlowView: View {
                         .foregroundColor(PAGTheme.textPrimary)
                     
                     VStack(spacing: PAGSpacing.sm) {
-                        ForEach(question.options, id: \.self) { option in
-                            let isSelected = selectedOption == option
+                        ForEach(question.options) { option in
+                            let isSelected = selectedOptionId == option.optionId
                             Button(action: {
-                                selectedOption = option
+                                selectedOptionId = option.optionId
+                                answersMap[question.questionId] = option.optionId
                             }) {
                                 HStack {
                                     Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                                         .foregroundColor(isSelected ? PAGTheme.brandLime : PAGTheme.textMuted)
-                                    Text(option)
+                                    Text(option.label)
                                         .font(PAGTypography.bodyLarge)
                                         .foregroundColor(isSelected ? PAGTheme.textPrimary : PAGTheme.textSecondary)
                                     Spacer()
@@ -60,35 +79,57 @@ public struct SurveyFlowView: View {
                         }
                     }
                     
+                    if let err = submitError {
+                        Text(err)
+                            .font(PAGTypography.caption)
+                            .foregroundColor(PAGTheme.error)
+                    }
+                    
                     Spacer()
                     
                     // Bottom CTA
                     PAGButton(
-                        title: currentIndex == survey.questions.count - 1 ? "ANKETİ TAMAMLA" : "DEVAM",
-                        iconName: currentIndex == survey.questions.count - 1 ? "checkmark" : "arrow.right",
+                        title: isSubmitting ? "GÖNDERİLİYOR..." : (currentIndex == questions.count - 1 ? "ANKETİ TAMAMLA" : "DEVAM"),
+                        iconName: currentIndex == questions.count - 1 ? "checkmark" : "arrow.right",
                         style: .primary,
                         action: {
-                            if currentIndex < survey.questions.count - 1 {
+                            if currentIndex < questions.count - 1 {
                                 currentIndex += 1
-                                selectedOption = nil
+                                let nextQId = currentIndex < questions.count ? questions[currentIndex].questionId : ""
+                                selectedOptionId = answersMap[nextQId]
                             } else {
-                                showResult = true
+                                Task {
+                                    await performSubmission()
+                                }
                             }
                         }
                     )
-                    .disabled(selectedOption == nil)
-                    .opacity(selectedOption == nil ? 0.5 : 1.0)
+                    .disabled(selectedOptionId == nil || isSubmitting)
+                    .opacity((selectedOptionId == nil || isSubmitting) ? 0.5 : 1.0)
                 }
                 .padding(PAGSpacing.md)
             }
         }
-        .navigationTitle("Soru \(currentIndex + 1)/\(survey.questions.count)")
+        .navigationTitle("Soru \(currentIndex + 1)/\(questions.count)")
         .navigationBarTitleDisplayMode(.inline)
     }
-}
-
-extension Array {
-    subscript(safe index: Int) -> Element? {
-        return indices.contains(index) ? self[index] : nil
+    
+    private func performSubmission() async {
+        self.isSubmitting = true
+        self.submitError = nil
+        
+        let answerInputs = answersMap.map { PAGAnswerInput(questionId: $0.key, optionId: $0.value) }
+        do {
+            let res = try await surveyService.submitSurveyResponse(
+                surveyId: survey.surveyId,
+                answers: answerInputs,
+                isProfile: survey.surveyType == "PROFILE"
+            )
+            self.completionResult = res
+            self.isSubmitting = false
+        } catch {
+            self.submitError = "Gönderim sırasında hata oluştu. Lütfen tekrar deneyin."
+            self.isSubmitting = false
+        }
     }
 }

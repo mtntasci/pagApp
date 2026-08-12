@@ -101,4 +101,28 @@ describe('Firestore Security Rules', () => {
     const userARef = userADb.collection('users').doc('userA');
     await assertFails(userARef.update({ kycStatus: 'VERIFIED' }));
   });
+
+  test('User A direct client create/edit to profileScoreLedgers is denied', async () => {
+    const userADb = testEnv.authenticatedContext('userA').firestore();
+    const ledgerRef = userADb.collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
+    await assertFails(ledgerRef.set({
+      id: 'SURVEY_srv_1_userA',
+      userId: 'userA',
+      amount: 1000
+    }));
+  });
+
+  test('User B reading User A profileScoreLedgers document is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('profileScoreLedgers').doc('SURVEY_srv_1_userA').set({
+        id: 'SURVEY_srv_1_userA',
+        userId: 'userA',
+        amount: 50
+      });
+    });
+
+    const userBDb = testEnv.authenticatedContext('userB').firestore();
+    const ledgerRef = userBDb.collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
+    await assertFails(ledgerRef.get());
+  });
 });

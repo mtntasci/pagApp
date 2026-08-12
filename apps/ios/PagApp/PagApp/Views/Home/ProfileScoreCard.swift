@@ -36,11 +36,18 @@ public struct ProfileScoreCard: View {
                 Spacer()
                 
                 // Ranking advantage pill
+                let pillText: String = {
+                    if let r = userService.currentRanking {
+                        return "Sıralaman: #\(r.rank) • \(r.percentileText)"
+                    }
+                    return "Öncelikli Sıra"
+                }()
+                
                 HStack(spacing: PAGSpacing.xxxs) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(PAGTheme.brandMidnight)
-                    Text("\(user.rankingAdvantageText) • \(user.rankingPercentileText)")
+                    Text(pillText)
                         .font(PAGTypography.caption.weight(.bold))
                         .foregroundColor(PAGTheme.brandMidnight)
                 }

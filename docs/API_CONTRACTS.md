@@ -99,11 +99,10 @@
 
 ---
 
-### 2.2 GET `/api/v1/surveys/eligible`
+### 2.2 Firebase HTTPS Callable: `getEligibleSurveys`
 - **Actor**: Authenticated Mobile User.
-- **Auth**: Firebase Auth Token (Bearer).
-- **Request Headers**: `Authorization: Bearer <idToken>`
-- **Query Params**: `limit=20`
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**: `{}`
 - **Success Response (200 OK)**:
   ```json
   {
@@ -112,38 +111,72 @@
       "surveys": [
         {
           "surveyId": "srv_ford_01",
-          "title": "Otomotiv Tercihleri & Mobilite Alışkanlıkları",
-          "ownerName": "Ford Turkey",
+          "ownerType": "ORGANIZATION",
+          "organizationId": "org_ford",
           "surveyType": "ORGANIZATION",
-          "profileScoreReward": 50,
-          "rewardPoolText": "1.000 TL Ödül Havuzu",
-          "estimatedDurationMinutes": 2,
-          "startAt": "2026-08-11T09:00:00Z",
-          "endAt": "2026-08-12T09:00:00Z"
+          "title": "Otomotiv Tercihleri & Mobilite Alışkanlıkları",
+          "description": "Ford Turkey ile araç tercihlerinizi paylaşın.",
+          "status": "ACTIVE",
+          "questionCount": 3,
+          "profileScoreReward": 75,
+          "isCompleted": false
         }
       ]
     }
   }
   ```
-- **Backend Behavior**: Filters active surveys by `startAt <= now <= endAt`, verifies user targeting criteria, and excludes surveys the user has already submitted.
+- **Backend Behavior**: Filters active surveys by `status == "ACTIVE"` and `startAt <= now <= endAt`, evaluates targeting criteria, and marks/excludes completed immutable surveys.
 
 ---
 
-### 2.3 POST `/api/v1/surveys/submit`
+### 2.3 Firebase HTTPS Callable: `getSurveyDetail`
 - **Actor**: Authenticated Mobile User.
-- **Auth**: Firebase Auth Token (Bearer).
-- **Request Headers**:
-  - `Authorization: Bearer <idToken>`
-  - `X-Idempotency-Key: SUBMIT_srv_ford_01_usr_99812`
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**: `{ "surveyId": "srv_ford_01" }`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "surveyId": "srv_ford_01",
+      "ownerType": "ORGANIZATION",
+      "organizationId": "org_ford",
+      "surveyType": "ORGANIZATION",
+      "title": "Otomotiv Tercihleri & Mobilite Alışkanlıkları",
+      "description": "Ford Turkey ile araç tercihlerinizi paylaşın.",
+      "status": "ACTIVE",
+      "questionCount": 3,
+      "questions": [
+        {
+          "questionId": "q1",
+          "order": 1,
+          "type": "SINGLE_SELECT",
+          "text": "Hangi araç gövde tipini tercih edersiniz?",
+          "options": [
+            { "optionId": "opt_1", "label": "SUV / Crossover", "order": 1 }
+          ]
+        }
+      ],
+      "profileScoreReward": 75,
+      "isCompleted": false
+    }
+  }
+  ```
+
+---
+
+### 2.4 Firebase HTTPS Callable: `submitSurveyResponse`
+- **Actor**: Authenticated Mobile User.
+- **Auth**: Firebase Auth Token (Callable Context).
 - **Request Body**:
   ```json
   {
     "surveyId": "srv_ford_01",
-    "answers": {
-      "q1": "opt_2",
-      "q2": "opt_1",
-      "q3": "opt_3"
-    }
+    "answers": [
+      { "questionId": "q1", "optionId": "opt_1" },
+      { "questionId": "q2", "optionId": "opt_2" },
+      { "questionId": "q3", "optionId": "opt_3" }
+    ]
   }
   ```
 - **Success Response (200 OK)**:
@@ -151,30 +184,64 @@
   {
     "success": true,
     "data": {
+      "completed": true,
       "responseId": "srv_ford_01_usr_99812",
-      "completedAt": "2026-08-11T12:45:01.123Z",
-      "scoreEarned": 50,
-      "rewardEarned": {
-        "type": "CASH",
-        "amount": 200.00,
-        "rankAchieved": 2
-      },
-      "newProfileScore": 12530,
-      "newRewardBalance": 550.00
+      "surveyId": "srv_ford_01",
+      "completedAt": "2026-08-12T22:45:00.000Z",
+      "isDuplicate": false,
+      "profileScoreAwarded": 75,
+      "currentProfileScore": 255
     }
   }
   ```
 - **Authoritative Backend Behavior**:
-  1. Validates survey active status and targeting eligibility.
-  2. Ensures user has not already submitted (`surveyResponses/srv_ford_01_usr_99812` check).
-  3. Evaluates response submission in a **Firestore Transaction**:
-     - Assigns server execution timestamp `completedAt`.
-     - Calculates survey completion order rank among valid respondents.
-     - Computes monetary/voucher reward entitlement based on rank.
-     - Writes `surveyResponses` document.
-     - Writes `profileScoreLedger` event and increments `user.profileScore`.
-     - Writes `rewardLedger` event and increments `user.rewardBalance`.
-- **Error Codes**: `DUPLICATE_SUBMISSION` (409), `SURVEY_EXPIRED` (410), `AUDIENCE_MISMATCH` (422).
+  1. Validates `context.auth` identity.
+  2. Ensures max 3 questions and option IDs match survey definition.
+  3. Executes inside a Firestore Transaction with deterministic ledger key `profileScoreLedgers/SURVEY_srv_ford_01_userId`.
+  4. If existing: Returns idempotent duplicate result (`profileScoreAwarded: 0`).
+  5. If new: Creates ledger record, increments `users/{userId}.profileScore` by configured `survey.profileScoreReward`, writes `surveyResponses` document with `profileScoreProcessed: true`.
+
+---
+
+### 2.5 Firebase HTTPS Callable: `updateProfileSurveyResponse`
+- **Actor**: Authenticated Mobile User.
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**: Same as `submitSurveyResponse`.
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "completed": true,
+      "responseId": "srv_profile_01_usr_99812",
+      "surveyId": "srv_profile_01",
+      "completedAt": "2026-08-12T22:45:00.000Z",
+      "profileScoreAwarded": 0,
+      "currentProfileScore": 255
+    }
+  }
+  ```
+- **Backend Behavior**: Updates `users/{userId}/profile/current` document attributes and upserts `surveyResponses/srv_profile_01_userId`. Awards configured score ONCE on initial completion; subsequent answer updates award 0 score without modifying past earned Profile Score.
+
+---
+
+### 2.6 Firebase HTTPS Callable: `getCurrentUserRanking`
+- **Actor**: Authenticated Mobile User.
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**: `{}`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "profileScore": 255,
+      "rank": 14,
+      "totalEligibleUsers": 1250,
+      "percentileText": "Top %2"
+    }
+  }
+  ```
+- **Backend Behavior**: Evaluates deterministic user ordering (`profileScore DESC, registeredAt ASC, userId ASC`) and returns exact 1-based rank and calculated percentile.
 
 ---
 

@@ -2,11 +2,19 @@ import Foundation
 import Combine
 import FirebaseFunctions
 
+public struct PAGUserRanking: Codable {
+    public let profileScore: Int
+    public let rank: Int
+    public let totalEligibleUsers: Int
+    public let percentileText: String
+}
+
 @MainActor
 public final class UserService: ObservableObject {
     public static let shared = UserService()
     
     @Published public private(set) var currentUser: PAGUser?
+    @Published public private(set) var currentRanking: PAGUserRanking?
     @Published public private(set) var isBootstrapping: Bool = false
     @Published public private(set) var bootstrapError: String?
     
@@ -53,6 +61,9 @@ public final class UserService: ObservableObject {
                 
                 self.currentUser = user
                 self.isBootstrapping = false
+                
+                // Also fetch user ranking
+                await fetchUserRanking()
             } else {
                 self.bootstrapError = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
                 self.isBootstrapping = false
@@ -64,8 +75,50 @@ public final class UserService: ObservableObject {
         }
     }
     
+    public func fetchUserRanking() async {
+        do {
+            let result = try await Functions.functions().httpsCallable("getCurrentUserRanking").call()
+            if let responseData = result.data as? [String: Any],
+               let success = responseData["success"] as? Bool, success,
+               let rData = responseData["data"] as? [String: Any] {
+                
+                let ranking = PAGUserRanking(
+                    profileScore: rData["profileScore"] as? Int ?? (currentUser?.profileScore ?? 0),
+                    rank: rData["rank"] as? Int ?? 1,
+                    totalEligibleUsers: rData["totalEligibleUsers"] as? Int ?? 1,
+                    percentileText: rData["percentileText"] as? String ?? "Top %1"
+                )
+                self.currentRanking = ranking
+            }
+        } catch {
+            print("getCurrentUserRanking error: \(error.localizedDescription)")
+        }
+    }
+    
+    public func updateUserProfileScore(newScore: Int) {
+        if var user = currentUser {
+            user = PAGUser(
+                userId: user.userId,
+                email: user.email,
+                phone: user.phone,
+                displayName: user.displayName,
+                photoUrl: user.photoUrl,
+                authProviders: user.authProviders,
+                status: user.status,
+                profileScore: newScore,
+                profileCompleted: user.profileCompleted,
+                phoneVerified: user.phoneVerified,
+                emailVerified: user.emailVerified,
+                kycStatus: user.kycStatus,
+                activeDeviceId: user.activeDeviceId
+            )
+            self.currentUser = user
+        }
+    }
+    
     public func clearUserSession() {
         self.currentUser = nil
+        self.currentRanking = nil
         self.isBootstrapping = false
         self.bootstrapError = nil
     }

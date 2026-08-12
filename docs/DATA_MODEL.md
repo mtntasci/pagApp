@@ -416,43 +416,37 @@ trigger/perform score and reward consequences
 Client timestamp is not authoritative.
 
 13. PROFILE SCORE LEDGER
-profileScoreLedger/{scoreEventId}
+profileScoreLedgers/{ledgerId}
 
 Fields:
 
-scoreEventId
+id (Deterministic: SURVEY_{surveyId}_{userId} or PROFILE_SURVEY_{surveyId}_{userId})
 userId
 
-sourceType
-sourceId
+sourceType ("SURVEY" | "PROFILE_SURVEY" | "REWARDED_VIDEO" | "VERIFICATION" | "PARTNER")
+sourceId (surveyId)
 
-scoreDelta
+amount (Authoritative profile score reward)
 
-idempotencyKey
+reason (Survey title or description)
 
-createdAt
-metadata
+createdAt (serverTimestamp)
+metadata ({ surveyType, ownerType })
 
-Possible source types:
+Supported source types in Phase 4:
+- SURVEY (PAG / ORGANIZATION surveys)
+- PROFILE_SURVEY (PROFILE survey initial completion)
 
-SURVEY_COMPLETED
-PROFILE_SURVEY_COMPLETED
-VIDEO_WATCHED
-PHONE_VERIFIED
-KYC_VERIFIED
-PARTNER_VERIFIED
+Future source types:
+- REWARDED_VIDEO
+- VERIFICATION
+- PARTNER
 
-scoreDelta is currently non-negative.
+Idempotency & Transaction Rules:
 
-Idempotency
-
-A logical score award must have a unique deterministic idempotency key.
-
-Example conceptual key:
-
-SURVEY_COMPLETED:{surveyId}:{userId}
-
-Duplicate backend execution must resolve to the same logical score event.
+1. Score ledger documents use a deterministic ID (`SURVEY_${surveyId}_${userId}` or `PROFILE_SURVEY_${surveyId}_${userId}`).
+2. Created strictly inside atomic Firestore Transactions.
+3. Duplicate calls inspect existing ledger; if present, score is NOT incremented (`profileScoreAwarded = 0`).
 
 14. PROFILE SCORE SUMMARY
 
