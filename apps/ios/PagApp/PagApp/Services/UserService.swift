@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import FirebaseFunctions
+import FirebaseAuth
 
 public struct PAGUserRanking: Codable {
     public let profileScore: Int
@@ -62,14 +63,35 @@ public final class UserService: ObservableObject {
                 self.currentUser = user
                 self.isBootstrapping = false
                 
-                // Also fetch user ranking
+                // Fetch user ranking
                 await fetchUserRanking()
-            } else {
-                self.bootstrapError = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
-                self.isBootstrapping = false
+                return
             }
         } catch {
             print("bootstrapCurrentUser error: \(error.localizedDescription)")
+        }
+        
+        // Fallback: If Firebase Auth has an active session, initialize fallback user locally
+        if let firebaseUser = Auth.auth().currentUser {
+            let fallbackUser = PAGUser(
+                userId: firebaseUser.uid,
+                email: firebaseUser.email,
+                phone: firebaseUser.phoneNumber,
+                displayName: firebaseUser.displayName ?? firebaseUser.email?.components(separatedBy: "@").first ?? "PAG Kullanıcısı",
+                photoUrl: firebaseUser.photoURL?.absoluteString,
+                authProviders: firebaseUser.providerData.map { $0.providerID },
+                status: "ACTIVE",
+                profileScore: 0,
+                profileCompleted: false,
+                phoneVerified: firebaseUser.phoneNumber != nil,
+                emailVerified: firebaseUser.isEmailVerified,
+                kycStatus: "NOT_STARTED",
+                activeDeviceId: deviceId
+            )
+            self.currentUser = fallbackUser
+            self.isBootstrapping = false
+            self.bootstrapError = nil
+        } else {
             self.bootstrapError = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
             self.isBootstrapping = false
         }

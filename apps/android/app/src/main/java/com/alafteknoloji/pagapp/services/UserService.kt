@@ -2,6 +2,7 @@ package com.alafteknoloji.pagapp.services
 
 import android.content.Context
 import com.alafteknoloji.pagapp.models.PAGUser
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,19 +74,39 @@ class UserService(private val context: Context) {
                         activeDeviceId = userData["activeDeviceId"] as? String
                     )
                     _currentUser.value = user
+                    _isBootstrapping.value = false
                     fetchUserRanking()
-                } else {
-                    _bootstrapError.value = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
+                    return
                 }
-            } else {
-                _bootstrapError.value = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _bootstrapError.value = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
-        } finally {
-            _isBootstrapping.value = false
         }
+
+        // Fallback using active FirebaseAuth user session
+        val authUser = FirebaseAuth.getInstance().currentUser
+        if (authUser != null) {
+            val fallbackUser = PAGUser(
+                userId = authUser.uid,
+                email = authUser.email,
+                phone = authUser.phoneNumber,
+                displayName = authUser.displayName ?: authUser.email?.substringBefore("@") ?: "PAG Kullanıcısı",
+                photoUrl = authUser.photoUrl?.toString(),
+                authProviders = authUser.providerData.map { it.providerId },
+                status = "ACTIVE",
+                profileScore = 0,
+                profileCompleted = false,
+                phoneVerified = !authUser.phoneNumber.isNullOrEmpty(),
+                emailVerified = authUser.isEmailVerified,
+                kycStatus = "NOT_STARTED",
+                activeDeviceId = deviceService.deviceId
+            )
+            _currentUser.value = fallbackUser
+            _bootstrapError.value = null
+        } else {
+            _bootstrapError.value = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
+        }
+        _isBootstrapping.value = false
     }
 
     suspend fun fetchUserRanking() {
