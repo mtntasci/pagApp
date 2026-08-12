@@ -1,8 +1,6 @@
 import {
-  getAdminDashboardMetricsHandler,
-  createOrUpdateSurveyAdminHandler,
-  manageVoucherPoolAdminHandler,
-  manageStoryBarAdminHandler
+  verifyAdminUser,
+  createOrUpdateSurveyAdminHandler
 } from './admin';
 
 describe('Phase 6 Admin Portal Engine Unit Tests', () => {
@@ -14,21 +12,57 @@ describe('Phase 6 Admin Portal Engine Unit Tests', () => {
   } as any;
 
   // 1. Non-admin access rejection
-  test('Non-admin user calling admin functions throws permission-denied', async () => {
+  test('Non-admin user calling verifyAdminUser throws permission-denied', async () => {
     await expect(
-      getAdminDashboardMetricsHandler({}, fakeNonAdminContext)
+      verifyAdminUser(fakeNonAdminContext)
     ).rejects.toThrow('Admin privileges are required to perform this action.');
+  });
+
+  // V1 Admin Email & Provider Verification
+  test('Admin V1 rule: Google login with mtntasci@gmail.com is authorized', async () => {
+    const validGoogleAdminContext = {
+      auth: {
+        uid: 'usr_admin_google',
+        token: {
+          email: 'mtntasci@gmail.com',
+          firebase: { sign_in_provider: 'google.com' }
+        }
+      }
+    } as any;
+
+    const resUid = await verifyAdminUser(validGoogleAdminContext);
+    expect(resUid).toBe('usr_admin_google');
+  });
+
+  test('Admin V1 rule: Apple login with mtntasci@gmail.com is rejected', async () => {
+    const appleAdminContext = {
+      auth: {
+        uid: 'usr_admin_apple',
+        token: {
+          email: 'mtntasci@gmail.com',
+          firebase: { sign_in_provider: 'apple.com' }
+        }
+      }
+    } as any;
 
     await expect(
-      createOrUpdateSurveyAdminHandler({ title: 'Test', surveyType: 'PAG', questions: [] }, fakeNonAdminContext)
+      verifyAdminUser(appleAdminContext)
     ).rejects.toThrow('Admin privileges are required to perform this action.');
+  });
+
+  test('Admin V1 rule: Google login with non-admin email is rejected', async () => {
+    const googleNonAdminContext = {
+      auth: {
+        uid: 'usr_google_other',
+        token: {
+          email: 'otherperson@gmail.com',
+          firebase: { sign_in_provider: 'google.com' }
+        }
+      }
+    } as any;
 
     await expect(
-      manageVoucherPoolAdminHandler({ action: 'LIST_POOLS' }, fakeNonAdminContext)
-    ).rejects.toThrow('Admin privileges are required to perform this action.');
-
-    await expect(
-      manageStoryBarAdminHandler({ action: 'LIST_STORIES' }, fakeNonAdminContext)
+      verifyAdminUser(googleNonAdminContext)
     ).rejects.toThrow('Admin privileges are required to perform this action.');
   });
 

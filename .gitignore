@@ -1,6 +1,26 @@
 # Dependencies
 node_modules
 .pnpm-store
+**/node_modules
+
+# Next.js & Web Build outputs
+.next
+**/.next
+out
+**/out
+dist
+dist-server
+.vercel
+**/.vercel
+.turbo
+**/.turbo
+
+# TypeScript Build Outputs
+**/lib/
+
+# Test & Coverage
+coverage
+**/coverage
 
 # Local Environment & Secrets
 .env
@@ -12,12 +32,6 @@ GoogleService-Info.plist
 google-services.json
 **/GoogleService-Info.plist
 **/google-services.json
-
-
-# Build outputs
-dist
-dist-server
-.vercel
 
 # Operating System & IDE
 .DS_Store

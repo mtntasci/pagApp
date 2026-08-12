@@ -15,9 +15,19 @@ export const verifyAdminUser = async (context: functions.https.CallableContext, 
   }
 
   const uid = context.auth.uid;
+  const token = context.auth.token || {};
 
-  // Check custom claim first
-  if (context.auth.token && context.auth.token.admin === true) {
+  // Custom claim override (for backwards compatibility / mocks)
+  if (token.admin === true) {
+    return uid;
+  }
+
+  // Phase 1 Admin V1 Rule:
+  // Must be Google provider AND email must be mtntasci@gmail.com
+  const email = (token.email || '').toLowerCase();
+  const provider = token.firebase?.sign_in_provider || '';
+
+  if (email === 'mtntasci@gmail.com' && provider === 'google.com') {
     return uid;
   }
 
@@ -37,7 +47,7 @@ export const verifyAdminUser = async (context: functions.https.CallableContext, 
 
   throw new functions.https.HttpsError(
     'permission-denied',
-    'Admin privileges are required to perform this action.'
+    'Admin privileges are required to perform this action. Only authorized Google admin accounts have access.'
   );
 };
 
