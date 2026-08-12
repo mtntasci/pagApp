@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
 import { processSurveyRewardInTransaction } from './reward';
+import { evaluateSurveyTargeting } from './targeting';
 
 export interface PAGQuestionOption {
   optionId: string;
@@ -93,6 +94,10 @@ export const getEligibleSurveysHandler = async (
 
   const eligibleSurveys: any[] = [];
 
+  // Fetch user's Basic Profile for server-authoritative targeting evaluation
+  const basicProfileSnap = await db.collection('users').doc(uid).collection('profile').doc('basic').get();
+  const userBasicProfile = basicProfileSnap.exists ? basicProfileSnap.data() : null;
+
   surveysSnapshot.docs.forEach((doc) => {
     const survey = doc.data() as PAGSurveyData;
 
@@ -111,12 +116,10 @@ export const getEligibleSurveysHandler = async (
       return;
     }
 
-    if (survey.targeting) {
-      if (survey.targeting.type === 'LOCATION' && survey.targeting.country) {
-        if (survey.targeting.country !== 'TR') {
-          return;
-        }
-      }
+    // Evaluate Basic Profile & Campaign targeting server-side
+    const isTargeted = evaluateSurveyTargeting(survey.targeting as any, userBasicProfile);
+    if (!isTargeted) {
+      return;
     }
 
     eligibleSurveys.push({
@@ -296,6 +299,17 @@ export const submitSurveyResponseHandler = async (
       throw new functions.https.HttpsError(
         'invalid-argument',
         'Use updateProfileSurveyResponse for PROFILE surveys.'
+      );
+    }
+
+    // Verify server-authoritative targeting eligibility
+    const userBasicProfileDoc = await transaction.get(db.collection('users').doc(uid).collection('profile').doc('basic'));
+    const userBasicProfile = userBasicProfileDoc.exists ? userBasicProfileDoc.data() : null;
+    const isEligibleTarget = evaluateSurveyTargeting(survey.targeting as any, userBasicProfile);
+    if (!isEligibleTarget) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'User does not meet the basic profile targeting criteria for this survey.'
       );
     }
 
