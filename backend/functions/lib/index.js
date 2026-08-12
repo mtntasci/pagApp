@@ -33,13 +33,14 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getUserRewards = exports.getCurrentUserRanking = exports.updateProfileSurveyResponse = exports.submitSurveyResponse = exports.getSurveyDetail = exports.getEligibleSurveys = exports.bootstrapCurrentUser = void 0;
+exports.manageStoryBarAdmin = exports.manageVoucherPoolAdmin = exports.createOrUpdateSurveyAdmin = exports.getAdminDashboardMetrics = exports.getUserRewards = exports.getCurrentUserRanking = exports.updateProfileSurveyResponse = exports.submitSurveyResponse = exports.getSurveyDetail = exports.getEligibleSurveys = exports.bootstrapCurrentUser = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions"));
 const bootstrap_1 = require("./bootstrap");
 const survey_1 = require("./survey");
 const ranking_1 = require("./ranking");
 const reward_1 = require("./reward");
+const admin_1 = require("./admin");
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
     admin.initializeApp();
@@ -63,4 +64,11 @@ exports.getCurrentUserRanking = functions.https.onCall(ranking_1.getCurrentUserR
  * User Reward Engine & Vouchers Callable Function.
  */
 exports.getUserRewards = functions.https.onCall(reward_1.getUserRewardsHandler);
+/**
+ * Admin Portal Callable Functions.
+ */
+exports.getAdminDashboardMetrics = functions.https.onCall(admin_1.getAdminDashboardMetricsHandler);
+exports.createOrUpdateSurveyAdmin = functions.https.onCall(admin_1.createOrUpdateSurveyAdminHandler);
+exports.manageVoucherPoolAdmin = functions.https.onCall(admin_1.manageVoucherPoolAdminHandler);
+exports.manageStoryBarAdmin = functions.https.onCall(admin_1.manageStoryBarAdminHandler);
 //# sourceMappingURL=index.js.map

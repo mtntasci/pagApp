@@ -1,0 +1,48 @@
+{
+  "pages": {
+    "/_not-found/page": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/chunks/app/_not-found/page-4c97af5d25c58bb9.js"
+    ],
+    "/layout": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/css/9b9795416546dd70.css",
+      "static/chunks/972-380f0c685af81116.js",
+      "static/chunks/app/layout-a8707bc27648ce3f.js"
+    ],
+    "/stories/page": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/chunks/app/stories/page-9e95035ed980b061.js"
+    ],
+    "/page": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/chunks/app/page-dddf0b9c4b3b13c8.js"
+    ],
+    "/surveys/page": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/chunks/app/surveys/page-5a98cd101108d28f.js"
+    ],
+    "/vouchers/page": [
+      "static/chunks/webpack-8658fdbc42bfbbae.js",
+      "static/chunks/fd9d1056-3eee857bde8f3b06.js",
+      "static/chunks/117-29466efefd806f9c.js",
+      "static/chunks/main-app-1c53ee30aeb0b74d.js",
+      "static/chunks/app/vouchers/page-dbb3b0cb7a6de798.js"
+    ]
+  }
+}

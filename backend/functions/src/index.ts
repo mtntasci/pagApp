@@ -9,6 +9,12 @@ import {
 } from './survey';
 import { getCurrentUserRankingHandler } from './ranking';
 import { getUserRewardsHandler } from './reward';
+import {
+  getAdminDashboardMetricsHandler,
+  createOrUpdateSurveyAdminHandler,
+  manageVoucherPoolAdminHandler,
+  manageStoryBarAdminHandler
+} from './admin';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -37,3 +43,11 @@ export const getCurrentUserRanking = functions.https.onCall(getCurrentUserRankin
  * User Reward Engine & Vouchers Callable Function.
  */
 export const getUserRewards = functions.https.onCall(getUserRewardsHandler);
+
+/**
+ * Admin Portal Callable Functions.
+ */
+export const getAdminDashboardMetrics = functions.https.onCall(getAdminDashboardMetricsHandler);
+export const createOrUpdateSurveyAdmin = functions.https.onCall(createOrUpdateSurveyAdminHandler);
+export const manageVoucherPoolAdmin = functions.https.onCall(manageVoucherPoolAdminHandler);
+export const manageStoryBarAdmin = functions.https.onCall(manageStoryBarAdminHandler);
