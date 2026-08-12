@@ -14,26 +14,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.alafteknoloji.pagapp.services.AuthService
+import com.alafteknoloji.pagapp.services.BasicProfileService
 import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
@@ -42,15 +47,23 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 @Composable
 fun ProfileScreen(
     modifier: Modifier = Modifier,
-    userService: UserService? = null
+    userService: UserService? = null,
+    onNavigateToBasicProfile: () -> Unit = {}
 ) {
-    var notificationsEnabled by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val basicProfileService = remember { BasicProfileService(context) }
+
     val authUser by AuthService.currentUser.collectAsState()
     val pagUser by (userService?.currentUser ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsState()
+    val basicProfileState by basicProfileService.basicProfile.collectAsState()
 
     val displayName = pagUser?.displayName ?: authUser?.displayName ?: authUser?.email ?: "Kullanıcı"
     val email = pagUser?.email ?: authUser?.email
     val score = pagUser?.profileScore ?: 0
+
+    LaunchedEffect(Unit) {
+        basicProfileService.fetchBasicProfile()
+    }
 
     Box(
         modifier = modifier
@@ -69,17 +82,28 @@ fun ProfileScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
             ) {
-                Icon(
-                    imageVector = Icons.Rounded.Person,
-                    contentDescription = null,
-                    tint = PAGTheme.colors.brandMidnight,
-                    modifier = Modifier.size(80.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(PAGTheme.colors.brandMidnight)
+                        .border(2.dp, PAGTheme.colors.brandLime, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Person,
+                        contentDescription = "Avatar",
+                        tint = PAGTheme.colors.brandLime,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
                 Text(
                     text = displayName,
                     style = PAGTheme.typography.title,
                     color = PAGTheme.colors.textPrimary
                 )
+
                 if (email != null && email != displayName) {
                     Text(
                         text = email,
@@ -87,19 +111,22 @@ fun ProfileScreen(
                         color = PAGTheme.colors.textMuted
                     )
                 }
+
                 PAGBadge(title = "$score Profil Puanı", icon = Icons.Filled.Warning, style = PAGBadgeStyle.ProfileScore)
             }
 
             Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
 
-            // Notification Permission
+            // 1. Temel Profil Card
             Column(
                 modifier = Modifier
                     .padding(horizontal = PAGTheme.spacing.md)
                     .fillMaxWidth()
                     .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                    .border(1.dp, PAGTheme.colors.brandLime.copy(alpha = 0.3f), PAGTheme.radius.md)
+                    .clickable { onNavigateToBasicProfile() }
                     .padding(PAGTheme.spacing.md),
-                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
+                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xs)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -107,28 +134,39 @@ fun ProfileScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Bildirim İzinleri",
+                        text = "Temel Profil",
                         style = PAGTheme.typography.heading,
                         color = PAGTheme.colors.textPrimary
                     )
-                    Switch(
-                        checked = notificationsEnabled,
-                        onCheckedChange = { notificationsEnabled = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = PAGTheme.colors.brandLime)
+                    Text(
+                        text = "%${basicProfileState.completionPercentage} Tamamlandı",
+                        style = PAGTheme.typography.caption,
+                        fontWeight = FontWeight.Bold,
+                        color = PAGTheme.colors.brandLime
                     )
                 }
-                if (!notificationsEnabled) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "Bildirimler kapalıysa yeni ve yüksek ödüllü anketlerden zamanında haberdar olamayabilirsin.",
+                        text = "Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.",
                         style = PAGTheme.typography.caption,
-                        color = PAGTheme.colors.textMuted
+                        color = PAGTheme.colors.textMuted,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Düzenle",
+                        tint = PAGTheme.colors.textMuted
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
 
-            // Verifications
+            // 2. Verifications (Doğrulamalar)
             Text(
                 text = "Doğrulamalar",
                 style = PAGTheme.typography.title,
@@ -150,7 +188,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
 
-            // Logout Button
+            // 3. Logout Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,

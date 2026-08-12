@@ -3,7 +3,7 @@ import SwiftUI
 public struct ProfileView: View {
     @EnvironmentObject private var authService: AuthService
     @StateObject private var userService = UserService.shared
-    @State private var notificationsEnabled = false
+    @StateObject private var basicProfileService = BasicProfileService.shared
 
     public init() {}
 
@@ -36,11 +36,33 @@ public struct ProfileView: View {
                 ScrollView {
                     VStack(spacing: PAGSpacing.xl) {
 
-                        // Header
+                        // Header with Google Profile Avatar Photo
                         VStack(spacing: PAGSpacing.sm) {
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 80))
-                                .foregroundColor(PAGTheme.brandMidnight)
+                            if let photoURL = authService.currentUser?.photoURL {
+                                AsyncImage(url: photoURL) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    case .failure, .empty:
+                                        Image(systemName: "person.crop.circle.fill")
+                                            .resizable()
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    @unknown default:
+                                        Image(systemName: "person.crop.circle.fill")
+                                            .resizable()
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    }
+                                }
+                                .frame(width: 84, height: 84)
+                                .clipShape(Circle())
+                                .overlay(Circle().stroke(PAGTheme.brandLime, lineWidth: 2))
+                            } else {
+                                Image(systemName: "person.crop.circle.fill")
+                                    .font(.system(size: 80))
+                                    .foregroundColor(PAGTheme.brandMidnight)
+                            }
 
                             Text(userDisplayName)
                                 .font(PAGTypography.title)
@@ -56,27 +78,39 @@ public struct ProfileView: View {
                         }
                         .padding(.top, PAGSpacing.lg)
 
-                        // Notification Permission UI
-                        VStack(alignment: .leading, spacing: PAGSpacing.md) {
-                            Toggle(isOn: $notificationsEnabled) {
-                                Text("Bildirim İzinleri")
-                                    .font(PAGTypography.heading)
-                                    .foregroundColor(PAGTheme.textPrimary)
-                            }
-                            .tint(PAGTheme.brandLime)
-
-                            if !notificationsEnabled {
-                                Text("Bildirimler kapalıysa yeni ve yüksek ödüllü anketlerden zamanında haberdar olamayabilirsin.")
-                                    .font(PAGTypography.caption)
+                        // 1. Temel Profil Navigation Link Card
+                        NavigationLink(destination: BasicProfileView()) {
+                            HStack(spacing: PAGSpacing.md) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Temel Profil")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                        Spacer()
+                                        Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
+                                            .font(PAGTypography.caption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(PAGTheme.brandLime)
+                                    }
+                                    Text("Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Image(systemName: "chevron.right")
                                     .foregroundColor(PAGTheme.textMuted)
                             }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(PAGTheme.brandLime.opacity(0.3), lineWidth: 1)
+                            )
                         }
-                        .padding()
-                        .background(PAGTheme.surfacePrimary)
-                        .cornerRadius(PAGRadius.medium)
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // Verifications
+                        // 2. Verifications (Doğrulamalar)
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Doğrulamalar")
                                 .font(PAGTypography.title)
@@ -94,7 +128,7 @@ public struct ProfileView: View {
                             .padding(.horizontal, PAGSpacing.md)
                         }
 
-                        // Logout Button
+                        // 3. Logout Button
                         Button(action: {
                             authService.signOut()
                         }) {
@@ -122,6 +156,11 @@ public struct ProfileView: View {
                 }
             }
             .navigationTitle("Profil")
+            .onAppear {
+                Task {
+                    await basicProfileService.fetchBasicProfile()
+                }
+            }
         }
     }
 }
