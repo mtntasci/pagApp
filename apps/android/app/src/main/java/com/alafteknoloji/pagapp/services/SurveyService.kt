@@ -147,6 +147,11 @@ class SurveyService {
         val isDuplicate = dataDict["isDuplicate"] as? Boolean ?: false
         val scoreAwarded = (dataDict["profileScoreAwarded"] as? Number)?.toInt() ?: (dataDict["profileScorePotential"] as? Number)?.toInt() ?: 50
         val currentScore = (dataDict["currentProfileScore"] as? Number)?.toInt()
+        val rewardAwarded = (dataDict["rewardAwarded"] as? Number)?.toInt()
+        val rewardType = dataDict["rewardType"] as? String
+        val voucherCode = dataDict["voucherCode"] as? String
+        val voucherTitle = dataDict["voucherTitle"] as? String
+        val currentRewardBalance = (dataDict["currentRewardBalance"] as? Number)?.toInt()
 
         fetchEligibleSurveys()
 
@@ -156,7 +161,12 @@ class SurveyService {
             completedAt = completedAt,
             isDuplicate = isDuplicate,
             profileScorePotential = scoreAwarded,
-            currentProfileScore = currentScore
+            currentProfileScore = currentScore,
+            rewardAwarded = rewardAwarded,
+            rewardType = rewardType,
+            voucherCode = voucherCode,
+            voucherTitle = voucherTitle,
+            currentRewardBalance = currentRewardBalance
         )
     }
 

@@ -71,6 +71,11 @@ service cloud.firestore {
     }
 
     // Reward Ledger: READ by owner, WRITE prohibited for clients
+    match /rewardLedgers/{ledgerId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
     match /rewardLedger/{eventId} {
       allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow write: if false;

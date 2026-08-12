@@ -1,5 +1,6 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
+import { processSurveyRewardInTransaction } from './reward';
 
 export interface PAGQuestionOption {
   optionId: string;
@@ -370,6 +371,20 @@ export const submitSurveyResponseHandler = async (
       updatedAt: serverNow
     }, { merge: true });
 
+    // Process Financial Reward / Voucher Engine inside the same transaction
+    const rewardResult = await processSurveyRewardInTransaction(
+      transaction,
+      db,
+      uid,
+      surveyId,
+      survey,
+      serverNow
+    );
+
+    const updatedScore = existingUserScore + scoreReward;
+    const existingRewardBalance = userDoc.exists ? (userDoc.data()?.rewardBalance || 0) : 0;
+    const newRewardBalance = existingRewardBalance + (rewardResult.rewardAwarded || 0);
+
     // Write Response Document
     const responsePayload = {
       responseId: responseId,
@@ -382,13 +397,12 @@ export const submitSurveyResponseHandler = async (
       submittedAt: serverNow,
       serverCompletedAt: serverNow,
       profileScoreProcessed: true,
-      rewardProcessed: false,
+      rewardProcessed: rewardResult.rewardType !== 'NONE',
       createdAt: serverNow
     };
     transaction.set(responseRef, responsePayload);
 
-    const updatedScore = existingUserScore + scoreReward;
-    functions.logger.info(`SURVEY_SUBMITTED_WITH_SCORE: user=${uid}, surveyId=${surveyId}, awarded=${scoreReward}, newTotal=${updatedScore}`);
+    functions.logger.info(`SURVEY_SUBMITTED_WITH_SCORE_AND_REWARD: user=${uid}, surveyId=${surveyId}, scoreAwarded=${scoreReward}, rewardAwarded=${rewardResult.rewardAwarded}`);
 
     return {
       success: true,
@@ -399,7 +413,12 @@ export const submitSurveyResponseHandler = async (
         completedAt: new Date().toISOString(),
         isDuplicate: false,
         profileScoreAwarded: scoreReward,
-        currentProfileScore: updatedScore
+        currentProfileScore: updatedScore,
+        rewardAwarded: rewardResult.rewardAwarded,
+        rewardType: rewardResult.rewardType,
+        voucherCode: rewardResult.voucherCode,
+        voucherTitle: rewardResult.voucherTitle,
+        currentRewardBalance: newRewardBalance
       }
     };
   });

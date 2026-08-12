@@ -8,6 +8,7 @@ import {
   updateProfileSurveyResponseHandler
 } from './survey';
 import { getCurrentUserRankingHandler } from './ranking';
+import { getUserRewardsHandler } from './reward';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -31,3 +32,8 @@ export const updateProfileSurveyResponse = functions.https.onCall(updateProfileS
  * User Ranking Foundation Callable Function.
  */
 export const getCurrentUserRanking = functions.https.onCall(getCurrentUserRankingHandler);
+
+/**
+ * User Reward Engine & Vouchers Callable Function.
+ */
+export const getUserRewards = functions.https.onCall(getUserRewardsHandler);

@@ -129,6 +129,11 @@ public class SurveyService: ObservableObject {
         let isDuplicate = dataDict["isDuplicate"] as? Bool
         let scoreAwarded = dataDict["profileScoreAwarded"] as? Int ?? dataDict["profileScorePotential"] as? Int
         let currentScore = dataDict["currentProfileScore"] as? Int
+        let rewardAwarded = dataDict["rewardAwarded"] as? Int
+        let rewardType = dataDict["rewardType"] as? String
+        let voucherCode = dataDict["voucherCode"] as? String
+        let voucherTitle = dataDict["voucherTitle"] as? String
+        let currentRewardBalance = dataDict["currentRewardBalance"] as? Int
         
         await fetchEligibleSurveys()
         
@@ -138,7 +143,12 @@ public class SurveyService: ObservableObject {
             completedAt: completedAt,
             isDuplicate: isDuplicate,
             profileScorePotential: scoreAwarded,
-            currentProfileScore: currentScore
+            currentProfileScore: currentScore,
+            rewardAwarded: rewardAwarded,
+            rewardType: rewardType,
+            voucherCode: voucherCode,
+            voucherTitle: voucherTitle,
+            currentRewardBalance: currentRewardBalance
         )
     }
     

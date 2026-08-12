@@ -12,8 +12,8 @@ public struct SurveyResultView: View {
     }
     
     public var body: some View {
-        let awardedScore = result?.profileScorePotential ?? 0
-        let isDuplicateOrZero = (result?.isDuplicate == true) || (awardedScore <= 0)
+        let scoreAwarded = result?.profileScorePotential ?? 0
+        let isDuplicateOrZero = (result?.isDuplicate == true)
         
         ZStack {
             PAGTheme.backgroundPrimary.ignoresSafeArea()
@@ -35,15 +35,25 @@ public struct SurveyResultView: View {
                         .foregroundColor(PAGTheme.textSecondary)
                         .multilineTextAlignment(.center)
                     
-                    if awardedScore > 0 {
-                        Text("+\(awardedScore) Profil Puanı Kazanıldı!")
+                    if scoreAwarded > 0 {
+                        Text("+\(scoreAwarded) Profil Puanı Kazanıldı!")
                             .font(PAGTypography.heading)
                             .foregroundColor(PAGTheme.brandLime)
-                    } else {
-                        Text("Profil cevaplarınız güncellendi. Daha önce kazanılan puanınız korundu.")
-                            .font(PAGTypography.bodySmall)
-                            .foregroundColor(PAGTheme.textSecondary)
-                            .multilineTextAlignment(.center)
+                    }
+                    
+                    if let rewardAmount = result?.rewardAwarded, rewardAmount > 0, result?.rewardType == "MONEY" {
+                        Text("\(rewardAmount) TL Kazandınız!")
+                            .font(PAGTypography.display)
+                            .foregroundColor(PAGTheme.brandLime)
+                    } else if result?.rewardType == "VOUCHER", let vCode = result?.voucherCode {
+                        VStack(spacing: 4) {
+                            Text("Hediye Çekiniz Hazır!")
+                                .font(PAGTypography.heading)
+                                .foregroundColor(PAGTheme.warning)
+                            Text("KOD: \(vCode)")
+                                .font(PAGTypography.bodyLarge)
+                                .foregroundColor(PAGTheme.brandLime)
+                        }
                     }
                 }
                 .padding()
@@ -67,6 +77,7 @@ public struct SurveyResultView: View {
                 UserService.shared.updateUserProfileScore(newScore: newScore)
                 Task {
                     await UserService.shared.fetchUserRanking()
+                    await RewardService.shared.fetchUserRewards()
                 }
             }
         }

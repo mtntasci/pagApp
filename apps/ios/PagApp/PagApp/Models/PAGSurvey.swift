@@ -111,13 +111,35 @@ public struct PAGSurveyCompletionResult: Codable {
     public let isDuplicate: Bool?
     public let profileScorePotential: Int?
     public let currentProfileScore: Int?
+    public let rewardAwarded: Int?
+    public let rewardType: String?
+    public let voucherCode: String?
+    public let voucherTitle: String?
+    public let currentRewardBalance: Int?
     
-    public init(responseId: String, surveyId: String, completedAt: String, isDuplicate: Bool? = nil, profileScorePotential: Int? = nil, currentProfileScore: Int? = nil) {
+    public init(
+        responseId: String,
+        surveyId: String,
+        completedAt: String,
+        isDuplicate: Bool? = nil,
+        profileScorePotential: Int? = nil,
+        currentProfileScore: Int? = nil,
+        rewardAwarded: Int? = nil,
+        rewardType: String? = nil,
+        voucherCode: String? = nil,
+        voucherTitle: String? = nil,
+        currentRewardBalance: Int? = nil
+    ) {
         self.responseId = responseId
         self.surveyId = surveyId
         self.completedAt = completedAt
         self.isDuplicate = isDuplicate
         self.profileScorePotential = profileScorePotential
         self.currentProfileScore = currentProfileScore
+        self.rewardAwarded = rewardAwarded
+        self.rewardType = rewardType
+        self.voucherCode = voucherCode
+        self.voucherTitle = voucherTitle
+        self.currentRewardBalance = currentRewardBalance
     }
 }

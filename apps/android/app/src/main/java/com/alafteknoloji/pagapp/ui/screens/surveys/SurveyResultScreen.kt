@@ -37,7 +37,10 @@ fun SurveyResultScreen(
     userService: UserService? = null
 ) {
     val awardedScore = completionResult?.profileScorePotential ?: 0
-    val isDuplicateOrZero = (completionResult?.isDuplicate == true) || (awardedScore <= 0)
+    val isDuplicateOrZero = (completionResult?.isDuplicate == true)
+    val rewardAmount = completionResult?.rewardAwarded ?: 0
+    val rewardType = completionResult?.rewardType
+    val voucherCode = completionResult?.voucherCode
 
     LaunchedEffect(completionResult) {
         val newScore = completionResult?.currentProfileScore
@@ -98,13 +101,28 @@ fun SurveyResultScreen(
                         color = PAGTheme.colors.brandLime,
                         textAlign = TextAlign.Center
                     )
-                } else {
+                }
+
+                if (rewardAmount > 0 && rewardType == "MONEY") {
                     Text(
-                        text = "Profil cevaplarınız güncellendi. Daha önce kazanılan puanınız korundu.",
-                        style = PAGTheme.typography.bodySmall,
-                        color = PAGTheme.colors.textSecondary,
+                        text = "$rewardAmount TL Kazandınız!",
+                        style = PAGTheme.typography.display,
+                        color = PAGTheme.colors.brandLime,
                         textAlign = TextAlign.Center
                     )
+                } else if (rewardType == "VOUCHER" && voucherCode != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Hediye Çekiniz Hazır!",
+                            style = PAGTheme.typography.heading,
+                            color = PAGTheme.colors.warning
+                        )
+                        Text(
+                            text = "KOD: $voucherCode",
+                            style = PAGTheme.typography.bodyLarge,
+                            color = PAGTheme.colors.brandLime
+                        )
+                    }
                 }
             }
         }

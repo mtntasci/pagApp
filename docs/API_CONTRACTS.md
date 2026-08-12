@@ -245,6 +245,45 @@
 
 ---
 
+### 2.7 Firebase HTTPS Callable: `getUserRewards`
+- **Actor**: Authenticated Mobile User.
+- **Auth**: Firebase Auth Token (Callable Context).
+- **Request Body**: `{}`
+- **Success Response (200 OK)**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "rewardBalance": 320,
+      "ledgers": [
+        {
+          "id": "REWARD_srv_ford_01_usr_99812",
+          "surveyId": "srv_ford_01",
+          "type": "MONEY",
+          "amount": 200,
+          "reason": "Otomotiv Tercihleri & Mobilite",
+          "createdAt": "2026-08-12T22:45:00.000Z"
+        }
+      ],
+      "vouchers": [
+        {
+          "voucherId": "v_mcd_991",
+          "poolId": "pool_mcdonalds",
+          "title": "McDonald's 100 TL Menü Çeki",
+          "code": "MCD-9981-PAG",
+          "valueAmount": 100,
+          "status": "ASSIGNED",
+          "assignedAt": "2026-08-12T22:45:00.000Z",
+          "expiresAt": "2026-12-31T23:59:59.000Z"
+        }
+      ]
+    }
+  }
+  ```
+- **Backend Behavior**: Returns user's current `rewardBalance`, immutable reward ledger history, and assigned voucher codes. Client cannot read unassigned vouchers.
+
+---
+
 ### 2.4 GET `/api/v1/user/score`
 - **Actor**: Authenticated Mobile User.
 - **Auth**: Firebase Auth Token (Bearer).

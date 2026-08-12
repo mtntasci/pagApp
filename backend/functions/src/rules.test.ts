@@ -125,4 +125,31 @@ describe('Firestore Security Rules', () => {
     const ledgerRef = userBDb.collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
     await assertFails(ledgerRef.get());
   });
+
+  test('User A direct client write to rewardBalance is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('users').doc('userA').set({
+        userId: 'userA',
+        rewardBalance: 0
+      });
+    });
+
+    const userADb = testEnv.authenticatedContext('userA').firestore();
+    const userARef = userADb.collection('users').doc('userA');
+    await assertFails(userARef.update({ rewardBalance: 500 }));
+  });
+
+  test('User A direct client read of unassigned voucher is denied', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context.firestore().collection('voucherPools').doc('pool1').collection('vouchers').doc('v_free').set({
+        code: 'SECRET_VOUCHER_123',
+        status: 'AVAILABLE',
+        assignedUserId: null
+      });
+    });
+
+    const userADb = testEnv.authenticatedContext('userA').firestore();
+    const vRef = userADb.collection('voucherPools').doc('pool1').collection('vouchers').doc('v_free');
+    await assertFails(vRef.get());
+  });
 });

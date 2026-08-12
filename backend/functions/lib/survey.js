@@ -36,6 +36,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.updateProfileSurveyResponseHandler = exports.submitSurveyResponseHandler = exports.getSurveyDetailHandler = exports.getEligibleSurveysHandler = void 0;
 const admin = __importStar(require("firebase-admin"));
 const functions = __importStar(require("firebase-functions"));
+const reward_1 = require("./reward");
 // --------------------------------------------------
 // 1. GET ELIGIBLE SURVEYS
 // --------------------------------------------------
@@ -260,6 +261,11 @@ const submitSurveyResponseHandler = async (data, context) => {
             profileScore: admin.firestore.FieldValue.increment(scoreReward),
             updatedAt: serverNow
         }, { merge: true });
+        // Process Financial Reward / Voucher Engine inside the same transaction
+        const rewardResult = await (0, reward_1.processSurveyRewardInTransaction)(transaction, db, uid, surveyId, survey, serverNow);
+        const updatedScore = existingUserScore + scoreReward;
+        const existingRewardBalance = userDoc.exists ? (userDoc.data()?.rewardBalance || 0) : 0;
+        const newRewardBalance = existingRewardBalance + (rewardResult.rewardAwarded || 0);
         // Write Response Document
         const responsePayload = {
             responseId: responseId,
@@ -272,12 +278,11 @@ const submitSurveyResponseHandler = async (data, context) => {
             submittedAt: serverNow,
             serverCompletedAt: serverNow,
             profileScoreProcessed: true,
-            rewardProcessed: false,
+            rewardProcessed: rewardResult.rewardType !== 'NONE',
             createdAt: serverNow
         };
         transaction.set(responseRef, responsePayload);
-        const updatedScore = existingUserScore + scoreReward;
-        functions.logger.info(`SURVEY_SUBMITTED_WITH_SCORE: user=${uid}, surveyId=${surveyId}, awarded=${scoreReward}, newTotal=${updatedScore}`);
+        functions.logger.info(`SURVEY_SUBMITTED_WITH_SCORE_AND_REWARD: user=${uid}, surveyId=${surveyId}, scoreAwarded=${scoreReward}, rewardAwarded=${rewardResult.rewardAwarded}`);
         return {
             success: true,
             data: {
@@ -287,7 +292,12 @@ const submitSurveyResponseHandler = async (data, context) => {
                 completedAt: new Date().toISOString(),
                 isDuplicate: false,
                 profileScoreAwarded: scoreReward,
-                currentProfileScore: updatedScore
+                currentProfileScore: updatedScore,
+                rewardAwarded: rewardResult.rewardAwarded,
+                rewardType: rewardResult.rewardType,
+                voucherCode: rewardResult.voucherCode,
+                voucherTitle: rewardResult.voucherTitle,
+                currentRewardBalance: newRewardBalance
             }
         };
     });

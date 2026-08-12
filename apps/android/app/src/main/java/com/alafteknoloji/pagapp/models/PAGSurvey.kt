@@ -59,5 +59,10 @@ data class PAGSurveyCompletionResult(
     val completedAt: String,
     val isDuplicate: Boolean? = false,
     val profileScorePotential: Int? = 50,
-    val currentProfileScore: Int? = null
+    val currentProfileScore: Int? = null,
+    val rewardAwarded: Int? = null,
+    val rewardType: String? = null,
+    val voucherCode: String? = null,
+    val voucherTitle: String? = null,
+    val currentRewardBalance: Int? = null
 )
