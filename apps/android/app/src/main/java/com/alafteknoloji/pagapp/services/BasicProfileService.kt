@@ -42,84 +42,40 @@ class BasicProfileService(private val context: Context) {
     }
 
     private fun loadLocationsDataset() {
-        val sampleCities = listOf(
-            PAGCity(
-                id = "34",
-                name = "İstanbul",
-                districts = listOf(
-                    PAGDistrict(
-                        id = "3401",
-                        name = "Kadıköy",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("340101", "Caferağa Mah."),
-                            PAGNeighborhood("340102", "Moda Mah.")
-                        )
-                    ),
-                    PAGDistrict(
-                        id = "3402",
-                        name = "Beşiktaş",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("340201", "Bebek Mah."),
-                            PAGNeighborhood("340202", "Etiler Mah.")
-                        )
-                    )
-                )
-            ),
-            PAGCity(
-                id = "06",
-                name = "Ankara",
-                districts = listOf(
-                    PAGDistrict(
-                        id = "0601",
-                        name = "Çankaya",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("060101", "Kızılay Mah.")
-                        )
-                    ),
-                    PAGDistrict(
-                        id = "0602",
-                        name = "Yenimahalle",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("060201", "Batıkent Mah.")
-                        )
-                    )
-                )
-            ),
-            PAGCity(
-                id = "35",
-                name = "İzmir",
-                districts = listOf(
-                    PAGDistrict(
-                        id = "3501",
-                        name = "Konak",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("350101", "Alsancak Mah.")
-                        )
-                    ),
-                    PAGDistrict(
-                        id = "3502",
-                        name = "Karşıyaka",
-                        neighborhoods = listOf(
-                            PAGNeighborhood("350201", "Bostanlı Mah.")
-                        )
-                    )
-                )
-            )
-        )
-        val processedCities = sampleCities.map { city ->
-            city.copy(
-                districts = city.districts.map { district ->
-                    if (district.neighborhoods.orEmpty().isEmpty()) {
-                        district.copy(
-                            neighborhoods = listOf(
-                                PAGNeighborhood(id = "${district.id}01", name = "Merkez Mah.")
-                            )
-                        )
-                    } else district
+        try {
+            val jsonString = context.assets.open("turkey-locations.json").bufferedReader().use { it.readText() }
+            val root = org.json.JSONObject(jsonString)
+            val citiesArray = root.getJSONArray("cities")
+            val cityList = mutableListOf<PAGCity>()
+            for (i in 0 until citiesArray.length()) {
+                val cObj = citiesArray.getJSONObject(i)
+                val cId = cObj.getString("id")
+                val cName = cObj.getString("name")
+                val dArray = cObj.getJSONArray("districts")
+                val distList = mutableListOf<PAGDistrict>()
+                for (j in 0 until dArray.length()) {
+                    val dObj = dArray.getJSONObject(j)
+                    val dId = dObj.getString("id")
+                    val dName = dObj.getString("name")
+                    val nArray = dObj.optJSONArray("neighborhoods")
+                    val nhList = mutableListOf<PAGNeighborhood>()
+                    if (nArray != null) {
+                        for (k in 0 until nArray.length()) {
+                            val nObj = nArray.getJSONObject(k)
+                            nhList.add(PAGNeighborhood(nObj.getString("id"), nObj.getString("name")))
+                        }
+                    }
+                    if (nhList.isEmpty()) {
+                        nhList.add(PAGNeighborhood("${dId}01", "Merkez Mah."))
+                    }
+                    distList.add(PAGDistrict(dId, dName, nhList))
                 }
-            )
+                cityList.add(PAGCity(cId, cName, distList))
+            }
+            _locations.value = cityList
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
-        _locations.value = processedCities
     }
 
     suspend fun fetchBasicProfile() {
