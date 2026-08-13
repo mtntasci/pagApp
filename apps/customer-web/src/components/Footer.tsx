@@ -40,15 +40,15 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* 2. Firmalar Links */}
+          {/* 2. Kurumsal Çözümler Links */}
           <div>
-            <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Firmalar</h4>
+            <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Kurumsal Çözümler</h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <li><Link href="/firmalar" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>Firmalar İçin</Link></li>
-              <li><Link href="/firma-basvuru">Firma Başvurusu</Link></li>
+              <li><Link href="/firmalar" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>Kurumsal</Link></li>
+              <li><Link href="/firma-basvuru">Kurumsal Başvuru</Link></li>
               <li>
                 <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)' }}>
-                  🏢 Firma Girişi (Portal)
+                  🏢 Kurumsal Giriş (Portal)
                 </a>
               </li>
             </ul>

@@ -201,7 +201,7 @@ function LoginContent() {
           </button>
         </form>
 
-        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <button
             type="button"
             onClick={handleForgotPassword}
@@ -217,6 +217,28 @@ function LoginContent() {
           >
             Şifremi Unuttum
           </button>
+
+          <div style={{ paddingTop: '16px', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+              Kurumsal hesabınız yok mu?
+            </p>
+            <a
+              href="https://www.pagapp.com.tr/firma-basvuru"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: 'var(--brand-lime)',
+                textDecoration: 'none'
+              }}
+            >
+              Kurumsal Başvuru Yap →
+            </a>
+          </div>
         </div>
       </div>
     </div>

@@ -41,8 +41,20 @@ export default function Header() {
           <Link href="/#oduller" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
             Ödüller
           </Link>
-          <Link href="/firmalar" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
-            Firmalar İçin
+          <Link
+            href="/firmalar"
+            style={{
+              color: '#FFFFFF',
+              fontSize: '14px',
+              fontWeight: 600,
+              padding: '6px 14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              borderRadius: '8px',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            Kurumsal
           </Link>
           <Link href="/iletisim" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
             İletişim
@@ -58,7 +70,7 @@ export default function Header() {
             className="btn-outline"
             style={{ padding: '8px 16px', fontSize: '13px' }}
           >
-            🏢 Firma Girişi
+            🏢 Kurumsal Giriş
           </a>
 
           {/* Mobile Menu Toggle Button */}
@@ -99,10 +111,10 @@ export default function Header() {
             Ödüller
           </Link>
           <Link href="/firmalar" onClick={() => setMobileOpen(false)} style={{ color: 'var(--brand-lime)', fontSize: '15px', fontWeight: 600 }}>
-            Firmalar İçin
+            Kurumsal
           </Link>
           <Link href="/firma-basvuru" onClick={() => setMobileOpen(false)} style={{ color: 'white', fontSize: '15px', fontWeight: 500 }}>
-            Firma Başvurusu
+            Kurumsal Başvuru
           </Link>
           <Link href="/iletisim" onClick={() => setMobileOpen(false)} style={{ color: 'white', fontSize: '15px', fontWeight: 500 }}>
             İletişim

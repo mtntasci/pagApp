@@ -37,7 +37,7 @@ export default function HomePage() {
                   Nasıl Çalışır? Detayları Gör ↓
                 </a>
                 <Link href="/firmalar" className="btn-outline" style={{ padding: '14px 28px', fontSize: '15px' }}>
-                  🏢 Kurumsal / Firmalar İçin
+                  🏢 Kurumsal
                 </Link>
               </div>
 
@@ -241,10 +241,10 @@ export default function HomePage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <Link href="/firmalar" className="btn-lime" style={{ textAlign: 'center' }}>
-                  Firmalar İçin Detaylar →
+                  Kurumsal Detaylar →
                 </Link>
                 <Link href="/firma-basvuru" className="btn-outline" style={{ textAlign: 'center' }}>
-                  Firma Başvurusu Yap
+                  Kurumsal Başvuru Yap
                 </Link>
               </div>
             </div>

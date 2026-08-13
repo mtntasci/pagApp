@@ -2232,3 +2232,16 @@ Example:
 None.
 
 Keep PAG focused on the approved product.
+
+
+## WEB FAVICON RULE
+
+Every PAG web application MUST use the official PAG brand icon as its favicon.
+
+A web application is not considered complete without a working favicon.
+
+- Use the approved PAG brand asset from the repository as the source of truth.
+- Never use framework defaults, placeholders, text-generated icons, or recreated logos.
+- Configure the favicon using the framework's proper metadata/icon mechanism.
+- Verify the favicon is present in the generated application output.
+- This rule applies to all current and future PAG websites, portals, dashboards, and web applications.

@@ -28,7 +28,7 @@ export default function FirmalarPage() {
                 🚀 PAG ile Çalışmak İstiyorum
               </Link>
               <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" className="btn-outline">
-                🏢 Firma Girişi (Portal)
+                🏢 Kurumsal Giriş (Portal)
               </a>
             </div>
           </div>
@@ -136,10 +136,10 @@ export default function FirmalarPage() {
             </p>
             <div style={{ display: 'flex', justifyContent: 'center', gap: '16px' }}>
               <Link href="/firma-basvuru" className="btn-lime">
-                Firma Başvuru Formunu Doldur →
+                Kurumsal Başvuru Formunu Doldur →
               </Link>
               <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" className="btn-outline">
-                Portal Girişi
+                Kurumsal Giriş
               </a>
             </div>
           </div>

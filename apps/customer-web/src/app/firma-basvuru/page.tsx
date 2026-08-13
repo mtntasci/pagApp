@@ -70,7 +70,7 @@ export default function FirmaBasvuruPage() {
           <div style={{ textAlign: 'center', marginBottom: '40px' }}>
             <div className="badge-lime">🏢 Kurumsal İletişim & Başvuru</div>
             <h1 style={{ fontSize: '36px', fontWeight: '900', marginTop: '12px', color: 'white' }}>
-              Firma Başvuru Formu
+              Kurumsal Başvuru Formu
             </h1>
             <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '15px', lineHeight: '1.6' }}>
               PAG platformunda markanız için özel anket ve pazar araştırması kurgulamak üzere başvuruda bulunun. Talebiniz incelenerek kurumsal e-postanız üzerinden dönülecektir.
@@ -249,7 +249,7 @@ export default function FirmaBasvuruPage() {
                   className="btn-lime"
                   style={{ width: '100%', padding: '16px', marginTop: '8px' }}
                 >
-                  {isSubmitting ? 'Başvuru Gönderiliyor...' : 'Firma Başvurusunu Gönder →'}
+                  {isSubmitting ? 'Başvuru Gönderiliyor...' : 'Kurumsal Başvuruyu Gönder →'}
                 </button>
               </form>
             </div>
