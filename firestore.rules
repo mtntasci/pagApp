@@ -103,9 +103,11 @@ service cloud.firestore {
       }
     }
 
-    // Portal Users Rules: Users can read their own portalUser record
+    // Portal Users Rules: Users can read their own portalUser record and update mustChangePassword
     match /portalUsers/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow update: if isAuthenticated() && request.auth.uid == userId &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mustChangePassword', 'updatedAt']);
       allow write: if false;
     }
 
