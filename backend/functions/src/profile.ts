@@ -17,6 +17,8 @@ export interface LocationPair {
 }
 
 export interface BasicProfileInput {
+  firstName?: string;
+  lastName?: string;
   gender?: 'MALE' | 'FEMALE' | 'PREFER_NOT_TO_SAY';
   birthDetails?: {
     birthDate?: string;
@@ -85,7 +87,11 @@ export function calculateBasicProfileCompletion(profile: BasicProfileInput): {
 } {
   const categories: { key: string; isComplete: boolean }[] = [];
 
-  // 1. Birth Details (Date & Place)
+  // 1. First & Last Name
+  const isNameComplete = !!(profile.firstName?.trim() && profile.lastName?.trim());
+  categories.push({ key: 'nameInfo', isComplete: isNameComplete });
+
+  // 2. Birth Details (Date & Place)
   const b = profile.birthDetails;
   const isBirthComplete = !!(b?.birthDate && /^\d{4}-\d{2}-\d{2}$/.test(b.birthDate) && b?.cityId && b?.districtId);
   categories.push({ key: 'birthDetails', isComplete: isBirthComplete });

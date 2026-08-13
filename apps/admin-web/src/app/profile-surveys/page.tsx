@@ -433,9 +433,11 @@ export default function ProfileSurveysPage() {
                     <div>
                       <label style={{ display: 'block', marginBottom: '6px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Kategori</label>
                       <select value={selectedCatId} onChange={(e) => setSelectedCatId(e.target.value)} style={{ width: '100%' }}>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>{c.name}</option>
-                        ))}
+                        {categories
+                          .filter((c) => typeof c.isVisible !== 'boolean' || c.isVisible || c.id === selectedCatId)
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
                       </select>
                     </div>
 

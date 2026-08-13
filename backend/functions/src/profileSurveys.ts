@@ -27,17 +27,27 @@ export interface ProfileQuestion {
 export interface ProfileCategory {
   id: string;
   name: string;
-  iconName?: string;
-  sortOrder?: number;
+  isVisible: boolean;
+  sortOrder: number;
+  createdAt?: any;
+  updatedAt?: any;
 }
 
-// Default Seed Categories if collection is empty
+// 13 Official Profile Survey Categories Seed
 export const DEFAULT_PROFILE_CATEGORIES: ProfileCategory[] = [
-  { id: "cat_lifestyle", name: "Yaşam Tarzı & İlgi Alanları", iconName: "heart.fill", sortOrder: 1 },
-  { id: "cat_tech", name: "Teknoloji & Dijital", iconName: "laptopcomputer", sortOrder: 2 },
-  { id: "cat_automotive", name: "Otomotiv & Ulaşım", iconName: "car.fill", sortOrder: 3 },
-  { id: "cat_finance", name: "Finans & Alışveriş", iconName: "creditcard.fill", sortOrder: 4 },
-  { id: "cat_health", name: "Sağlık & Spor", iconName: "figure.walk", sortOrder: 5 }
+  { id: "yasam-tarzi", name: "Yaşam Tarzı", isVisible: true, sortOrder: 1 },
+  { id: "alisveris-aliskanliklari", name: "Alışveriş Alışkanlıkları", isVisible: true, sortOrder: 2 },
+  { id: "yeme-icme", name: "Yeme & İçme", isVisible: true, sortOrder: 3 },
+  { id: "teknoloji-kullanimi", name: "Teknoloji Kullanımı", isVisible: true, sortOrder: 4 },
+  { id: "ulasim-arac", name: "Ulaşım & Araç", isVisible: true, sortOrder: 5 },
+  { id: "spor-aktivite", name: "Spor & Aktivite", isVisible: true, sortOrder: 6 },
+  { id: "seyahat", name: "Seyahat", isVisible: true, sortOrder: 7 },
+  { id: "finansal-aliskanliklar", name: "Finansal Alışkanlıklar", isVisible: true, sortOrder: 8 },
+  { id: "ev-aile", name: "Ev & Aile", isVisible: true, sortOrder: 9 },
+  { id: "ilgi-alanlari", name: "İlgi Alanları", isVisible: true, sortOrder: 10 },
+  { id: "medya-eglence", name: "Medya & Eğlence", isVisible: true, sortOrder: 11 },
+  { id: "kariyer-calisma-hayati", name: "Kariyer & Çalışma Hayatı", isVisible: true, sortOrder: 12 },
+  { id: "genel", name: "Genel", isVisible: true, sortOrder: 13 }
 ];
 
 // Helper: Evaluate gender eligibility for Profile Questions
@@ -480,16 +490,21 @@ export const manageProfileCategoriesAdminHandler = async (
   }
 
   const db = admin.firestore();
+  const collectionRef = db.collection('profileSurveyCategories');
 
   if (data?.action === 'SAVE' && data.category) {
     const cat = data.category;
-    const catId = cat.id || `cat_${Date.now()}`;
-    await db.collection('profileCategories').doc(catId).set({
+    const catId = cat.id || cat.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const existingDoc = await collectionRef.doc(catId).get();
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+
+    await collectionRef.doc(catId).set({
       id: catId,
       name: cat.name,
-      iconName: cat.iconName || 'folder',
-      sortOrder: cat.sortOrder || 1,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      isVisible: typeof cat.isVisible === 'boolean' ? cat.isVisible : true,
+      sortOrder: typeof cat.sortOrder === 'number' ? cat.sortOrder : 1,
+      updatedAt: serverNow,
+      createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt || serverNow) : serverNow
     }, { merge: true });
 
     return {
@@ -499,19 +514,35 @@ export const manageProfileCategoriesAdminHandler = async (
   }
 
   // GET categories
-  const snap = await db.collection('profileCategories').get();
-  const categories: ProfileCategory[] = [];
+  let snap = await collectionRef.get();
 
   if (snap.empty) {
-    // Return default seed categories
-    return {
-      success: true,
-      data: { categories: DEFAULT_PROFILE_CATEGORIES }
-    };
+    // Auto Seed Official 13 Profile Categories
+    const batch = db.batch();
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+    DEFAULT_PROFILE_CATEGORIES.forEach((cat) => {
+      const docRef = collectionRef.doc(cat.id);
+      batch.set(docRef, {
+        ...cat,
+        createdAt: serverNow,
+        updatedAt: serverNow
+      });
+    });
+    await batch.commit();
+    snap = await collectionRef.get();
   }
 
+  const categories: ProfileCategory[] = [];
   snap.docs.forEach((doc) => {
-    categories.push(doc.data() as ProfileCategory);
+    const d = doc.data();
+    categories.push({
+      id: doc.id,
+      name: d.name || doc.id,
+      isVisible: typeof d.isVisible === 'boolean' ? d.isVisible : true,
+      sortOrder: typeof d.sortOrder === 'number' ? d.sortOrder : 1,
+      createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+      updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
+    });
   });
 
   categories.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));

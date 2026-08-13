@@ -290,9 +290,24 @@ export default function SurveysPage() {
     }
   }, []);
 
+  const [availableCategories, setAvailableCategories] = useState<{ id: string; name: string; isVisible: boolean }[]>([]);
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const getCatsFn = httpsCallable(functions, 'manageSurveyCategoriesAdmin');
+      const res: any = await getCatsFn({ action: 'GET' });
+      if (res.data?.success && Array.isArray(res.data.data?.categories)) {
+        setAvailableCategories(res.data.data.categories);
+      }
+    } catch (err) {
+      console.warn('Fetch survey categories error:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSurveys();
-  }, [fetchSurveys]);
+    fetchCategories();
+  }, [fetchSurveys, fetchCategories]);
 
   const resetWizardForm = () => {
     setEditingSurveyId(null);

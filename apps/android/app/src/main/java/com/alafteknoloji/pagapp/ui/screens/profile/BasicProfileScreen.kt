@@ -100,6 +100,8 @@ fun BasicProfileScreen(
                         onClick = {
                             inlineErrorMsg = null
                             if (currentStep == 1) {
+                                if (draftProfile.firstName.isBlank()) { inlineErrorMsg = "Lütfen adınızı giriniz."; return@Button }
+                                if (draftProfile.lastName.isBlank()) { inlineErrorMsg = "Lütfen soyadınızı giriniz."; return@Button }
                                 if (draftProfile.birthDetails.birthDate.isEmpty()) { inlineErrorMsg = "Lütfen doğum tarihinizi seçiniz."; return@Button }
                                 if (draftProfile.birthDetails.cityId.isEmpty()) { inlineErrorMsg = "Lütfen doğum yeri ilini seçiniz."; return@Button }
                                 if (draftProfile.birthDetails.districtId.isEmpty()) { inlineErrorMsg = "Lütfen doğum yeri ilçesini seçiniz."; return@Button }
@@ -248,7 +250,47 @@ private fun Step1BirthDetails(profile: PAGBasicProfile, locations: List<PAGCity>
 
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("Doğum Tarihi", style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
+            Text("Adınız *", style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
+            OutlinedTextField(
+                value = profile.firstName,
+                onValueChange = { newFirst ->
+                    onUpdate(profile.copy(firstName = newFirst))
+                },
+                placeholder = { Text("Adınız", color = PAGTheme.colors.textMuted) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = PAGTheme.colors.surfacePrimary,
+                    unfocusedContainerColor = PAGTheme.colors.surfacePrimary,
+                    focusedBorderColor = PAGTheme.colors.brandLime,
+                    unfocusedBorderColor = PAGTheme.colors.borderDefault
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Soyadınız *", style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
+            OutlinedTextField(
+                value = profile.lastName,
+                onValueChange = { newLast ->
+                    onUpdate(profile.copy(lastName = newLast))
+                },
+                placeholder = { Text("Soyadınız", color = PAGTheme.colors.textMuted) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedContainerColor = PAGTheme.colors.surfacePrimary,
+                    unfocusedContainerColor = PAGTheme.colors.surfacePrimary,
+                    focusedBorderColor = PAGTheme.colors.brandLime,
+                    unfocusedBorderColor = PAGTheme.colors.borderDefault
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Doğum Tarihi *", style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
             OutlinedTextField(
                 value = profile.birthDetails.birthDate,
                 onValueChange = { newDate ->

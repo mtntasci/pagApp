@@ -7,6 +7,8 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public let email: String?
     public let phone: String?
     public let displayName: String?
+    public let firstName: String?
+    public let lastName: String?
     public let photoUrl: String?
     public let authProviders: [String]
     public let status: String
@@ -25,6 +27,8 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         email: String? = nil,
         phone: String? = nil,
         displayName: String? = nil,
+        firstName: String? = nil,
+        lastName: String? = nil,
         photoUrl: String? = nil,
         authProviders: [String] = [],
         status: String = "ACTIVE",
@@ -42,6 +46,8 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         self.email = email
         self.phone = phone
         self.displayName = displayName
+        self.firstName = firstName
+        self.lastName = lastName
         self.photoUrl = photoUrl
         self.authProviders = authProviders
         self.status = status

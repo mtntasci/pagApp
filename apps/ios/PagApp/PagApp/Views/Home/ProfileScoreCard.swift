@@ -9,8 +9,8 @@ public struct ProfileScoreCard: View {
     }
     
     private var greetingText: String {
-        if let displayName = userService.currentUser?.displayName, !displayName.isEmpty {
-            return "Merhaba, \(displayName) 👋"
+        if let name = userService.currentUser?.firstName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return "Merhaba, \(name) 👋"
         }
         return "Merhaba 👋"
     }

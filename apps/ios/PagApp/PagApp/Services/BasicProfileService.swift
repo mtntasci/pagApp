@@ -153,6 +153,8 @@ public final class BasicProfileService: ObservableObject {
                 bProfile.scoreAwarded = data["scoreAwarded"] as? Bool ?? false
                 
                 if let pDict = data["profile"] as? [String: Any] {
+                    bProfile.firstName = pDict["firstName"] as? String ?? ""
+                    bProfile.lastName = pDict["lastName"] as? String ?? ""
                     bProfile.gender = pDict["gender"] as? String ?? "PREFER_NOT_TO_SAY"
                     bProfile.maritalStatus = pDict["maritalStatus"] as? String ?? "PREFER_NOT_TO_SAY"
                     
@@ -221,6 +223,9 @@ public final class BasicProfileService: ObservableObject {
         saveSuccessMessage = nil
         
         var payload: [String: Any] = [:]
+        
+        payload["firstName"] = profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        payload["lastName"] = profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
         
         payload["birthDetails"] = [
             "birthDate": profile.birthDetails.birthDate,

@@ -30,6 +30,8 @@ data class PAGChildrenInfo(
 )
 
 data class PAGBasicProfile(
+    val firstName: String = "",
+    val lastName: String = "",
     val gender: String = "PREFER_NOT_TO_SAY", // MALE, FEMALE, PREFER_NOT_TO_SAY
     val birthDetails: PAGBirthDetails = PAGBirthDetails(),
     val maritalStatus: String = "PREFER_NOT_TO_SAY", // SINGLE, MARRIED, PREFER_NOT_TO_SAY (plus legacy DIVORCED, WIDOWED, OTHER)

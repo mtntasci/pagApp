@@ -5,6 +5,8 @@ data class PAGUser(
     val email: String? = null,
     val phone: String? = null,
     val displayName: String? = null,
+    val firstName: String? = null,
+    val lastName: String? = null,
     val photoUrl: String? = null,
     val authProviders: List<String> = emptyList(),
     val status: String = "ACTIVE",

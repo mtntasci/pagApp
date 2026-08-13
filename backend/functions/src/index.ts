@@ -25,7 +25,10 @@ import {
   listCompanyApplicationsAdminHandler,
   updateCompanyApplicationStatusAdminHandler,
   createPortalUserAdminHandler,
-  completePasswordChangePortalUserHandler
+  completePasswordChangePortalUserHandler,
+  manageSurveyCategoriesAdminHandler,
+  seedCategoriesAdminHandler,
+  cleanSurveyDataAdminHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -110,7 +113,10 @@ export const updateCompanyApplicationStatusAdmin = functions.https.onCall(update
 export const createPortalUserAdmin = functions.https.onCall(createPortalUserAdminHandler);
 export const completePasswordChangePortalUser = functions.https.onCall(completePasswordChangePortalUserHandler);
 
-// Admin Profile Questions Callables
+// Admin Profile Questions & Category Callables
 export const createOrUpdateProfileQuestionAdmin = functions.https.onCall(createOrUpdateProfileQuestionAdminHandler);
 export const listProfileQuestionsAdmin = functions.https.onCall(listProfileQuestionsAdminHandler);
+export const manageSurveyCategoriesAdmin = functions.https.onCall(manageSurveyCategoriesAdminHandler);
 export const manageProfileCategoriesAdmin = functions.https.onCall(manageProfileCategoriesAdminHandler);
+export const seedCategoriesAdmin = functions.https.onCall(seedCategoriesAdminHandler);
+export const cleanSurveyDataAdmin = functions.https.onCall(cleanSurveyDataAdminHandler);

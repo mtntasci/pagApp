@@ -263,6 +263,14 @@ public struct BasicProfileView: View {
         
         // Validation per step
         if currentStep == 1 {
+            if draftProfile.firstName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                inlineErrorMessage = "Lütfen adınızı giriniz."
+                return
+            }
+            if draftProfile.lastName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                inlineErrorMessage = "Lütfen soyadınızı giriniz."
+                return
+            }
             if draftProfile.birthDetails.birthDate.isEmpty {
                 inlineErrorMessage = "Lütfen doğum tarihinizi seçiniz."
                 return
@@ -308,13 +316,40 @@ public struct BasicProfileView: View {
         
         currentStep += 1
     }
-    
     // --------------------------------------------------
     // STEP 1: DOĞUM BİLGİLERİ VIEW
     // --------------------------------------------------
     @ViewBuilder
     private var step1BirthDetailsView: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Adınız *")
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(PAGTheme.textPrimary)
+                
+                TextField("Adınız", text: $draftProfile.firstName)
+                    .font(PAGTypography.body)
+                    .foregroundColor(PAGTheme.textPrimary)
+                    .padding(14)
+                    .background(PAGTheme.surfacePrimary)
+                    .cornerRadius(PAGRadius.medium)
+                    .overlay(RoundedRectangle(cornerRadius: PAGRadius.medium).stroke(PAGTheme.borderDefault, lineWidth: 1))
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Soyadınız *")
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(PAGTheme.textPrimary)
+                
+                TextField("Soyadınız", text: $draftProfile.lastName)
+                    .font(PAGTypography.body)
+                    .foregroundColor(PAGTheme.textPrimary)
+                    .padding(14)
+                    .background(PAGTheme.surfacePrimary)
+                    .cornerRadius(PAGRadius.medium)
+                    .overlay(RoundedRectangle(cornerRadius: PAGRadius.medium).stroke(PAGTheme.borderDefault, lineWidth: 1))
+            }
+
             // Cinsiyet Seçimi
             VStack(alignment: .leading, spacing: 8) {
                 Text("Cinsiyetiniz")

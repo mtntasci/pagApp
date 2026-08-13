@@ -52,6 +52,8 @@ surveyResponses/
 profileScoreLedger/
 campaigns/
 pushDeliveries/
+surveyCategories/
+profileSurveyCategories/
 rewardLedger/
 rewardBalances/
 voucherPools/
@@ -117,26 +119,45 @@ profileScoreLedger
 
 registeredAt participates in ranking and must therefore be trusted server data.
 
-5. USER PROFILE
+5. USER BASIC PROFILE
 
-Current profile data may initially be stored in:
+Location: users/{userId}/profile/basic
 
-users/{userId}/profile/current
+Purpose:
+Authoritative demographic & personal attributes.
 
-or an equivalent dedicated profile structure.
-
-Suggested conceptual fields:
-
-gender
-birthYear
-city
-region
-favoriteTeam
-interests
-otherApprovedAttributes
+Fields:
+firstName (PII — Strictly protected, never shared with organizations or used in targeting)
+lastName (PII — Strictly protected, never shared with organizations or used in targeting)
+gender (MALE | FEMALE | PREFER_NOT_TO_SAY)
+birthDetails (birthDate, cityId, cityName, districtId, districtName)
+maritalStatus (SINGLE | MARRIED | DIVORCED | WIDOWED | OTHER | PREFER_NOT_TO_SAY)
+childrenInfo (hasChildren, childrenCount, children[])
+residenceAddress (LocationPair)
+hometown (cityId, cityName, districtId, districtName)
+scoreAwarded (boolean)
 updatedAt
 
-Profile data represents CURRENT user information.
+PII Privacy Rule:
+firstName, lastName and email are strictly private user credentials. They MUST NOT be included in survey targeting rules, customer/organization reporting payloads, dashboard exports, or aggregate segmentation fields.
+
+6. DYNAMIC CATEGORY COLLECTIONS
+
+Locations:
+- surveyCategories/{categoryId}
+- profileSurveyCategories/{categoryId}
+
+Fields:
+id (string, e.g. "yasam", "yasam-tarzi")
+name (string, e.g. "Yaşam", "Yaşam Tarzı")
+isVisible (boolean, default true)
+sortOrder (number, 1..N)
+createdAt (Timestamp)
+updatedAt (Timestamp)
+
+Rules:
+- Hard deletion is prohibited in production. To hide a category, set isVisible = false.
+- Soft-hidden categories (isVisible = false) do not appear in new survey/question creation pickers, but historical survey records with that categoryId remain intact.
 
 Profile fields may change.
 

@@ -1055,3 +1055,151 @@ export const completePasswordChangePortalUserHandler = async (
 
   return { success: true, data: { uid: adminUser.uid, mustChangePassword: false } };
 };
+
+// --------------------------------------------------
+// CATEGORIES & CLEAN DATA HANDLERS
+// --------------------------------------------------
+export interface SurveyCategory {
+  id: string;
+  name: string;
+  isVisible: boolean;
+  sortOrder: number;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+export const DEFAULT_SURVEY_CATEGORIES: SurveyCategory[] = [
+  { id: "yasam", name: "Yaşam", isVisible: true, sortOrder: 1 },
+  { id: "alisveris-tuketim", name: "Alışveriş & Tüketim", isVisible: true, sortOrder: 2 },
+  { id: "yeme-icme", name: "Yeme & İçme", isVisible: true, sortOrder: 3 },
+  { id: "teknoloji", name: "Teknoloji", isVisible: true, sortOrder: 4 },
+  { id: "otomotiv-ulasim", name: "Otomotiv & Ulaşım", isVisible: true, sortOrder: 5 },
+  { id: "spor-saglikli-yasam", name: "Spor & Sağlıklı Yaşam", isVisible: true, sortOrder: 6 },
+  { id: "seyahat-eglence", name: "Seyahat & Eğlence", isVisible: true, sortOrder: 7 },
+  { id: "finans", name: "Finans", isVisible: true, sortOrder: 8 },
+  { id: "ev-yasam", name: "Ev & Yaşam", isVisible: true, sortOrder: 9 },
+  { id: "moda-kisisel-bakim", name: "Moda & Kişisel Bakım", isVisible: true, sortOrder: 10 },
+  { id: "medya-dijital-icerik", name: "Medya & Dijital İçerik", isVisible: true, sortOrder: 11 },
+  { id: "egitim-kariyer", name: "Eğitim & Kariyer", isVisible: true, sortOrder: 12 },
+  { id: "genel", name: "Genel", isVisible: true, sortOrder: 13 }
+];
+
+export const manageSurveyCategoriesAdminHandler = async (
+  data: { action: 'GET' | 'SAVE'; category?: SurveyCategory },
+  context: functions.https.CallableContext
+) => {
+  await verifyAdminUser(context);
+  const db = admin.firestore();
+  const collectionRef = db.collection('surveyCategories');
+
+  if (data?.action === 'SAVE' && data.category) {
+    const cat = data.category;
+    const catId = cat.id || cat.name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-');
+    const existingDoc = await collectionRef.doc(catId).get();
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+
+    await collectionRef.doc(catId).set({
+      id: catId,
+      name: cat.name,
+      isVisible: typeof cat.isVisible === 'boolean' ? cat.isVisible : true,
+      sortOrder: typeof cat.sortOrder === 'number' ? cat.sortOrder : 1,
+      updatedAt: serverNow,
+      createdAt: existingDoc.exists ? (existingDoc.data()?.createdAt || serverNow) : serverNow
+    }, { merge: true });
+
+    return { success: true, data: { categoryId: catId } };
+  }
+
+  // GET categories
+  let snap = await collectionRef.get();
+  if (snap.empty) {
+    const batch = db.batch();
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+    DEFAULT_SURVEY_CATEGORIES.forEach((cat) => {
+      const docRef = collectionRef.doc(cat.id);
+      batch.set(docRef, { ...cat, createdAt: serverNow, updatedAt: serverNow });
+    });
+    await batch.commit();
+    snap = await collectionRef.get();
+  }
+
+  const categories: SurveyCategory[] = [];
+  snap.docs.forEach((doc) => {
+    const d = doc.data();
+    categories.push({
+      id: doc.id,
+      name: d.name || doc.id,
+      isVisible: typeof d.isVisible === 'boolean' ? d.isVisible : true,
+      sortOrder: typeof d.sortOrder === 'number' ? d.sortOrder : 1,
+      createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+      updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
+    });
+  });
+
+  categories.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+  return { success: true, data: { categories } };
+};
+
+export const seedCategoriesAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  await verifyAdminUser(context);
+  const db = admin.firestore();
+  const serverNow = admin.firestore.FieldValue.serverTimestamp();
+
+  // 1. Seed 13 Survey Categories
+  const sBatch = db.batch();
+  DEFAULT_SURVEY_CATEGORIES.forEach((cat) => {
+    const ref = db.collection('surveyCategories').doc(cat.id);
+    sBatch.set(ref, { ...cat, createdAt: serverNow, updatedAt: serverNow }, { merge: true });
+  });
+  await sBatch.commit();
+
+  // 2. Import profileSurveys DEFAULT_PROFILE_CATEGORIES dynamically
+  const { DEFAULT_PROFILE_CATEGORIES } = require('./profileSurveys');
+  const pBatch = db.batch();
+  DEFAULT_PROFILE_CATEGORIES.forEach((cat: any) => {
+    const ref = db.collection('profileSurveyCategories').doc(cat.id);
+    pBatch.set(ref, { ...cat, createdAt: serverNow, updatedAt: serverNow }, { merge: true });
+  });
+  await pBatch.commit();
+
+  return { success: true, message: 'Seeded 13 Survey Categories and 13 Profile Categories successfully.' };
+};
+
+export const cleanSurveyDataAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  await verifyAdminUser(context);
+  const db = admin.firestore();
+
+  const collectionsToWipe = ['surveys', 'profileQuestions', 'surveyResponses', 'userProfileAnswers'];
+  let deletedCount = 0;
+
+  for (const collName of collectionsToWipe) {
+    const snap = await db.collection(collName).get();
+    const batchSize = 100;
+    let docs = snap.docs;
+    while (docs.length > 0) {
+      const batch = db.batch();
+      const chunk = docs.splice(0, batchSize);
+      chunk.forEach((doc) => {
+        batch.delete(doc.ref);
+        deletedCount++;
+      });
+      await batch.commit();
+    }
+  }
+
+  return {
+    success: true,
+    data: {
+      surveysCleaned: true,
+      profileQuestionsCleaned: true,
+      responsesCleaned: true,
+      deletedCount
+    }
+  };
+};

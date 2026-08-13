@@ -43,6 +43,7 @@
 | **13** | **Profile Score Forgery via Client Request Amount** | CRITICAL | Score amounts supplied in client HTTP payloads are ignored; `profileScoreReward` is read strictly from authoritative `surveys/{surveyId}` document inside backend transaction. |
 | **14** | **Concurrent Duplicate Score Claim** | CRITICAL | Score transaction uses pessimistic locking with deterministic ledger key `profileScoreLedgers/SURVEY_{surveyId}_{userId}`. Simultaneous requests process exactly once. |
 | **15** | **Profile Survey Repeated Reward Abuse** | HIGH | `updateProfileSurveyResponse` checks ledger existence; awards `profileScoreReward` ONCE on initial submission and 0 score on subsequent answer updates. |
+| **16** | **PII Data Leakage (First Name, Last Name, Email)** | CRITICAL | User `firstName`, `lastName`, and `email` are PII credentials. They are NEVER included in survey targeting rules, customer organization dashboards, company reports, or aggregate metrics. |
 
 ---
 

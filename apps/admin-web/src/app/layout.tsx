@@ -19,6 +19,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
     { href: '/', label: 'Dashboard', icon: '📊' },
     { href: '/surveys', label: 'Anket Yönetimi', icon: '📝' },
     { href: '/profile-surveys', label: 'Profil Anketleri', icon: '❓' },
+    { href: '/categories', label: 'Kategori Yönetimi', icon: '🏷️' },
     { href: '/vouchers', label: 'Hediye Çekleri', icon: '🎟️' },
     { href: '/stories', label: 'Story Bar', icon: '⭐' },
     { href: '/applications', label: 'Firma Başvuruları', icon: '🏢' },

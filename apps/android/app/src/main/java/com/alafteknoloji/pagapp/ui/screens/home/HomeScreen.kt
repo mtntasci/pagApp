@@ -313,8 +313,9 @@ private fun UserProfileCard(
     pagUser: com.alafteknoloji.pagapp.models.PAGUser? = null,
     currentRanking: com.alafteknoloji.pagapp.services.PAGUserRanking? = null
 ) {
-    val greetingText = if (!pagUser?.displayName.isNullOrBlank()) {
-        "Merhaba, ${pagUser?.displayName} 👋"
+    val nameToUse = pagUser?.firstName?.trim()
+    val greetingText = if (!nameToUse.isNullOrBlank()) {
+        "Merhaba, $nameToUse 👋"
     } else {
         "Merhaba 👋"
     }

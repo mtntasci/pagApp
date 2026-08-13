@@ -12,6 +12,8 @@ export interface PAGUserResponse {
   email: string | null;
   phone: string | null;
   displayName: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
   photoUrl: string | null;
   authProviders: string[];
   status: string;
@@ -76,7 +78,21 @@ export const bootstrapCurrentUserHandler = async (
 
   const now = admin.firestore.FieldValue.serverTimestamp();
 
-  let userSummary: PAGUserResponse;
+  let userSummary: PAGUserResponse = {
+    userId: uid,
+    email: email,
+    phone: phone,
+    displayName: displayName,
+    photoUrl: photoUrl,
+    authProviders: [provider],
+    status: 'ACTIVE',
+    profileScore: 0,
+    profileCompleted: false,
+    phoneVerified: phoneVerified,
+    emailVerified: emailVerified,
+    kycStatus: 'NOT_STARTED',
+    activeDeviceId: deviceId
+  };
 
   await db.runTransaction(async (transaction) => {
     const userDoc = await transaction.get(userRef);
@@ -199,6 +215,18 @@ export const bootstrapCurrentUserHandler = async (
   });
 
   functions.logger.info(`USER_BOOTSTRAPPED: userId=${uid}, deviceId=${deviceId}`);
+
+  // Read Basic Profile for firstName/lastName
+  try {
+    const basicProfileSnap = await db.collection('users').doc(uid).collection('profile').doc('basic').get();
+    if (basicProfileSnap.exists) {
+      const bData = basicProfileSnap.data();
+      if (bData?.firstName) userSummary.firstName = bData.firstName;
+      if (bData?.lastName) userSummary.lastName = bData.lastName;
+    }
+  } catch (bpErr) {
+    functions.logger.warn(`Failed to read basic profile during bootstrap:`, bpErr);
+  }
 
   return {
     success: true,
