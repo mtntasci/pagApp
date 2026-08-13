@@ -117,6 +117,29 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Survey & Profile Category Rules
+    match /surveyCategories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+    }
+
+    match /profileSurveyCategories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+    }
+
     // Default Deny
     match /{document=**} {
       allow read, write: if false;
