@@ -338,13 +338,24 @@ public struct ProfileView: View {
                             .padding(.horizontal, PAGSpacing.md)
                         }
 
-                        // Sign Out Button
-                        PAGButton(
-                            title: "Çıkış Yap ve Verilerimi Temizle",
-                            iconName: "trash.fill",
-                            style: .secondary,
-                            action: {}
-                        )
+                        // Sign Out & Account Buttons
+                        VStack(spacing: 12) {
+                            PAGButton(
+                                title: "Çıkış Yap",
+                                iconName: "rectangle.portrait.and.arrow.right",
+                                style: .primary,
+                                action: {
+                                    authService.signOut()
+                                }
+                            )
+
+                            PAGButton(
+                                title: "Hesabımı ve Verilerimi Sil",
+                                iconName: "trash.fill",
+                                style: .secondary,
+                                action: {}
+                            )
+                        }
                         .padding(.horizontal, PAGSpacing.md)
 
                         Spacer().frame(height: 40)

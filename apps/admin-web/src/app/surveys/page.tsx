@@ -1186,7 +1186,7 @@ export default function SurveysPage() {
                         width: '72px',
                         height: '72px',
                         borderRadius: '50%',
-                        background: (STORY_CATEGORY_IMAGES[formCategory]?.images.find(i => i.file === formStoryImageCategory)?.color) || 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                        background: (STORY_CATEGORY_IMAGES[formCategory]?.images?.find(i => i.file === formStoryImageCategory)?.color) || 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',

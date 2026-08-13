@@ -32,6 +32,7 @@ extension Color {
 public enum PAGTheme {
     // Brand Colors
     public static let brandMidnight = Color(hex: "#011033")
+    public static let brandNavy     = Color(hex: "#011033")
     public static let brandLime     = Color(hex: "#B7F34A")
     public static let brandBlue     = Color(hex: "#3977F6")
 

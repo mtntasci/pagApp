@@ -77,7 +77,7 @@ public struct PAGStoryItem: View {
     private func defaultStoryFallback(systemIcon: String) -> some View {
         ZStack {
             LinearGradient(
-                gradient: Gradient(colors: [PAGTheme.brandLime, PAGTheme.brandNavy]),
+                gradient: Gradient(colors: [PAGTheme.brandLime, PAGTheme.brandMidnight]),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
