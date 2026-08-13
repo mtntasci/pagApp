@@ -12,11 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -95,8 +96,103 @@ fun SurveyFlowScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PAGTheme.colors.backgroundPrimary)
             )
         },
-        bottomBar = {
-            Box(modifier = Modifier.padding(PAGTheme.spacing.md).fillMaxWidth()) {
+        containerColor = PAGTheme.colors.backgroundPrimary
+    ) { paddingValues ->
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .background(PAGTheme.colors.backgroundPrimary)
+        ) {
+            // Scrollable Content
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = PAGTheme.spacing.md)
+                    .padding(bottom = 120.dp)
+            ) {
+                LinearProgressIndicator(
+                    progress = { (currentIndex + 1).toFloat() / questions.size },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .clip(PAGTheme.radius.pill),
+                    color = PAGTheme.colors.brandLime,
+                    trackColor = PAGTheme.colors.surfaceSecondary
+                )
+
+                Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
+
+                Text(
+                    text = currentQuestion.text,
+                    style = PAGTheme.typography.display,
+                    color = PAGTheme.colors.textPrimary
+                )
+
+                Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
+
+                Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
+                    currentQuestion.options.forEach { option ->
+                        val isSelected = selectedOptionId == option.optionId
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    color = if (isSelected) PAGTheme.colors.surfaceSecondary else PAGTheme.colors.backgroundPrimary,
+                                    shape = PAGTheme.radius.md
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (isSelected) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
+                                    shape = PAGTheme.radius.md
+                                )
+                                .clickable {
+                                    selectedOptionId = option.optionId
+                                    answersMap[currentQuestion.questionId] = option.optionId
+                                }
+                                .padding(PAGTheme.spacing.md),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = {
+                                    selectedOptionId = option.optionId
+                                    answersMap[currentQuestion.questionId] = option.optionId
+                                },
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = PAGTheme.colors.brandLime,
+                                    unselectedColor = PAGTheme.colors.textMuted
+                                )
+                            )
+                            Text(
+                                text = option.label,
+                                style = PAGTheme.typography.bodyLarge,
+                                color = if (isSelected) PAGTheme.colors.textPrimary else PAGTheme.colors.textSecondary
+                            )
+                        }
+                    }
+                }
+
+                submitError?.let { err ->
+                    Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                    Text(
+                        text = err,
+                        style = PAGTheme.typography.caption,
+                        color = PAGTheme.colors.error
+                    )
+                }
+            }
+
+            // Pinned Floating Bottom CTA Button (Above Tab Bar)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .background(PAGTheme.colors.surfacePrimary.copy(alpha = 0.95f))
+                    .padding(horizontal = PAGTheme.spacing.md, vertical = PAGTheme.spacing.md)
+            ) {
                 val isLast = currentIndex == questions.size - 1
                 PAGButton(
                     title = if (isSubmitting) "GÖNDERİLİYOR..." else if (isLast) "ANKETİ TAMAMLA" else "DEVAM",
@@ -130,86 +226,6 @@ fun SurveyFlowScreen(
                             selectedOptionId = answersMap[questions.getOrNull(currentIndex)?.questionId]
                         }
                     }
-                )
-            }
-        },
-        containerColor = PAGTheme.colors.backgroundPrimary
-    ) { paddingValues ->
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = PAGTheme.spacing.md)
-        ) {
-            LinearProgressIndicator(
-                progress = { (currentIndex + 1).toFloat() / questions.size },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(PAGTheme.radius.pill),
-                color = PAGTheme.colors.brandLime,
-                trackColor = PAGTheme.colors.surfaceSecondary
-            )
-
-            Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-
-            Text(
-                text = currentQuestion.text,
-                style = PAGTheme.typography.display,
-                color = PAGTheme.colors.textPrimary
-            )
-
-            Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-
-            Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
-                currentQuestion.options.forEach { option ->
-                    val isSelected = selectedOptionId == option.optionId
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = if (isSelected) PAGTheme.colors.surfaceSecondary else PAGTheme.colors.backgroundPrimary,
-                                shape = PAGTheme.radius.md
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = if (isSelected) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
-                                shape = PAGTheme.radius.md
-                            )
-                            .clickable {
-                                selectedOptionId = option.optionId
-                                answersMap[currentQuestion.questionId] = option.optionId
-                            }
-                            .padding(PAGTheme.spacing.md),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = isSelected,
-                            onClick = {
-                                selectedOptionId = option.optionId
-                                answersMap[currentQuestion.questionId] = option.optionId
-                            },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = PAGTheme.colors.brandLime,
-                                unselectedColor = PAGTheme.colors.textMuted
-                            )
-                        )
-                        Text(
-                            text = option.label,
-                            style = PAGTheme.typography.bodyLarge,
-                            color = if (isSelected) PAGTheme.colors.textPrimary else PAGTheme.colors.textSecondary
-                        )
-                    }
-                }
-            }
-
-            submitError?.let { err ->
-                Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
-                Text(
-                    text = err,
-                    style = PAGTheme.typography.caption,
-                    color = PAGTheme.colors.error
                 )
             }
         }
