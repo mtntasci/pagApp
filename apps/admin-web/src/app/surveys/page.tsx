@@ -273,56 +273,46 @@ export default function SurveysPage() {
         }
       };
 
-      let saved = false;
+      const targetId = editingSurveyId || `srv_${Date.now()}`;
+      const docRef = doc(db, 'surveys', targetId);
+      const surveyDocData: any = {
+        id: targetId,
+        surveyId: targetId,
+        ownerType: payload.ownerType,
+        organizationId: payload.organizationId || null,
+        surveyType: payload.surveyType,
+        category: payload.category,
+        title: payload.title,
+        description: payload.description,
+        status: payload.status,
+        startAt: payload.startAt,
+        endAt: payload.endAt,
+        questions: payload.questions,
+        targeting: payload.targeting,
+        profileScoreReward: payload.profileScoreReward,
+        rewardDefinition: payload.rewardDefinition,
+        storyConfig: payload.storyConfig,
+        isArchived: false,
+        updatedAt: serverTimestamp()
+      };
+      if (!editingSurveyId) {
+        surveyDocData.createdAt = serverTimestamp();
+      }
+
+      // 1. Direct Firestore Write (Fast, reliable, bypasses un-deployed Cloud Functions CORS issues)
+      await setDoc(docRef, surveyDocData, { merge: true });
+
+      // 2. Best-effort Callable trigger (swallows background CORS/network error silently)
       try {
         const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-        const res: any = await createOrUpdateFn(payload);
-        if (res.data?.success) {
-          saved = true;
-        }
+        await createOrUpdateFn(payload);
       } catch (callErr) {
-        console.warn('createOrUpdateSurveyAdmin Callable warning/fallback:', callErr);
+        console.warn('createOrUpdateSurveyAdmin Callable background warning:', callErr);
       }
 
-      if (!saved) {
-        // Direct Firestore Client Fallback
-        const targetId = editingSurveyId || `srv_${Date.now()}`;
-        const docRef = doc(db, 'surveys', targetId);
-        const surveyDocData: any = {
-          id: targetId,
-          surveyId: targetId,
-          ownerType: payload.ownerType,
-          organizationId: payload.organizationId || null,
-          surveyType: payload.surveyType,
-          category: payload.category,
-          title: payload.title,
-          description: payload.description,
-          status: payload.status,
-          startAt: payload.startAt,
-          endAt: payload.endAt,
-          questions: payload.questions,
-          targeting: payload.targeting,
-          profileScoreReward: payload.profileScoreReward,
-          rewardDefinition: payload.rewardDefinition,
-          storyConfig: payload.storyConfig,
-          isArchived: false,
-          updatedAt: serverTimestamp()
-        };
-        if (!editingSurveyId) {
-          surveyDocData.createdAt = serverTimestamp();
-        }
-
-        await setDoc(docRef, surveyDocData, { merge: true });
-        saved = true;
-      }
-
-      if (saved) {
-        setIsWizardOpen(false);
-        resetWizardForm();
-        await fetchSurveys();
-      } else {
-        setErrorMsg('Anket kaydedilirken bir hata oluştu.');
-      }
+      setIsWizardOpen(false);
+      resetWizardForm();
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Save Survey Error:', err);
       setErrorMsg('Kayıt Hatası: ' + (err.message || 'Bilinmeyen hata'));
