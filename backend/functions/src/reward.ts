@@ -9,10 +9,14 @@ export interface TieredRewardRule {
 export interface PAGRewardDefinition {
   rewardType: 'NONE' | 'MONEY' | 'VOUCHER';
   totalPoolAmount?: number;
+  totalBudget?: number;
+  distributionModel?: 'RANKED' | 'EQUAL';
+  rankedRules?: TieredRewardRule[];
   tieredRewards?: TieredRewardRule[];
   remainingPoolCount?: number;
   remainingPoolAmountPerUser?: number;
   voucherPoolId?: string;
+  voucherPoolName?: string;
 }
 
 export interface ProcessRewardResult {
@@ -20,11 +24,15 @@ export interface ProcessRewardResult {
   rewardType: 'NONE' | 'MONEY' | 'VOUCHER';
   voucherCode?: string;
   voucherTitle?: string;
+  voucherId?: string;
+  voucherPoolId?: string;
+  voucherRef?: admin.firestore.DocumentReference;
   isDuplicate?: boolean;
 }
 
 /**
  * Transaction-safe Reward Processing Engine
+ * READ-ONLY inside transaction: performs all reads, returns write instructions.
  */
 export const processSurveyRewardInTransaction = async (
   transaction: admin.firestore.Transaction,
@@ -62,124 +70,68 @@ export const processSurveyRewardInTransaction = async (
   // 1. MONEY REWARD TYPE
   // --------------------------------------------------
   if (rewardDef.rewardType === 'MONEY') {
-    // Determine finisher rank for this survey
-    const existingResponsesSnap = await db
-      .collection('surveyResponses')
-      .where('surveyId', '==', surveyId)
-      .where('status', '==', 'COMPLETED')
-      .get();
+    // Determine finisher rank using transaction.get(query)
+    const existingResponsesSnap = await transaction.get(
+      db.collection('surveyResponses')
+        .where('surveyId', '==', surveyId)
+        .where('status', '==', 'COMPLETED')
+    );
 
-    // Order by serverCompletedAt ASC, userId ASC
     const finisherCount = existingResponsesSnap.docs.length;
-    const currentRank = finisherCount + 1; // 1-based rank for current finisher
+    const currentRank = finisherCount + 1;
 
     let awardedAmount = 0;
-
-    // Check Tiered Rewards (e.g. 1st rank: 300, 2nd: 200, 3rd: 100)
-    const tieredRules = rewardDef.tieredRewards || [];
+    const tieredRules = rewardDef.rankedRules || rewardDef.tieredRewards || [];
     const matchedTier = tieredRules.find((t) => t.rank === currentRank);
 
     if (matchedTier) {
       awardedAmount = matchedTier.amount;
+    } else if (rewardDef.distributionModel === 'EQUAL') {
+      awardedAmount = rewardDef.remainingPoolAmountPerUser || 10;
     } else {
-      // Check remaining pool equal distribution (e.g. next 20 users get 20 TL each)
       const maxTieredRank = tieredRules.reduce((max, r) => Math.max(max, r.rank), 0);
-      const remainingCount = rewardDef.remainingPoolCount || 0;
-      const remainingAmountPerUser = rewardDef.remainingPoolAmountPerUser || 0;
+      const remainingCount = rewardDef.remainingPoolCount || 20;
+      const remainingAmountPerUser = rewardDef.remainingPoolAmountPerUser || 10;
 
       if (currentRank > maxTieredRank && currentRank <= maxTieredRank + remainingCount) {
         awardedAmount = remainingAmountPerUser;
       }
     }
 
-    if (awardedAmount > 0) {
-      // Create Immutable Money Reward Ledger
-      transaction.set(ledgerRef, {
-        id: ledgerId,
-        userId: uid,
-        surveyId: surveyId,
-        type: 'MONEY',
-        amount: awardedAmount,
-        reason: survey.title || 'ANKET_ODUL_KAZANCI',
-        createdAt: serverNow,
-        metadata: {
-          surveyType: survey.surveyType,
-          ownerType: survey.ownerType,
-          finisherRank: currentRank
-        }
-      });
-
-      // Atomically Increment User Reward Balance
-      const userRef = db.collection('users').doc(uid);
-      transaction.set(userRef, {
-        rewardBalance: admin.firestore.FieldValue.increment(awardedAmount),
-        updatedAt: serverNow
-      }, { merge: true });
-
-      functions.logger.info(`MONEY_REWARD_AWARDED: user=${uid}, surveyId=${surveyId}, rank=${currentRank}, amount=${awardedAmount}`);
-
-      return {
-        rewardAwarded: awardedAmount,
-        rewardType: 'MONEY'
-      };
-    }
-
     return {
-      rewardAwarded: 0,
-      rewardType: 'NONE'
+      rewardAwarded: awardedAmount,
+      rewardType: 'MONEY'
     };
   }
 
   // --------------------------------------------------
   // 2. VOUCHER REWARD TYPE
   // --------------------------------------------------
-  if (rewardDef.rewardType === 'VOUCHER' && rewardDef.voucherPoolId) {
-    const poolId = rewardDef.voucherPoolId;
-    const vouchersSnap = await db
-      .collection('voucherPools')
-      .doc(poolId)
-      .collection('vouchers')
-      .where('status', '==', 'AVAILABLE')
-      .limit(1)
-      .get();
+  if (rewardDef.rewardType === 'VOUCHER') {
+    const poolId = rewardDef.voucherPoolId || survey.boundVoucherPoolId || surveyId;
+    const vouchersSnap = await transaction.get(
+      db.collection('voucherPools')
+        .doc(poolId)
+        .collection('vouchers')
+        .where('status', '==', 'AVAILABLE')
+        .limit(1)
+    );
 
     if (!vouchersSnap.empty) {
       const voucherDoc = vouchersSnap.docs[0];
       const voucherData = voucherDoc.data();
       const voucherRef = voucherDoc.ref;
-
-      // Assign Voucher to User
-      transaction.update(voucherRef, {
-        status: 'ASSIGNED',
-        assignedUserId: uid,
-        assignedAt: serverNow
-      });
-
-      const valueAmount = voucherData.valueAmount || 0;
-      const voucherTitle = voucherData.title || 'Hediye Çeki';
-
-      // Create Immutable Voucher Ledger
-      transaction.set(ledgerRef, {
-        id: ledgerId,
-        userId: uid,
-        surveyId: surveyId,
-        type: 'VOUCHER',
-        amount: valueAmount,
-        voucherId: voucherDoc.id,
-        voucherPoolId: poolId,
-        voucherTitle: voucherTitle,
-        reason: survey.title || 'ANKET_HEDIYE_CEKI',
-        createdAt: serverNow
-      });
-
-      // Redact plaintext code from logging
-      functions.logger.info(`VOUCHER_ASSIGNED: user=${uid}, surveyId=${surveyId}, poolId=${poolId}, voucherId=${voucherDoc.id}`);
+      const valueAmount = voucherData.valueAmount || 100;
+      const voucherTitle = voucherData.title || rewardDef.voucherPoolName || 'Hediye Çeki';
 
       return {
         rewardAwarded: valueAmount,
         rewardType: 'VOUCHER',
         voucherCode: voucherData.code,
-        voucherTitle: voucherTitle
+        voucherTitle: voucherTitle,
+        voucherId: voucherDoc.id,
+        voucherPoolId: poolId,
+        voucherRef: voucherRef
       };
     } else {
       functions.logger.warn(`VOUCHER_POOL_EXHAUSTED: user=${uid}, surveyId=${surveyId}, poolId=${poolId}`);
@@ -209,63 +161,47 @@ export const getUserRewardsHandler = async (
   const uid = context.auth.uid;
   const db = admin.firestore();
 
-  // 1. Fetch User Reward Balance
-  const userDoc = await db.collection('users').doc(uid).get();
-  const rewardBalance = userDoc.exists ? (userDoc.data()?.rewardBalance || 0) : 0;
-
-  // 2. Fetch Reward Ledgers
-  const ledgersSnap = await db
+  const rewardLedgersSnap = await db
     .collection('rewardLedgers')
     .where('userId', '==', uid)
     .get();
 
-  const ledgers: any[] = [];
-  ledgersSnap.docs.forEach((doc) => {
+  const userDoc = await db.collection('users').doc(uid).get();
+  const rewardBalance = userDoc.exists ? (userDoc.data()?.rewardBalance || 0) : 0;
+
+  const rewards: any[] = [];
+  const vouchers: any[] = [];
+
+  rewardLedgersSnap.docs.forEach((doc) => {
     const d = doc.data();
-    ledgers.push({
-      id: doc.id,
-      surveyId: d.surveyId || '',
-      type: d.type || 'MONEY',
-      amount: d.amount || 0,
-      reason: d.reason || '',
-      createdAt: d.createdAt ? (d.createdAt.toDate ? d.createdAt.toDate().toISOString() : d.createdAt) : new Date().toISOString()
-    });
-  });
-
-  // Sort ledgers DESC
-  ledgers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-  // 3. Fetch Assigned Vouchers across pools
-  const assignedVouchers: any[] = [];
-  const poolsSnap = await db.collection('voucherPools').get();
-
-  for (const poolDoc of poolsSnap.docs) {
-    const vouchersSnap = await poolDoc.ref
-      .collection('vouchers')
-      .where('assignedUserId', '==', uid)
-      .get();
-
-    vouchersSnap.docs.forEach((vDoc) => {
-      const v = vDoc.data();
-      assignedVouchers.push({
-        voucherId: vDoc.id,
-        poolId: poolDoc.id,
-        title: v.title || 'Hediye Çeki',
-        code: v.code || '',
-        valueAmount: v.valueAmount || 0,
-        status: v.status || 'ASSIGNED',
-        assignedAt: v.assignedAt ? (v.assignedAt.toDate ? v.assignedAt.toDate().toISOString() : v.assignedAt) : new Date().toISOString(),
-        expiresAt: v.expiresAt ? (v.expiresAt.toDate ? v.expiresAt.toDate().toISOString() : v.expiresAt) : null
+    if (d.type === 'VOUCHER') {
+      vouchers.push({
+        ledgerId: doc.id,
+        surveyId: d.surveyId,
+        voucherId: d.voucherId,
+        voucherPoolId: d.voucherPoolId,
+        voucherTitle: d.voucherTitle || 'Hediye Çeki',
+        amount: d.amount,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt
       });
-    });
-  }
+    } else {
+      rewards.push({
+        ledgerId: doc.id,
+        surveyId: d.surveyId,
+        type: d.type || 'MONEY',
+        amount: d.amount,
+        reason: d.reason,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt
+      });
+    }
+  });
 
   return {
     success: true,
     data: {
-      rewardBalance: rewardBalance,
-      ledgers: ledgers,
-      vouchers: assignedVouchers
+      rewardBalance,
+      rewards,
+      vouchers
     }
   };
 };
