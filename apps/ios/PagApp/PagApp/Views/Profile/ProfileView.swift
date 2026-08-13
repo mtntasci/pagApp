@@ -2,7 +2,7 @@ import SwiftUI
 import FirebaseAuth
 
 public struct ProfileView: View {
-    @StateObject private var authService = AuthService()
+    @StateObject private var authService = AuthService.shared
     @StateObject private var userService = UserService.shared
     @StateObject private var basicProfileService = BasicProfileService.shared
     @StateObject private var profileSurveyService = ProfileSurveyService.shared
@@ -306,7 +306,6 @@ public struct ProfileView: View {
             .navigationTitle("Profil")
             .onAppear {
                 Task {
-                    await userService.bootstrapCurrentUser()
                     await basicProfileService.fetchBasicProfile()
                     await profileSurveyService.fetchProfileQuestions(batchSize: 3)
                     await rewardService.fetchUserRewards()

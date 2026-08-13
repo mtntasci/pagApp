@@ -642,3 +642,57 @@ export const updateProfileSurveyResponseHandler = async (
     };
   });
 };
+
+// --------------------------------------------------
+// 5. GET COMPLETED SURVEYS
+// --------------------------------------------------
+export const getCompletedSurveysHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError(
+      'unauthenticated',
+      'The function must be called while authenticated.'
+    );
+  }
+
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+
+  const userResponsesSnapshot = await db
+    .collection('surveyResponses')
+    .where('userId', '==', uid)
+    .get();
+
+  const completedSurveys: any[] = [];
+
+  for (const doc of userResponsesSnapshot.docs) {
+    const resData = doc.data();
+    if (!resData.surveyId) continue;
+
+    const surveyDoc = await db.collection('surveys').doc(resData.surveyId).get();
+    const surveyData = surveyDoc.exists ? (surveyDoc.data() as PAGSurveyData) : null;
+
+    completedSurveys.push({
+      surveyId: resData.surveyId,
+      ownerType: surveyData?.ownerType || 'PAG',
+      organizationId: resData.organizationId || surveyData?.organizationId || null,
+      surveyType: resData.surveyType || surveyData?.surveyType || 'PAG',
+      title: surveyData?.title || 'Tamamlanan Anket',
+      description: surveyData?.description || 'Bu anketi başarıyla tamamladınız.',
+      status: 'COMPLETED',
+      questionCount: surveyData?.questions ? surveyData.questions.length : 3,
+      profileScoreReward: surveyData?.profileScoreReward || 0,
+      isCompleted: true,
+      completedAt: resData.submittedAt || resData.createdAt || new Date().toISOString()
+    });
+  }
+
+  return {
+    success: true,
+    data: {
+      surveys: completedSurveys
+    }
+  };
+};

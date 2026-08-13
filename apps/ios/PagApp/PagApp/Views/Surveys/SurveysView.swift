@@ -2,7 +2,7 @@ import SwiftUI
 
 public struct SurveysView: View {
     @StateObject private var surveyService = SurveyService.shared
-    @State private var selectedCategory: String = "Sana Uygun"
+    @State private var selectedTab: Int = 0 // 0: Bekleyen Anketler, 1: Tamamlanan Anketler
     @State private var navPath = NavigationPath()
     
     public init() {}
@@ -13,32 +13,64 @@ public struct SurveysView: View {
                 PAGTheme.backgroundPrimary.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: PAGSpacing.sm) {
-                            ForEach(["Sana Uygun", "Yeni", "Tamamlanan"], id: \.self) { category in
-                                Button(action: {
-                                    withAnimation {
-                                        selectedCategory = category
-                                    }
-                                }) {
-                                    Text(category)
-                                        .font(PAGTypography.bodyLarge)
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 16)
-                                        .background(selectedCategory == category ? PAGTheme.brandMidnight : Color.clear)
-                                        .foregroundColor(selectedCategory == category ? PAGTheme.brandLime : PAGTheme.textSecondary)
-                                        .cornerRadius(PAGRadius.pill)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: PAGRadius.pill)
-                                                .stroke(selectedCategory == category ? Color.clear : PAGTheme.borderDefault, lineWidth: 1)
-                                        )
-                                }
+                    // ==================================================
+                    // CORPORATE SEGMENTED TAB BUTTONS
+                    // ==================================================
+                    HStack(spacing: 0) {
+                        // Bekleyen Anketler Tab
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedTab = 0
                             }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "clock.fill")
+                                    .font(.system(size: 14))
+                                Text("Bekleyen (\(surveyService.eligibleSurveys.count))")
+                                    .font(PAGTypography.heading)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(selectedTab == 0 ? PAGTheme.surfacePrimary : Color.clear)
+                            .foregroundColor(selectedTab == 0 ? PAGTheme.brandLime : PAGTheme.textMuted)
+                            .cornerRadius(PAGRadius.small)
                         }
-                        .padding(.horizontal, PAGSpacing.md)
-                        .padding(.vertical, PAGSpacing.sm)
+
+                        // Tamamlanan Anketler Tab
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                selectedTab = 1
+                            }
+                            Task {
+                                await surveyService.fetchCompletedSurveys()
+                            }
+                        }) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 14))
+                                Text("Tamamlanan (\(surveyService.completedSurveys.count))")
+                                    .font(PAGTypography.heading)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(selectedTab == 1 ? PAGTheme.surfacePrimary : Color.clear)
+                            .foregroundColor(selectedTab == 1 ? PAGTheme.brandLime : PAGTheme.textMuted)
+                            .cornerRadius(PAGRadius.small)
+                        }
                     }
+                    .padding(4)
+                    .background(PAGTheme.surfaceSecondary)
+                    .cornerRadius(PAGRadius.medium)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: PAGRadius.medium)
+                            .stroke(PAGTheme.borderDefault, lineWidth: 1)
+                    )
+                    .padding(.horizontal, PAGSpacing.md)
+                    .padding(.vertical, PAGSpacing.md)
                     
+                    // ==================================================
+                    // SURVEY LIST CONTENT
+                    // ==================================================
                     if surveyService.isLoading {
                         Spacer()
                         ProgressView()
@@ -55,6 +87,7 @@ public struct SurveysView: View {
                             Button(action: {
                                 Task {
                                     await surveyService.fetchEligibleSurveys()
+                                    await surveyService.fetchCompletedSurveys()
                                 }
                             }) {
                                 Text("Yeniden Dene")
@@ -71,20 +104,31 @@ public struct SurveysView: View {
                     } else {
                         ScrollView {
                             VStack(spacing: PAGSpacing.md) {
-                                let filtered = filteredSurveys(category: selectedCategory)
-                                if filtered.isEmpty {
-                                    Text("Bu kategoride anket bulunmuyor.")
-                                        .font(PAGTypography.body)
-                                        .foregroundColor(PAGTheme.textMuted)
-                                        .padding(.top, 40)
+                                let currentList = selectedTab == 0 ? surveyService.eligibleSurveys : surveyService.completedSurveys
+                                
+                                if currentList.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: selectedTab == 0 ? "tray.fill" : "checkmark.circle.trianglebadge.exclamationmark")
+                                            .font(.system(size: 44))
+                                            .foregroundColor(PAGTheme.textMuted)
+                                        Text(selectedTab == 0 ? "Henüz bekleyen anket bulunmuyor." : "Henüz tamamlanmış anketiniz bulunmuyor.")
+                                            .font(PAGTypography.body)
+                                            .foregroundColor(PAGTheme.textMuted)
+                                            .multilineTextAlignment(.center)
+                                    }
+                                    .padding(.top, 60)
                                 } else {
-                                    ForEach(filtered) { survey in
-                                        Button(action: {
-                                            navPath.append(survey.surveyId)
-                                        }) {
-                                            PAGSurveyCardView(survey: survey)
+                                    ForEach(currentList) { survey in
+                                        if selectedTab == 0 {
+                                            Button(action: {
+                                                navPath.append(survey.surveyId)
+                                            }) {
+                                                PAGSurveyCardView(survey: survey)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                        } else {
+                                            PAGCompletedSurveyCardView(survey: survey)
                                         }
-                                        .buttonStyle(PlainButtonStyle())
                                     }
                                 }
                             }
@@ -99,19 +143,64 @@ public struct SurveysView: View {
             }
             .task {
                 await surveyService.fetchEligibleSurveys()
+                await surveyService.fetchCompletedSurveys()
             }
         }
     }
+}
+
+public struct PAGCompletedSurveyCardView: View {
+    public let survey: PAGSurvey
     
-    private func filteredSurveys(category: String) -> [PAGSurvey] {
-        switch category {
-        case "Tamamlanan":
-            return surveyService.eligibleSurveys.filter { $0.isCompleted }
-        case "Yeni":
-            return surveyService.eligibleSurveys.filter { !$0.isCompleted && $0.surveyType != "PROFILE" }
-        default: // Sana Uygun
-            return surveyService.eligibleSurveys.filter { !$0.isCompleted }
+    public init(survey: PAGSurvey) {
+        self.survey = survey
+    }
+    
+    public var body: some View {
+        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+            HStack {
+                PAGBadge(
+                    title: survey.ownerDisplayName,
+                    iconName: survey.surveyType == "PROFILE" ? "person.crop.circle" : "building.2",
+                    style: .tag
+                )
+                Spacer()
+                PAGBadge(
+                    title: "Tamamlandı",
+                    iconName: "checkmark.circle.fill",
+                    style: .info
+                )
+            }
+            
+            Text(survey.title)
+                .font(PAGTypography.heading)
+                .foregroundColor(PAGTheme.textPrimary)
+                .multilineTextAlignment(.leading)
+            
+            Text(survey.description)
+                .font(PAGTypography.bodySmall)
+                .foregroundColor(PAGTheme.textSecondary)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            
+            HStack {
+                Text("Kazanılan Ödül:")
+                    .font(PAGTypography.caption)
+                    .foregroundColor(PAGTheme.textMuted)
+                Text("+\(survey.profileScoreReward) Profil Puanı")
+                    .font(PAGTypography.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(PAGTheme.brandLime)
+            }
+            .padding(.top, 4)
         }
+        .padding(PAGSpacing.md)
+        .background(PAGTheme.surfacePrimary)
+        .cornerRadius(PAGRadius.medium)
+        .overlay(
+            RoundedRectangle(cornerRadius: PAGRadius.medium)
+                .stroke(PAGTheme.success.opacity(0.3), lineWidth: 1)
+        )
     }
 }
 
@@ -150,17 +239,14 @@ public struct PAGSurveyCardView: View {
                 .multilineTextAlignment(.leading)
             
             HStack {
-                Image(systemName: "clock")
-                    .foregroundColor(PAGTheme.textMuted)
-                Text(survey.estimatedDurationText)
+                Label("3 Soru", systemImage: "questionmark.circle")
                     .font(PAGTypography.caption)
                     .foregroundColor(PAGTheme.textMuted)
-                
                 Spacer()
-                
-                Text(survey.isCompleted ? "Tamamlandı" : "Katıl")
-                    .font(PAGTypography.bodyLarge)
-                    .foregroundColor(survey.isCompleted ? PAGTheme.textMuted : PAGTheme.brandLime)
+                Text("Katıl →")
+                    .font(PAGTypography.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(PAGTheme.brandLime)
             }
             .padding(.top, 4)
         }
@@ -172,8 +258,4 @@ public struct PAGSurveyCardView: View {
                 .stroke(PAGTheme.borderDefault, lineWidth: 1)
         )
     }
-}
-
-#Preview {
-    SurveysView()
 }

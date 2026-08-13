@@ -7,6 +7,7 @@ public class SurveyService: ObservableObject {
     public static let shared = SurveyService()
     
     @Published public private(set) var eligibleSurveys: [PAGSurvey] = []
+    @Published public private(set) var completedSurveys: [PAGSurvey] = []
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var errorMessage: String? = nil
     
@@ -53,6 +54,43 @@ public class SurveyService: ObservableObject {
             self.errorMessage = "Anketler yüklenirken bir sorun oluştu. Lütfen tekrar deneyin."
             self.eligibleSurveys = []
             self.isLoading = false
+        }
+    }
+
+    public func fetchCompletedSurveys() async {
+        do {
+            let result = try await Functions.functions().httpsCallable("getCompletedSurveys").call()
+            guard let dict = result.data as? [String: Any],
+                  let success = dict["success"] as? Bool, success,
+                  let dataDict = dict["data"] as? [String: Any],
+                  let rawSurveys = dataDict["surveys"] as? [[String: Any]] else {
+                return
+            }
+            
+            var parsedList: [PAGSurvey] = []
+            for item in rawSurveys {
+                if let surveyId = item["surveyId"] as? String,
+                   let title = item["title"] as? String,
+                   let description = item["description"] as? String {
+                    let survey = PAGSurvey(
+                        surveyId: surveyId,
+                        ownerType: item["ownerType"] as? String ?? "PAG",
+                        organizationId: item["organizationId"] as? String,
+                        surveyType: item["surveyType"] as? String ?? "PAG",
+                        title: title,
+                        description: description,
+                        status: "COMPLETED",
+                        questionCount: item["questionCount"] as? Int ?? 3,
+                        profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
+                        isCompleted: true
+                    )
+                    parsedList.append(survey)
+                }
+            }
+            
+            self.completedSurveys = parsedList
+        } catch {
+            print("[SurveyService] Fetch completed surveys error: \(error.localizedDescription)")
         }
     }
     

@@ -8,6 +8,8 @@ import AuthenticationServices
 
 @MainActor
 public final class AuthService: ObservableObject {
+    public static let shared = AuthService()
+
     @Published public private(set) var currentUser: AuthUser?
     @Published public private(set) var isAuthenticated: Bool = false
     @Published public var isLoading: Bool = false

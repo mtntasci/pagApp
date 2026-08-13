@@ -1,47 +1,30 @@
 package com.alafteknoloji.pagapp.ui.screens.surveys
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import com.alafteknoloji.pagapp.models.PAGSurvey
 import com.alafteknoloji.pagapp.services.SurveyService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.components.PAGCard
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
+import kotlinx.coroutines.launch
 
 @Composable
 fun SurveysScreen(
@@ -49,14 +32,17 @@ fun SurveysScreen(
     modifier: Modifier = Modifier,
     surveyService: SurveyService = remember { SurveyService() }
 ) {
-    var selectedCategory by remember { mutableStateOf("Sana Uygun") }
-    val categories = listOf("Sana Uygun", "Yeni", "Tamamlanan")
+    var selectedTab by remember { mutableStateOf(0) } // 0: Bekleyen, 1: Tamamlanan
 
     val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()
+    val completedSurveys by surveyService.completedSurveys.collectAsState()
     val isLoading by surveyService.isLoading.collectAsState()
+    val errorMessage by surveyService.errorMessage.collectAsState()
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         surveyService.fetchEligibleSurveys()
+        surveyService.fetchCompletedSurveys()
     }
 
     Column(
@@ -64,79 +50,112 @@ fun SurveysScreen(
             .fillMaxSize()
             .background(PAGTheme.colors.backgroundPrimary)
     ) {
-        // Category Tabs
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = PAGTheme.spacing.md, vertical = PAGTheme.spacing.sm),
-            horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
+        // ==================================================
+        // CORPORATE SEGMENTED TAB BUTTONS
+        // ==================================================
+        Surface(
+            color = PAGTheme.colors.surfaceSecondary,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = PAGTheme.spacing.md, vertical = PAGTheme.spacing.md)
+                .border(1.dp, PAGTheme.colors.borderDefault, RoundedCornerShape(12.dp))
         ) {
-            items(categories) { category ->
-                val isSelected = selectedCategory == category
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // Bekleyen Anketler Tab
                 Box(
                     modifier = Modifier
-                        .clip(CircleShape)
-                        .background(if (isSelected) PAGTheme.colors.brandMidnight else Color.Transparent)
-                        .border(
-                            width = 1.dp,
-                            color = if (isSelected) Color.Transparent else PAGTheme.colors.borderDefault,
-                            shape = CircleShape
+                        .weight(1f)
+                        .background(
+                            if (selectedTab == 0) PAGTheme.colors.surfacePrimary else Color.Transparent,
+                            RoundedCornerShape(8.dp)
                         )
-                        .clickable { selectedCategory = category }
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clickable { selectedTab = 0 }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = category,
-                        style = PAGTheme.typography.bodyLarge,
-                        color = if (isSelected) PAGTheme.colors.brandLime else PAGTheme.colors.textSecondary
+                        text = "Bekleyen (${eligibleSurveys.size})",
+                        style = PAGTheme.typography.heading,
+                        color = if (selectedTab == 0) PAGTheme.colors.brandLime else PAGTheme.colors.textMuted
+                    )
+                }
+
+                // Tamamlanan Anketler Tab
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .background(
+                            if (selectedTab == 1) PAGTheme.colors.surfacePrimary else Color.Transparent,
+                            RoundedCornerShape(8.dp)
+                        )
+                        .clickable {
+                            selectedTab = 1
+                            scope.launch {
+                                surveyService.fetchCompletedSurveys()
+                            }
+                        }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Tamamlanan (${completedSurveys.size})",
+                        style = PAGTheme.typography.heading,
+                        color = if (selectedTab == 1) PAGTheme.colors.brandLime else PAGTheme.colors.textMuted
                     )
                 }
             }
         }
 
-    val errorMessage by surveyService.errorMessage.collectAsState()
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = PAGTheme.colors.brandLime)
-        }
-    } else if (errorMessage != null) {
-        Box(modifier = Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = PAGTheme.colors.brandLime)
+            }
+        } else if (errorMessage != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = errorMessage ?: "",
-                    style = PAGTheme.typography.body,
-                    color = PAGTheme.colors.error
-                )
-                androidx.compose.material3.Button(
-                    onClick = {
-                        scope.launch {
-                            surveyService.fetchEligibleSurveys()
-                        }
-                    }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    Text("Yeniden Dene")
+                    Text(
+                        text = errorMessage ?: "",
+                        style = PAGTheme.typography.body,
+                        color = PAGTheme.colors.error
+                    )
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                surveyService.fetchEligibleSurveys()
+                                surveyService.fetchCompletedSurveys()
+                            }
+                        }
+                    ) {
+                        Text("Yeniden Dene")
+                    }
                 }
             }
-        }
-    } else {
-            val filtered = remember(selectedCategory, eligibleSurveys) {
-                when (selectedCategory) {
-                    "Tamamlanan" -> eligibleSurveys.filter { it.isCompleted }
-                    "Yeni" -> eligibleSurveys.filter { !it.isCompleted && it.surveyType != "PROFILE" }
-                    else -> eligibleSurveys.filter { !it.isCompleted }
-                }
-            }
+        } else {
+            val currentList = if (selectedTab == 0) eligibleSurveys else completedSurveys
 
-            if (filtered.isEmpty()) {
+            if (currentList.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize().padding(top = 40.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 60.dp),
                     contentAlignment = Alignment.TopCenter
                 ) {
                     Text(
-                        text = "Bu kategoride anket bulunmuyor.",
+                        text = if (selectedTab == 0) "Henüz bekleyen anket bulunmuyor." else "Henüz tamamlanmış anketiniz bulunmuyor.",
                         style = PAGTheme.typography.body,
                         color = PAGTheme.colors.textMuted
                     )
@@ -146,11 +165,15 @@ fun SurveysScreen(
                     contentPadding = PaddingValues(PAGTheme.spacing.md),
                     verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md)
                 ) {
-                    items(filtered) { survey ->
-                        PAGSurveyCard(
-                            survey = survey,
-                            onTakeSurvey = { onNavigateToDetail(survey.surveyId) }
-                        )
+                    items(currentList) { survey ->
+                        if (selectedTab == 0) {
+                            PAGSurveyCard(
+                                survey = survey,
+                                onTakeSurvey = { onNavigateToDetail(survey.surveyId) }
+                            )
+                        } else {
+                            PAGCompletedSurveyCard(survey = survey)
+                        }
                     }
                 }
             }
@@ -203,15 +226,70 @@ fun PAGSurveyCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = survey.estimatedDurationText,
+                    text = "3 Soru",
                     style = PAGTheme.typography.caption,
                     color = PAGTheme.colors.textMuted
                 )
 
                 Text(
-                    text = if (survey.isCompleted) "Tamamlandı" else "Katıl",
+                    text = "Katıl →",
                     style = PAGTheme.typography.bodyLarge,
-                    color = if (survey.isCompleted) PAGTheme.colors.textMuted else PAGTheme.colors.brandLime
+                    color = PAGTheme.colors.brandLime,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PAGCompletedSurveyCard(
+    survey: PAGSurvey
+) {
+    PAGCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, PAGTheme.colors.success.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PAGBadge(
+                    title = survey.ownerDisplayName,
+                    style = PAGBadgeStyle.Tag
+                )
+                PAGBadge(
+                    title = "Tamamlandı",
+                    icon = Icons.Filled.CheckCircle,
+                    style = PAGBadgeStyle.Info
+                )
+            }
+
+            Text(
+                text = survey.title,
+                style = PAGTheme.typography.heading,
+                color = PAGTheme.colors.textPrimary
+            )
+
+            Text(
+                text = survey.description,
+                style = PAGTheme.typography.bodySmall,
+                color = PAGTheme.colors.textSecondary
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Kazanılan Ödül: +${survey.profileScoreReward} Profil Puanı",
+                    style = PAGTheme.typography.caption,
+                    color = PAGTheme.colors.brandLime,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

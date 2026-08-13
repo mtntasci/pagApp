@@ -5,7 +5,8 @@ import {
   getEligibleSurveysHandler,
   getSurveyDetailHandler,
   submitSurveyResponseHandler,
-  updateProfileSurveyResponseHandler
+  updateProfileSurveyResponseHandler,
+  getCompletedSurveysHandler
 } from './survey';
 import { getCurrentUserRankingHandler } from './ranking';
 import { getUserRewardsHandler } from './reward';
@@ -54,6 +55,7 @@ export const bootstrapCurrentUser = functions.https.onCall(bootstrapCurrentUserH
  * Survey Domain Callable Functions.
  */
 export const getEligibleSurveys = functions.https.onCall(getEligibleSurveysHandler);
+export const getCompletedSurveys = functions.https.onCall(getCompletedSurveysHandler);
 export const getSurveyDetail = functions.https.onCall(getSurveyDetailHandler);
 export const submitSurveyResponse = functions.https.onCall(submitSurveyResponseHandler);
 export const updateProfileSurveyResponse = functions.https.onCall(updateProfileSurveyResponseHandler);

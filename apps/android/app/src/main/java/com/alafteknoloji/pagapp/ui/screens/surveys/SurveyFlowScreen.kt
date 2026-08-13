@@ -112,11 +112,14 @@ fun SurveyFlowScreen(
                                     val answerInputs = answersMap.map { PAGAnswerInput(it.key, it.value) }
                                     val res = surveyService.submitSurveyResponse(
                                         surveyId = survey.surveyId,
-                                        answers = answerInputs,
-                                        isProfile = survey.surveyType == "PROFILE"
+                                        answers = answerInputs
                                     )
                                     isSubmitting = false
-                                    onComplete(res)
+                                    if (res != null) {
+                                        onComplete(res)
+                                    } else {
+                                        submitError = "Cevaplar gönderilirken bir hata oluştu. Lütfen tekrar deneyiniz."
+                                    }
                                 } catch (e: Exception) {
                                     isSubmitting = false
                                     submitError = "Gönderim hatası: ${e.localizedMessage}"
