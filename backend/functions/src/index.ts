@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import * as functions from 'firebase-functions';
+import { onCall, CallableRequest } from 'firebase-functions/v2/https';
 import { bootstrapCurrentUserHandler } from './bootstrap';
 import {
   getEligibleSurveysHandler,
@@ -54,71 +54,84 @@ if (!admin.apps.length) {
 }
 
 /**
+ * Universal CORS-enabled Firebase Callable wrapper.
+ */
+const createCallable = (handler: (data: any, context: any) => Promise<any>) => {
+  return onCall({ cors: true }, async (request: CallableRequest<any>) => {
+    return handler(request.data, {
+      auth: request.auth,
+      rawRequest: request.rawRequest
+    });
+  });
+};
+
+/**
  * Trusted Backend User Bootstrap Callable Function.
  */
-export const bootstrapCurrentUser = functions.https.onCall(bootstrapCurrentUserHandler);
+export const bootstrapCurrentUser = createCallable(bootstrapCurrentUserHandler);
 
 /**
  * Survey Domain Callable Functions.
  */
-export const getEligibleSurveys = functions.https.onCall(getEligibleSurveysHandler);
-export const getCompletedSurveys = functions.https.onCall(getCompletedSurveysHandler);
-export const getSurveyDetail = functions.https.onCall(getSurveyDetailHandler);
-export const submitSurveyResponse = functions.https.onCall(submitSurveyResponseHandler);
-export const updateProfileSurveyResponse = functions.https.onCall(updateProfileSurveyResponseHandler);
+export const getEligibleSurveys = createCallable(getEligibleSurveysHandler);
+export const getCompletedSurveys = createCallable(getCompletedSurveysHandler);
+export const getSurveyDetail = createCallable(getSurveyDetailHandler);
+export const submitSurveyResponse = createCallable(submitSurveyResponseHandler);
+export const updateProfileSurveyResponse = createCallable(updateProfileSurveyResponseHandler);
 
 /**
  * Profile Questions Engine Callable Functions (Domain B).
  */
-export const getProfileQuestions = functions.https.onCall(getProfileQuestionsHandler);
-export const submitProfileQuestionAnswers = functions.https.onCall(submitProfileQuestionAnswersHandler);
-export const getAnsweredProfileQuestions = functions.https.onCall(getAnsweredProfileQuestionsHandler);
-export const updateProfileQuestionAnswer = functions.https.onCall(updateProfileQuestionAnswerHandler);
+export const getProfileQuestions = createCallable(getProfileQuestionsHandler);
+export const submitProfileQuestionAnswers = createCallable(submitProfileQuestionAnswersHandler);
+export const getAnsweredProfileQuestions = createCallable(getAnsweredProfileQuestionsHandler);
+export const updateProfileQuestionAnswer = createCallable(updateProfileQuestionAnswerHandler);
 
 /**
  * Basic User Profile Callable Functions.
  */
-export const getBasicProfile = functions.https.onCall(getBasicProfileHandler);
-export const updateBasicProfile = functions.https.onCall(updateBasicProfileHandler);
-export const verifyPhone = functions.https.onCall(verifyPhoneHandler);
-export const submitIbanAndTckn = functions.https.onCall(submitIbanAndTcknHandler);
-export const submitKyc = functions.https.onCall(submitKycHandler);
+export const getBasicProfile = createCallable(getBasicProfileHandler);
+export const updateBasicProfile = createCallable(updateBasicProfileHandler);
+export const verifyPhone = createCallable(verifyPhoneHandler);
+export const submitIbanAndTckn = createCallable(submitIbanAndTcknHandler);
+export const submitKyc = createCallable(submitKycHandler);
 
 /**
  * User Ranking Foundation Callable Function.
  */
-export const getCurrentUserRanking = functions.https.onCall(getCurrentUserRankingHandler);
+export const getCurrentUserRanking = createCallable(getCurrentUserRankingHandler);
 
 /**
  * User Reward Engine & Vouchers Callable Function.
  */
-export const getUserRewards = functions.https.onCall(getUserRewardsHandler);
+export const getUserRewards = createCallable(getUserRewardsHandler);
 
 /**
  * Admin Portal & Company Application Callable Functions.
  */
-export const getAdminDashboardMetrics = functions.https.onCall(getAdminDashboardMetricsHandler);
-export const createOrUpdateSurveyAdmin = functions.https.onCall(createOrUpdateSurveyAdminHandler);
-export const listSurveysAdmin = functions.https.onCall(listSurveysAdminHandler);
-export const getSurveyAdmin = functions.https.onCall(getSurveyAdminHandler);
-export const submitSurveyForApprovalAdmin = functions.https.onCall(submitSurveyForApprovalAdminHandler);
-export const approveSurveyAdmin = functions.https.onCall(approveSurveyAdminHandler);
-export const archiveSurveyAdmin = functions.https.onCall(archiveSurveyAdminHandler);
-export const manageVoucherPoolAdmin = functions.https.onCall(manageVoucherPoolAdminHandler);
-export const manageStoryBarAdmin = functions.https.onCall(manageStoryBarAdminHandler);
-export const getEligibleStories = functions.https.onCall(getEligibleStoriesHandler);
+export const getAdminDashboardMetrics = createCallable(getAdminDashboardMetricsHandler);
+export const createOrUpdateSurveyAdmin = createCallable(createOrUpdateSurveyAdminHandler);
+export const listSurveysAdmin = createCallable(listSurveysAdminHandler);
+export const getSurveyAdmin = createCallable(getSurveyAdminHandler);
+export const submitSurveyForApprovalAdmin = createCallable(submitSurveyForApprovalAdminHandler);
+export const approveSurveyAdmin = createCallable(approveSurveyAdminHandler);
+export const archiveSurveyAdmin = createCallable(archiveSurveyAdminHandler);
+export const manageVoucherPoolAdmin = createCallable(manageVoucherPoolAdminHandler);
+export const manageStoryBarAdmin = createCallable(manageStoryBarAdminHandler);
+export const getEligibleStories = createCallable(getEligibleStoriesHandler);
 
-export const getPortalUser = functions.https.onCall(getPortalUserHandler);
-export const submitCompanyApplication = functions.https.onCall(submitCompanyApplicationHandler);
-export const listCompanyApplicationsAdmin = functions.https.onCall(listCompanyApplicationsAdminHandler);
-export const updateCompanyApplicationStatusAdmin = functions.https.onCall(updateCompanyApplicationStatusAdminHandler);
-export const createPortalUserAdmin = functions.https.onCall(createPortalUserAdminHandler);
-export const completePasswordChangePortalUser = functions.https.onCall(completePasswordChangePortalUserHandler);
+export const getPortalUser = createCallable(getPortalUserHandler);
+export const submitCompanyApplication = createCallable(submitCompanyApplicationHandler);
+export const listCompanyApplicationsAdmin = createCallable(listCompanyApplicationsAdminHandler);
+export const updateCompanyApplicationStatusAdmin = createCallable(updateCompanyApplicationStatusAdminHandler);
+export const createPortalUserAdmin = createCallable(createPortalUserAdminHandler);
+export const completePasswordChangePortalUser = createCallable(completePasswordChangePortalUserHandler);
 
 // Admin Profile Questions & Category Callables
-export const createOrUpdateProfileQuestionAdmin = functions.https.onCall(createOrUpdateProfileQuestionAdminHandler);
-export const listProfileQuestionsAdmin = functions.https.onCall(listProfileQuestionsAdminHandler);
-export const manageSurveyCategoriesAdmin = functions.https.onCall(manageSurveyCategoriesAdminHandler);
-export const manageProfileCategoriesAdmin = functions.https.onCall(manageProfileCategoriesAdminHandler);
-export const seedCategoriesAdmin = functions.https.onCall(seedCategoriesAdminHandler);
-export const cleanSurveyDataAdmin = functions.https.onCall(cleanSurveyDataAdminHandler);
+export const createOrUpdateProfileQuestionAdmin = createCallable(createOrUpdateProfileQuestionAdminHandler);
+export const listProfileQuestionsAdmin = createCallable(listProfileQuestionsAdminHandler);
+export const manageSurveyCategoriesAdmin = createCallable(manageSurveyCategoriesAdminHandler);
+export const manageProfileCategoriesAdmin = createCallable(manageProfileCategoriesAdminHandler);
+export const seedCategoriesAdmin = createCallable(seedCategoriesAdminHandler);
+export const cleanSurveyDataAdmin = createCallable(cleanSurveyDataAdminHandler);
+
