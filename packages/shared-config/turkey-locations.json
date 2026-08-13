@@ -8,42 +8,96 @@
           "id": "3401",
           "name": "Kadıköy",
           "neighborhoods": [
-            { "id": "340101", "name": "Caferağa Mah." },
-            { "id": "340102", "name": "Moda Mah." },
-            { "id": "340103", "name": "Fenerbahçe Mah." },
-            { "id": "340104", "name": "Göztepe Mah." },
-            { "id": "340105", "name": "Suadiye Mah." }
+            {
+              "id": "340101",
+              "name": "Caferağa Mah."
+            },
+            {
+              "id": "340102",
+              "name": "Moda Mah."
+            },
+            {
+              "id": "340103",
+              "name": "Fenerbahçe Mah."
+            },
+            {
+              "id": "340104",
+              "name": "Göztepe Mah."
+            },
+            {
+              "id": "340105",
+              "name": "Suadiye Mah."
+            }
           ]
         },
         {
           "id": "3402",
           "name": "Beşiktaş",
           "neighborhoods": [
-            { "id": "340201", "name": "Bebek Mah." },
-            { "id": "340202", "name": "Etiler Mah." },
-            { "id": "340203", "name": "Levent Mah." },
-            { "id": "340204", "name": "Ortaköy Mah." },
-            { "id": "340205", "name": "Yıldız Mah." }
+            {
+              "id": "340201",
+              "name": "Bebek Mah."
+            },
+            {
+              "id": "340202",
+              "name": "Etiler Mah."
+            },
+            {
+              "id": "340203",
+              "name": "Levent Mah."
+            },
+            {
+              "id": "340204",
+              "name": "Ortaköy Mah."
+            },
+            {
+              "id": "340205",
+              "name": "Yıldız Mah."
+            }
           ]
         },
         {
           "id": "3403",
           "name": "Şişli",
           "neighborhoods": [
-            { "id": "340301", "name": "Teşvikiye Mah." },
-            { "id": "340302", "name": "Mecidiyeköy Mah." },
-            { "id": "340303", "name": "Fulya Mah." },
-            { "id": "340304", "name": "Pangaltı Mah." }
+            {
+              "id": "340301",
+              "name": "Teşvikiye Mah."
+            },
+            {
+              "id": "340302",
+              "name": "Mecidiyeköy Mah."
+            },
+            {
+              "id": "340303",
+              "name": "Fulya Mah."
+            },
+            {
+              "id": "340304",
+              "name": "Pangaltı Mah."
+            }
           ]
         },
         {
           "id": "3404",
           "name": "Üsküdar",
           "neighborhoods": [
-            { "id": "340401", "name": "Kuzguncuk Mah." },
-            { "id": "340402", "name": "Beylerbeyi Mah." },
-            { "id": "340403", "name": "Çengelköy Mah." },
-            { "id": "340404", "name": "Kandilli Mah." }
+            {
+              "id": "340401",
+              "name": "Kuzguncuk Mah."
+            },
+            {
+              "id": "340402",
+              "name": "Beylerbeyi Mah."
+            },
+            {
+              "id": "340403",
+              "name": "Çengelköy Mah."
+            },
+            {
+              "id": "340404",
+              "name": "Kandilli Mah."
+            }
           ]
         }
       ]
@@ -56,19 +110,40 @@
           "id": "0601",
           "name": "Çankaya",
           "neighborhoods": [
-            { "id": "060101", "name": "Kızılay Mah." },
-            { "id": "060102", "name": "Tunalı Mah." },
-            { "id": "060103", "name": "Gaziosmanpaşa Mah." },
-            { "id": "060104", "name": "Ümitköy Mah." }
+            {
+              "id": "060101",
+              "name": "Kızılay Mah."
+            },
+            {
+              "id": "060102",
+              "name": "Tunalı Mah."
+            },
+            {
+              "id": "060103",
+              "name": "Gaziosmanpaşa Mah."
+            },
+            {
+              "id": "060104",
+              "name": "Ümitköy Mah."
+            }
           ]
         },
         {
           "id": "0602",
           "name": "Yenimahalle",
           "neighborhoods": [
-            { "id": "060201", "name": "Batıkent Mah." },
-            { "id": "060202", "name": "Demetevler Mah." },
-            { "id": "060203", "name": "Çayyolu Mah." }
+            {
+              "id": "060201",
+              "name": "Batıkent Mah."
+            },
+            {
+              "id": "060202",
+              "name": "Demetevler Mah."
+            },
+            {
+              "id": "060203",
+              "name": "Çayyolu Mah."
+            }
           ]
         }
       ]
@@ -81,18 +156,36 @@
           "id": "3501",
           "name": "Konak",
           "neighborhoods": [
-            { "id": "350101", "name": "Alsancak Mah." },
-            { "id": "350102", "name": "Göztepe Mah." },
-            { "id": "350103", "name": "Kordon Mah." }
+            {
+              "id": "350101",
+              "name": "Alsancak Mah."
+            },
+            {
+              "id": "350102",
+              "name": "Göztepe Mah."
+            },
+            {
+              "id": "350103",
+              "name": "Kordon Mah."
+            }
           ]
         },
         {
           "id": "3502",
           "name": "Karşıyaka",
           "neighborhoods": [
-            { "id": "350201", "name": "Bostanlı Mah." },
-            { "id": "350202", "name": "Mavişehir Mah." },
-            { "id": "350203", "name": "Alaybey Mah." }
+            {
+              "id": "350201",
+              "name": "Bostanlı Mah."
+            },
+            {
+              "id": "350202",
+              "name": "Mavişehir Mah."
+            },
+            {
+              "id": "350203",
+              "name": "Alaybey Mah."
+            }
           ]
         }
       ]
@@ -105,17 +198,32 @@
           "id": "1601",
           "name": "Nilüfer",
           "neighborhoods": [
-            { "id": "160101", "name": "Fethiye Mah." },
-            { "id": "160102", "name": "Görükle Mah." },
-            { "id": "160103", "name": "Özlüce Mah." }
+            {
+              "id": "160101",
+              "name": "Fethiye Mah."
+            },
+            {
+              "id": "160102",
+              "name": "Görükle Mah."
+            },
+            {
+              "id": "160103",
+              "name": "Özlüce Mah."
+            }
           ]
         },
         {
           "id": "1602",
           "name": "Osmangazi",
           "neighborhoods": [
-            { "id": "160201", "name": "Çekirge Mah." },
-            { "id": "160202", "name": "Heykel Mah." }
+            {
+              "id": "160201",
+              "name": "Çekirge Mah."
+            },
+            {
+              "id": "160202",
+              "name": "Heykel Mah."
+            }
           ]
         }
       ]
@@ -128,16 +236,28 @@
           "id": "0701",
           "name": "Muratpaşa",
           "neighborhoods": [
-            { "id": "070101", "name": "Lara Mah." },
-            { "id": "070102", "name": "Kaleiçi Mah." }
+            {
+              "id": "070101",
+              "name": "Lara Mah."
+            },
+            {
+              "id": "070102",
+              "name": "Kaleiçi Mah."
+            }
           ]
         },
         {
           "id": "0702",
           "name": "Konyaaltı",
           "neighborhoods": [
-            { "id": "070201", "name": "Arapsuyu Mah." },
-            { "id": "070202", "name": "Gürsu Mah." }
+            {
+              "id": "070201",
+              "name": "Arapsuyu Mah."
+            },
+            {
+              "id": "070202",
+              "name": "Gürsu Mah."
+            }
           ]
         }
       ]

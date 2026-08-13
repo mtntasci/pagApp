@@ -106,7 +106,20 @@ class BasicProfileService(private val context: Context) {
                 )
             )
         )
-        _locations.value = sampleCities
+        val processedCities = sampleCities.map { city ->
+            city.copy(
+                districts = city.districts.map { district ->
+                    if (district.neighborhoods.orEmpty().isEmpty()) {
+                        district.copy(
+                            neighborhoods = listOf(
+                                PAGNeighborhood(id = "${district.id}01", name = "Merkez Mah.")
+                            )
+                        )
+                    } else district
+                }
+            )
+        }
+        _locations.value = processedCities
     }
 
     suspend fun fetchBasicProfile() {

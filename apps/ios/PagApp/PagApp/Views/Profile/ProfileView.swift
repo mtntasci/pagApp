@@ -245,38 +245,28 @@ public struct ProfileView: View {
                                 .cornerRadius(PAGRadius.medium)
                             }
                             .buttonStyle(PlainButtonStyle())
-                            .disabled(isPhoneVerified)
-
-                            // 2. KYC Verification (+500 PP)
-                            Button(action: {
-                                if !isKycVerified {
-                                    showKycSheet = true
-                                }
-                            }) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("2. Kimlik Doğrulaması (KYC)")
-                                            .font(PAGTypography.body)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(PAGTheme.textPrimary)
-                                        Text("+500 Profil Puanı Kazan")
-                                            .font(PAGTypography.caption)
-                                            .foregroundColor(PAGTheme.brandLime)
-                                    }
-                                    Spacer()
-                                    Text(isKycVerified ? "✅ Doğrulandı (+500 PP)" : (userService.currentUser?.kycStatus == "PENDING" ? "⏳ İnceleniyor" : "Doğrula →"))
-                                        .font(PAGTypography.caption)
+                             // 2. KYC Verification (+500 PP)
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("2. Kimlik Doğrulaması (KYC)")
+                                        .font(PAGTypography.body)
                                         .fontWeight(.bold)
-                                        .foregroundColor(isKycVerified ? PAGTheme.brandLime : PAGTheme.warning)
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                    Text("+500 Profil Puanı Kazan")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.brandLime)
                                 }
-                                .padding()
-                                .background(PAGTheme.surfacePrimary)
-                                .cornerRadius(PAGRadius.medium)
+                                Spacer()
+                                Text(isKycVerified ? "✅ Doğrulandı (+500 PP)" : "Yakında 🔒")
+                                    .font(PAGTypography.caption)
+                                    .fontWeight(.bold)
+                                    .foregroundColor(isKycVerified ? PAGTheme.brandLime : PAGTheme.textMuted)
                             }
-                            .buttonStyle(PlainButtonStyle())
-                            .disabled(isKycVerified)
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
 
-                            // 3. IBAN & TCKN Verification (+200 PP)
+                            // 3. IBAN Verification (+200 PP)
                             Button(action: {
                                 if !isIbanVerified {
                                     ibanInput = userService.currentUser?.iban ?? ""
@@ -286,7 +276,7 @@ public struct ProfileView: View {
                             }) {
                                 HStack {
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("3. IBAN & TCKN Bilgisi")
+                                        Text("3. IBAN Doğrulama")
                                             .font(PAGTypography.body)
                                             .fontWeight(.bold)
                                             .foregroundColor(PAGTheme.textPrimary)
@@ -295,7 +285,7 @@ public struct ProfileView: View {
                                             .foregroundColor(PAGTheme.brandLime)
                                     }
                                     Spacer()
-                                    Text(isIbanVerified ? "✅ Kaydedildi (+200 PP)" : "Bilgileri Gir →")
+                                    Text(isIbanVerified ? "✅ Doğrulandı (+200 PP)" : "IBAN Doğrula →")
                                         .font(PAGTypography.caption)
                                         .fontWeight(.bold)
                                         .foregroundColor(isIbanVerified ? PAGTheme.brandLime : PAGTheme.warning)
@@ -348,24 +338,11 @@ public struct ProfileView: View {
 
                         // Sign Out Button
                         PAGButton(
-                            title: "Çıkış Yap",
-                            iconName: "rectangle.portrait.and.arrow.right",
-                            style: .secondary,
-                            action: {
-                                authService.signOut()
-                            }
-                        )
-                        .padding(.horizontal, PAGSpacing.md)
-
-                        // Dark Red Passive Clear Data Button
-                        PAGButton(
                             title: "Çıkış Yap ve Verilerimi Temizle",
                             iconName: "trash.fill",
                             style: .secondary,
                             action: {}
                         )
-                        .disabled(true)
-                        .opacity(0.6)
                         .padding(.horizontal, PAGSpacing.md)
 
                         Spacer().frame(height: 40)
@@ -382,31 +359,15 @@ public struct ProfileView: View {
                 }
             }
             .sheet(isPresented: $showPhoneSheet) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: PAGSpacing.md) {
-                        Text("Telefon numaranızı onaylayarak +200 Profil Puanı kazanın.")
-                            .font(PAGTypography.body)
-                            .foregroundColor(PAGTheme.textSecondary)
-
-                        TextField("Telefon Numarası", text: $phoneInput)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .padding(.top, 8)
-
-                        Spacer()
-
-                        PAGButton(title: "Doğrula & +200 PP Kazan", iconName: "checkmark.circle.fill", style: .primary) {
-                            Task {
-                                isSubmitting = true
-                                _ = await userService.verifyPhone(phone: phoneInput)
-                                isSubmitting = false
-                                showPhoneSheet = false
-                            }
+                PhoneVerificationSheetView(
+                    phoneInput: $phoneInput,
+                    isPresented: $showPhoneSheet,
+                    onSuccess: {
+                        Task {
+                            await userService.bootstrapCurrentUser()
                         }
                     }
-                    .padding()
-                    .navigationTitle("Telefon Doğrulama (+200 PP)")
-                    .navigationBarTitleDisplayMode(.inline)
-                }
+                )
             }
             .sheet(isPresented: $showKycSheet) {
                 NavigationStack {
@@ -446,7 +407,7 @@ public struct ProfileView: View {
 
                         Spacer()
 
-                        PAGButton(title: "Kaydet & +200 PP Kazan", iconName: "creditcard.fill", style: .primary) {
+                        PAGButton(title: "IBAN Doğrula & +200 PP Kazan", iconName: "creditcard.fill", style: .primary) {
                             Task {
                                 isSubmitting = true
                                 _ = await userService.submitIbanAndTckn(iban: ibanInput, tckn: tcknInput)
@@ -456,7 +417,7 @@ public struct ProfileView: View {
                         }
                     }
                     .padding()
-                    .navigationTitle("IBAN & TCKN Tanımlama (+200 PP)")
+                    .navigationTitle("IBAN Doğrulama (+200 PP)")
                     .navigationBarTitleDisplayMode(.inline)
                 }
             }

@@ -134,7 +134,18 @@ public final class BasicProfileService: ObservableObject {
         """.data(using: .utf8)!
         
         if let decoded = try? JSONDecoder().decode(PAGTurkeyLocations.self, from: hardcodedData) {
-            self.locations = decoded.cities
+            let processedCities = decoded.cities.map { city -> PAGCity in
+                var updatedCity = city
+                updatedCity.districts = city.districts.map { district -> PAGDistrict in
+                    var updatedDistrict = district
+                    if district.neighborhoods == nil || district.neighborhoods?.isEmpty == true {
+                        updatedDistrict.neighborhoods = [PAGNeighborhood(id: "\(district.id)01", name: "Merkez Mah.")]
+                    }
+                    return updatedDistrict
+                }
+                return updatedCity
+            }
+            self.locations = processedCities
         }
     }
     

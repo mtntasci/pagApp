@@ -425,7 +425,6 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .background(PAGTheme.colors.surfaceSecondary, RoundedCornerShape(8.dp))
-                                .clickable(enabled = !isKycVerified) { showKycDialog = true }
                                 .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
@@ -435,14 +434,14 @@ fun ProfileScreen(
                                 Text(text = "+500 Profil Puanı Kazan", style = PAGTheme.typography.caption, color = PAGTheme.colors.brandLime)
                             }
                             Text(
-                                text = if (isKycVerified) "✅ Doğrulandı (+500 PP)" else if (kycStatus == "PENDING") "⏳ İnceleniyor" else "Doğrula →",
+                                text = if (isKycVerified) "✅ Doğrulandı (+500 PP)" else "Yakında 🔒",
                                 style = PAGTheme.typography.caption,
                                 fontWeight = FontWeight.Bold,
-                                color = if (isKycVerified) PAGTheme.colors.brandLime else Color(0xFFF59E0B)
+                                color = if (isKycVerified) PAGTheme.colors.brandLime else PAGTheme.colors.textMuted
                             )
                         }
 
-                        // 3. IBAN & TCKN Verification (+200 PP)
+                        // 3. IBAN Verification (+200 PP)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -453,11 +452,11 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text(text = "3. IBAN & TCKN Bilgisi", style = PAGTheme.typography.body, fontWeight = FontWeight.Bold, color = PAGTheme.colors.textPrimary)
+                                Text(text = "3. IBAN Doğrulama", style = PAGTheme.typography.body, fontWeight = FontWeight.Bold, color = PAGTheme.colors.textPrimary)
                                 Text(text = "+200 Profil Puanı Kazan", style = PAGTheme.typography.caption, color = PAGTheme.colors.brandLime)
                             }
                             Text(
-                                text = if (isIbanVerified) "✅ Kaydedildi (+200 PP)" else "Bilgileri Gir →",
+                                text = if (isIbanVerified) "✅ Doğrulandı (+200 PP)" else "IBAN Doğrula →",
                                 style = PAGTheme.typography.caption,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isIbanVerified) PAGTheme.colors.brandLime else Color(0xFFF59E0B)
@@ -467,69 +466,13 @@ fun ProfileScreen(
 
                     // Dialogs
                     if (showPhoneDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showPhoneDialog = false },
-                            title = { Text("Telefon Doğrulama (+200 PP)", color = PAGTheme.colors.textPrimary) },
-                            text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Telefon numaranızı onaylayarak +200 Profil Puanı kazanın.", style = PAGTheme.typography.caption, color = PAGTheme.colors.textMuted)
-                                    OutlinedTextField(
-                                        value = phoneInput,
-                                        onValueChange = { phoneInput = it },
-                                        label = { Text("Telefon Numarası") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            isSubmitting = true
-                                            userService?.verifyPhone(phoneInput)
-                                            isSubmitting = false
-                                            showPhoneDialog = false
-                                        }
-                                    },
-                                    enabled = !isSubmitting && phoneInput.length > 8
-                                ) {
-                                    Text("Doğrula & +200 PP Kazan")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showPhoneDialog = false }) {
-                                    Text("Vazgeç")
-                                }
-                            }
-                        )
-                    }
-
-                    if (showKycDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showKycDialog = false },
-                            title = { Text("KYC Kimlik Doğrulama (+500 PP)", color = PAGTheme.colors.textPrimary) },
-                            text = {
-                                Text("Kimlik bilgilerinizi doğrulayarak nakit ödül çekim hakkı ve +500 Profil Puanı kazanın.", style = PAGTheme.typography.body)
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            isSubmitting = true
-                                            userService?.submitKyc()
-                                            isSubmitting = false
-                                            showKycDialog = false
-                                        }
-                                    },
-                                    enabled = !isSubmitting
-                                ) {
-                                    Text("Doğrula & +500 PP Kazan")
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showKycDialog = false }) {
-                                    Text("Vazgeç")
+                        PhoneVerificationDialog(
+                            initialPhone = phoneInput,
+                            userService = userService,
+                            onDismiss = { showPhoneDialog = false },
+                            onSuccess = {
+                                scope.launch {
+                                    userService?.bootstrapCurrentUser()
                                 }
                             }
                         )
@@ -538,13 +481,13 @@ fun ProfileScreen(
                     if (showIbanDialog) {
                         AlertDialog(
                             onDismissRequest = { showIbanDialog = false },
-                            title = { Text("IBAN & TCKN Tanımlama (+200 PP)", color = PAGTheme.colors.textPrimary) },
+                            title = { Text("IBAN Doğrulama (+200 PP)", color = PAGTheme.colors.textPrimary, fontWeight = FontWeight.Bold) },
                             text = {
                                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     Text("Nakit ödül transferleri için TC Kimlik No ve IBAN bilgilerinizi giriniz.", style = PAGTheme.typography.caption, color = PAGTheme.colors.textMuted)
                                     OutlinedTextField(
                                         value = tcknInput,
-                                        onValueChange = { if (it.length <= 11) tcknInput = it },
+                                        onValueChange = { if (it.length <= 11) tcknInput = it.filter { c -> c.isDigit() } },
                                         label = { Text("TC Kimlik No (11 Hane)") },
                                         singleLine = true,
                                         modifier = Modifier.fillMaxWidth()
@@ -568,14 +511,15 @@ fun ProfileScreen(
                                             showIbanDialog = false
                                         }
                                     },
-                                    enabled = !isSubmitting && tcknInput.length == 11 && ibanInput.length > 15
+                                    enabled = !isSubmitting && tcknInput.length == 11 && ibanInput.length > 15,
+                                    colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime)
                                 ) {
-                                    Text("Kaydet & +200 PP Kazan")
+                                    Text("IBAN Doğrula & +200 PP Kazan", color = PAGTheme.colors.brandMidnight, fontWeight = FontWeight.Bold)
                                 }
                             },
                             dismissButton = {
                                 TextButton(onClick = { showIbanDialog = false }) {
-                                    Text("Vazgeç")
+                                    Text("Vazgeç", color = Color.White)
                                 }
                             }
                         )

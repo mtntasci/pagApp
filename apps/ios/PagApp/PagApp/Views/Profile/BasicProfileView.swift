@@ -696,8 +696,10 @@ public struct BasicProfileView: View {
                         Button(district.name) {
                             draftProfile.residenceAddress.districtId = district.id
                             draftProfile.residenceAddress.districtName = district.name
-                            draftProfile.residenceAddress.neighborhoodId = nil
-                            draftProfile.residenceAddress.neighborhoodName = nil
+                            let nhList = district.neighborhoods ?? []
+                            let firstNh = nhList.first ?? PAGNeighborhood(id: "\(district.id)01", name: "Merkez Mah.")
+                            draftProfile.residenceAddress.neighborhoodId = firstNh.id
+                            draftProfile.residenceAddress.neighborhoodName = firstNh.name
                         }
                     }
                 } label: {
@@ -724,7 +726,8 @@ public struct BasicProfileView: View {
                     .foregroundColor(PAGTheme.textPrimary)
                 
                 let districts = service.locations.first(where: { $0.id == draftProfile.residenceAddress.cityId })?.districts ?? []
-                let neighborhoods = districts.first(where: { $0.id == draftProfile.residenceAddress.districtId })?.neighborhoods ?? []
+                let rawNeighborhoods = districts.first(where: { $0.id == draftProfile.residenceAddress.districtId })?.neighborhoods ?? []
+                let neighborhoods = rawNeighborhoods.isEmpty ? [PAGNeighborhood(id: "\(draftProfile.residenceAddress.districtId)01", name: "Merkez Mah.")] : rawNeighborhoods
                 
                 Menu {
                     ForEach(neighborhoods) { nh in

@@ -106,13 +106,13 @@ public struct PAGNeighborhood: Codable, Identifiable {
 public struct PAGDistrict: Codable, Identifiable {
     public let id: String
     public let name: String
-    public let neighborhoods: [PAGNeighborhood]?
+    public var neighborhoods: [PAGNeighborhood]?
 }
 
 public struct PAGCity: Codable, Identifiable {
     public let id: String
     public let name: String
-    public let districts: [PAGDistrict]
+    public var districts: [PAGDistrict]
 }
 
 public struct PAGTurkeyLocations: Codable {

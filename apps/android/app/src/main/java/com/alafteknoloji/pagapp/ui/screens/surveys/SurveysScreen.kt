@@ -80,7 +80,7 @@ fun SurveysScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Bekleyen (${eligibleSurveys.size})",
+                        text = "Bekleyen",
                         style = PAGTheme.typography.heading,
                         color = if (selectedTab == 0) PAGTheme.colors.brandLime else PAGTheme.colors.textMuted
                     )
@@ -104,7 +104,7 @@ fun SurveysScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Tamamlanan (${completedSurveys.size})",
+                        text = "Tamamlanan",
                         style = PAGTheme.typography.heading,
                         color = if (selectedTab == 1) PAGTheme.colors.brandLime else PAGTheme.colors.textMuted
                     )
@@ -222,7 +222,9 @@ fun PAGSurveyCard(
             Text(
                 text = survey.title,
                 style = PAGTheme.typography.heading,
-                color = PAGTheme.colors.textPrimary
+                color = PAGTheme.colors.textPrimary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
             Text(
@@ -282,7 +284,9 @@ fun PAGCompletedSurveyCard(
             Text(
                 text = survey.title,
                 style = PAGTheme.typography.heading,
-                color = PAGTheme.colors.textPrimary
+                color = PAGTheme.colors.textPrimary,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
 
             Text(

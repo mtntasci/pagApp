@@ -26,7 +26,7 @@ public struct SurveysView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "clock.fill")
                                     .font(.system(size: 14))
-                                Text("Bekleyen (\(surveyService.eligibleSurveys.count))")
+                                Text("Bekleyen")
                                     .font(PAGTypography.heading)
                             }
                             .frame(maxWidth: .infinity)
@@ -48,7 +48,7 @@ public struct SurveysView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 14))
-                                Text("Tamamlanan (\(surveyService.completedSurveys.count))")
+                                Text("Tamamlanan")
                                     .font(PAGTypography.heading)
                             }
                             .frame(maxWidth: .infinity)
@@ -175,6 +175,8 @@ public struct PAGCompletedSurveyCardView: View {
             Text(survey.title)
                 .font(PAGTypography.heading)
                 .foregroundColor(PAGTheme.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .multilineTextAlignment(.leading)
             
             Text(survey.description)
@@ -239,8 +241,9 @@ public struct PAGSurveyCardView: View {
             Text(survey.title)
                 .font(PAGTypography.heading)
                 .foregroundColor(PAGTheme.textPrimary)
+                .lineLimit(1)
+                .truncationMode(.tail)
                 .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
             
             if !survey.description.isEmpty {
                 Text(survey.description)

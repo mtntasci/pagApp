@@ -587,7 +587,14 @@ private fun Step4ResidenceAddress(profile: PAGBasicProfile, locations: List<PAGC
                         DropdownMenuItem(
                             text = { Text(district.name, color = Color.Black) },
                             onClick = {
-                                onUpdate(profile.copy(residenceAddress = profile.residenceAddress.copy(districtId = district.id, districtName = district.name, neighborhoodId = null, neighborhoodName = null)))
+                                val nhList = district.neighborhoods.orEmpty()
+                                val firstNh = nhList.firstOrNull() ?: PAGNeighborhood("${district.id}01", "Merkez Mah.")
+                                onUpdate(profile.copy(residenceAddress = profile.residenceAddress.copy(
+                                    districtId = district.id,
+                                    districtName = district.name,
+                                    neighborhoodId = firstNh.id,
+                                    neighborhoodName = firstNh.name
+                                )))
                                 districtExpanded = false
                             }
                         )
@@ -599,7 +606,8 @@ private fun Step4ResidenceAddress(profile: PAGBasicProfile, locations: List<PAGC
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("İkametgah (Mahalle)", style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
             val currentDistricts = locations.firstOrNull { it.id == profile.residenceAddress.cityId }?.districts ?: emptyList()
-            val neighborhoods = currentDistricts.firstOrNull { it.id == profile.residenceAddress.districtId }?.neighborhoods ?: emptyList()
+            val rawNh = currentDistricts.firstOrNull { it.id == profile.residenceAddress.districtId }?.neighborhoods ?: emptyList()
+            val neighborhoods = if (rawNh.isEmpty()) listOf(PAGNeighborhood("${profile.residenceAddress.districtId}01", "Merkez Mah.")) else rawNh
 
             Box(modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
