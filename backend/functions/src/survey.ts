@@ -290,7 +290,7 @@ export const submitSurveyResponseHandler = async (
   const responseId = `${surveyId}_${uid}`;
   const responseRef = db.collection('surveyResponses').doc(responseId);
   const ledgerId = `SURVEY_${surveyId}_${uid}`;
-  const ledgerRef = db.collection('profileScoreLedgers').doc(ledgerId);
+  const ledgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc(ledgerId);
 
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
 

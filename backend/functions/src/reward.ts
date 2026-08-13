@@ -163,7 +163,7 @@ export const getUserRewardsHandler = async (
   // Execute queries in parallel for maximum performance
   const [rewardLedgersSnap, scoreLedgersSnap, userDocSnap] = await Promise.all([
     db.collection('rewardLedgers').where('userId', '==', uid).get(),
-    db.collection('profileScoreLedgers').where('userId', '==', uid).get(),
+    db.collection('users').doc(uid).collection('profileScoreLedgers').get(),
     db.collection('users').doc(uid).get()
   ]);
 

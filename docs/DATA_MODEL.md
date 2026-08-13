@@ -444,11 +444,14 @@ trigger/perform score and reward consequences
 Client timestamp is not authoritative.
 
 13. PROFILE SCORE LEDGER
-profileScoreLedgers/{ledgerId}
+Location: users/{userId}/profileScoreLedgers/{ledgerId}
+
+Purpose: Auditable history and idempotency log for profile score awards.
+CollectionGroup: `profileScoreLedgers` is consistent across all users to enable global CollectionGroup queries when required by Admin dashboards.
 
 Fields:
 
-id (Deterministic: SURVEY_{surveyId}_{userId} or PROFILE_SURVEY_{surveyId}_{userId})
+id (Deterministic: `SURVEY_${surveyId}_${userId}`, `PROFILE_Q_${questionId}_${userId}`, or `BASIC_PROFILE_${userId}`)
 userId
 
 sourceType ("SURVEY" | "PROFILE_SURVEY" | "REWARDED_VIDEO" | "VERIFICATION" | "PARTNER")

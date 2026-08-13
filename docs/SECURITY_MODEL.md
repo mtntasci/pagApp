@@ -85,6 +85,11 @@ service cloud.firestore {
       match /profile/main {
         allow read, write: if isOwner(userId);
       }
+
+      match /profileScoreLedgers/{ledgerId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if false; // All score ledger entries created by Cloud Functions Admin SDK
+      }
       
       match /devices/{deviceId} {
         allow read, write: if isOwner(userId);
@@ -95,12 +100,6 @@ service cloud.firestore {
     match /surveyResponses/{responseId} {
       allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
       allow write: if false; // All writes via Cloud Functions Admin SDK
-    }
-
-    // Profile Score Ledger: READ by owner, WRITE prohibited for clients
-    match /profileScoreLedgers/{ledgerId} {
-      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
-      allow write: if false;
     }
 
     // Reward Ledger: READ by owner, WRITE prohibited for clients

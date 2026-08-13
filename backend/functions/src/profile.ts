@@ -255,7 +255,7 @@ export const updateBasicProfileHandler = async (
   const profileRef = db.collection('users').doc(uid).collection('profile').doc('basic');
   const userRef = db.collection('users').doc(uid);
   const ledgerId = `BASIC_PROFILE_${uid}`;
-  const ledgerRef = db.collection('profileScoreLedgers').doc(ledgerId);
+  const ledgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc(ledgerId);
 
   let scoreAwardedNow = 0;
   let alreadyAwarded = false;
@@ -365,7 +365,7 @@ export const verifyPhoneHandler = async (
 
     if (!userData.phoneVerified) {
       awardedScore = PHONE_VERIFY_REWARD_AMOUNT;
-      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      const ledgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc();
       transaction.set(ledgerRef, {
         ledgerId: ledgerRef.id,
         userId: uid,
@@ -426,7 +426,7 @@ export const submitIbanAndTcknHandler = async (
 
     if (!userData.ibanVerified) {
       awardedScore = IBAN_VERIFY_REWARD_AMOUNT;
-      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      const ledgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc();
       transaction.set(ledgerRef, {
         ledgerId: ledgerRef.id,
         userId: uid,
@@ -477,7 +477,7 @@ export const submitKycHandler = async (
 
     if (userData.kycStatus !== 'VERIFIED') {
       awardedScore = KYC_VERIFY_REWARD_AMOUNT;
-      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      const ledgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc();
       transaction.set(ledgerRef, {
         ledgerId: ledgerRef.id,
         userId: uid,

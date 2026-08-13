@@ -312,10 +312,11 @@ Profile Score Domain
 
 Responsible for:
 
-Profile Score ledger
-Profile Score total
-score sources
-idempotent score awards
+Profile Score ledger (`users/{userId}/profileScoreLedgers/{ledgerId}`)
+Profile Score total (`users/{userId}.profileScore` materialized total)
+score sources (`SURVEY`, `PROFILE`, `PHONE_VERIFIED`, `IBAN_VERIFIED`, `KYC_VERIFIED`, `BASIC_PROFILE`)
+idempotent score awards (deterministic ledger IDs per user)
+CollectionGroup query support (`profileScoreLedgers`) for global admin reporting
 
 Profile Score is not money.
 

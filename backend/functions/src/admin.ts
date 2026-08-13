@@ -212,7 +212,7 @@ export const getAdminDashboardMetricsHandler = async (
     const responsesSnap = await db.collection('surveyResponses').get();
     totalResponses = responsesSnap.docs.length;
 
-    const scoreLedgersSnap = await db.collection('profileScoreLedgers').get();
+    const scoreLedgersSnap = await db.collectionGroup('profileScoreLedgers').get();
     scoreLedgersSnap.docs.forEach((doc) => {
       totalProfileScoreDistributed += (doc.data()?.amount || 0);
     });

@@ -104,7 +104,7 @@ describe('Firestore Security Rules', () => {
 
   test('User A direct client create/edit to profileScoreLedgers is denied', async () => {
     const userADb = testEnv.authenticatedContext('userA').firestore();
-    const ledgerRef = userADb.collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
+    const ledgerRef = userADb.collection('users').doc('userA').collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
     await assertFails(ledgerRef.set({
       id: 'SURVEY_srv_1_userA',
       userId: 'userA',
@@ -114,7 +114,7 @@ describe('Firestore Security Rules', () => {
 
   test('User B reading User A profileScoreLedgers document is denied', async () => {
     await testEnv.withSecurityRulesDisabled(async (context) => {
-      await context.firestore().collection('profileScoreLedgers').doc('SURVEY_srv_1_userA').set({
+      await context.firestore().collection('users').doc('userA').collection('profileScoreLedgers').doc('SURVEY_srv_1_userA').set({
         id: 'SURVEY_srv_1_userA',
         userId: 'userA',
         amount: 50
@@ -122,7 +122,7 @@ describe('Firestore Security Rules', () => {
     });
 
     const userBDb = testEnv.authenticatedContext('userB').firestore();
-    const ledgerRef = userBDb.collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
+    const ledgerRef = userBDb.collection('users').doc('userA').collection('profileScoreLedgers').doc('SURVEY_srv_1_userA');
     await assertFails(ledgerRef.get());
   });
 

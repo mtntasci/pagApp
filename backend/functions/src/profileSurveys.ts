@@ -167,7 +167,7 @@ export const submitProfileQuestionAnswersHandler = async (
   return await db.runTransaction(async (transaction) => {
     // === 1. ALL READS FIRST ===
     const questionRefs = answers.map((a) => db.collection('profileQuestions').doc(a.questionId));
-    const ledgerRefs = answers.map((a) => db.collection('profileScoreLedgers').doc(`PROFILE_Q_${a.questionId}_${uid}`));
+    const ledgerRefs = answers.map((a) => db.collection('users').doc(uid).collection('profileScoreLedgers').doc(`PROFILE_Q_${a.questionId}_${uid}`));
     const answerRefs = answers.map((a) => db.collection('userProfileAnswers').doc(uid).collection('answers').doc(a.questionId));
     const userRef = db.collection('users').doc(uid);
 
