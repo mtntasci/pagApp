@@ -20,6 +20,9 @@ export interface PAGUserResponse {
   phoneVerified: boolean;
   emailVerified: boolean;
   kycStatus: string;
+  iban?: string | null;
+  tckn?: string | null;
+  ibanVerified?: boolean;
   activeDeviceId: string | null;
   registeredAt?: string;
 }
@@ -160,6 +163,9 @@ export const bootstrapCurrentUserHandler = async (
         phoneVerified: existing.phoneVerified ?? false,
         emailVerified: updatedFields.emailVerified ?? existing.emailVerified ?? false,
         kycStatus: existing.kycStatus || 'NOT_STARTED',
+        iban: existing.iban ?? null,
+        tckn: existing.tckn ?? null,
+        ibanVerified: existing.ibanVerified ?? false,
         activeDeviceId: deviceId
       };
     }

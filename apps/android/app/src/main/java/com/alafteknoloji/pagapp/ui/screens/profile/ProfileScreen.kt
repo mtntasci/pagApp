@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.alafteknoloji.pagapp.models.PAGSurvey
 import com.alafteknoloji.pagapp.services.AuthService
 import com.alafteknoloji.pagapp.services.BasicProfileService
@@ -356,69 +357,228 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
 
-                    // Verification Badges
+                    // Verification Badges — DOĞRULA & KAZAN
+                    var showPhoneDialog by remember { mutableStateOf(false) }
+                    var showKycDialog by remember { mutableStateOf(false) }
+                    var showIbanDialog by remember { mutableStateOf(false) }
+
+                    var phoneInput by remember { mutableStateOf(pagUser?.phone ?: "") }
+                    var ibanInput by remember { mutableStateOf(pagUser?.iban ?: "") }
+                    var tcknInput by remember { mutableStateOf(pagUser?.tckn ?: "") }
+                    var isSubmitting by remember { mutableStateOf(false) }
+                    val scope = rememberCoroutineScope()
+
+                    val isIbanVerified = pagUser?.ibanVerified ?: (!pagUser?.iban.isNullOrEmpty())
+
                     Column(
                         modifier = Modifier
                             .padding(horizontal = PAGTheme.spacing.md)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xs)
+                            .fillMaxWidth()
+                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                            .border(1.dp, PAGTheme.colors.borderDefault, PAGTheme.radius.md)
+                            .padding(PAGTheme.spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Doğrula & Kazan",
+                                style = PAGTheme.typography.heading,
+                                color = PAGTheme.colors.textPrimary
+                            )
+                            PAGBadge(title = "+900 Toplam PP", style = PAGBadgeStyle.ProfileScore)
+                        }
+
                         Text(
-                            text = "Doğrulamalar",
-                            style = PAGTheme.typography.heading,
-                            color = PAGTheme.colors.textPrimary
+                            text = "Profilinizi doğrulayarak öncelikli anketlere erişin ve ekstra Profil Puanı kazanın.",
+                            style = PAGTheme.typography.caption,
+                            color = PAGTheme.colors.textMuted
                         )
 
-                        // Phone
+                        // 1. Phone Verification (+200 PP)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                                .padding(PAGTheme.spacing.md),
+                                .background(PAGTheme.colors.surfaceSecondary, RoundedCornerShape(8.dp))
+                                .clickable(enabled = !isPhoneVerified) { showPhoneDialog = true }
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Telefon Doğrulaması", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
+                            Column {
+                                Text(text = "1. Telefon Doğrulaması", style = PAGTheme.typography.body, fontWeight = FontWeight.Bold, color = PAGTheme.colors.textPrimary)
+                                Text(text = "+200 Profil Puanı Kazan", style = PAGTheme.typography.caption, color = PAGTheme.colors.brandLime)
+                            }
                             Text(
-                                text = phoneStatusText,
+                                text = if (isPhoneVerified) "✅ Doğrulandı (+200 PP)" else "Doğrula →",
                                 style = PAGTheme.typography.caption,
-                                color = if (isPhoneVerified) PAGTheme.colors.brandLime else Color.Yellow
+                                fontWeight = FontWeight.Bold,
+                                color = if (isPhoneVerified) PAGTheme.colors.brandLime else Color(0xFFF59E0B)
                             )
                         }
 
-                        // Email
+                        // 2. KYC Verification (+500 PP)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                                .padding(PAGTheme.spacing.md),
+                                .background(PAGTheme.colors.surfaceSecondary, RoundedCornerShape(8.dp))
+                                .clickable(enabled = !isKycVerified) { showKycDialog = true }
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "E-Posta Doğrulaması", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
+                            Column {
+                                Text(text = "2. Kimlik Doğrulaması (KYC)", style = PAGTheme.typography.body, fontWeight = FontWeight.Bold, color = PAGTheme.colors.textPrimary)
+                                Text(text = "+500 Profil Puanı Kazan", style = PAGTheme.typography.caption, color = PAGTheme.colors.brandLime)
+                            }
                             Text(
-                                text = emailStatusText,
+                                text = if (isKycVerified) "✅ Doğrulandı (+500 PP)" else if (kycStatus == "PENDING") "⏳ İnceleniyor" else "Doğrula →",
                                 style = PAGTheme.typography.caption,
-                                color = if (isEmailVerified) PAGTheme.colors.brandLime else Color.Yellow
+                                fontWeight = FontWeight.Bold,
+                                color = if (isKycVerified) PAGTheme.colors.brandLime else Color(0xFFF59E0B)
                             )
                         }
 
-                        // KYC
+                        // 3. IBAN & TCKN Verification (+200 PP)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                                .padding(PAGTheme.spacing.md),
+                                .background(PAGTheme.colors.surfaceSecondary, RoundedCornerShape(8.dp))
+                                .clickable(enabled = !isIbanVerified) { showIbanDialog = true }
+                                .padding(12.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(text = "Kimlik Doğrulaması (KYC)", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
+                            Column {
+                                Text(text = "3. IBAN & TCKN Bilgisi", style = PAGTheme.typography.body, fontWeight = FontWeight.Bold, color = PAGTheme.colors.textPrimary)
+                                Text(text = "+200 Profil Puanı Kazan", style = PAGTheme.typography.caption, color = PAGTheme.colors.brandLime)
+                            }
                             Text(
-                                text = kycStatusText,
+                                text = if (isIbanVerified) "✅ Kaydedildi (+200 PP)" else "Bilgileri Gir →",
                                 style = PAGTheme.typography.caption,
-                                color = if (isKycVerified) PAGTheme.colors.brandLime else Color.Yellow
+                                fontWeight = FontWeight.Bold,
+                                color = if (isIbanVerified) PAGTheme.colors.brandLime else Color(0xFFF59E0B)
                             )
                         }
+                    }
+
+                    // Dialogs
+                    if (showPhoneDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showPhoneDialog = false },
+                            title = { Text("Telefon Doğrulama (+200 PP)", color = PAGTheme.colors.textPrimary) },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Telefon numaranızı onaylayarak +200 Profil Puanı kazanın.", style = PAGTheme.typography.caption, color = PAGTheme.colors.textMuted)
+                                    OutlinedTextField(
+                                        value = phoneInput,
+                                        onValueChange = { phoneInput = it },
+                                        label = { Text("Telefon Numarası") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isSubmitting = true
+                                            userService?.verifyPhone(phoneInput)
+                                            isSubmitting = false
+                                            showPhoneDialog = false
+                                        }
+                                    },
+                                    enabled = !isSubmitting && phoneInput.length > 8
+                                ) {
+                                    Text("Doğrula & +200 PP Kazan")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showPhoneDialog = false }) {
+                                    Text("Vazgeç")
+                                }
+                            }
+                        )
+                    }
+
+                    if (showKycDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showKycDialog = false },
+                            title = { Text("KYC Kimlik Doğrulama (+500 PP)", color = PAGTheme.colors.textPrimary) },
+                            text = {
+                                Text("Kimlik bilgilerinizi doğrulayarak nakit ödül çekim hakkı ve +500 Profil Puanı kazanın.", style = PAGTheme.typography.body)
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isSubmitting = true
+                                            userService?.submitKyc()
+                                            isSubmitting = false
+                                            showKycDialog = false
+                                        }
+                                    },
+                                    enabled = !isSubmitting
+                                ) {
+                                    Text("Doğrula & +500 PP Kazan")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showKycDialog = false }) {
+                                    Text("Vazgeç")
+                                }
+                            }
+                        )
+                    }
+
+                    if (showIbanDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showIbanDialog = false },
+                            title = { Text("IBAN & TCKN Tanımlama (+200 PP)", color = PAGTheme.colors.textPrimary) },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Nakit ödül transferleri için TC Kimlik No ve IBAN bilgilerinizi giriniz.", style = PAGTheme.typography.caption, color = PAGTheme.colors.textMuted)
+                                    OutlinedTextField(
+                                        value = tcknInput,
+                                        onValueChange = { if (it.length <= 11) tcknInput = it },
+                                        label = { Text("TC Kimlik No (11 Hane)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                    OutlinedTextField(
+                                        value = ibanInput,
+                                        onValueChange = { ibanInput = it },
+                                        label = { Text("IBAN (TR...)") },
+                                        singleLine = true,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            },
+                            confirmButton = {
+                                Button(
+                                    onClick = {
+                                        scope.launch {
+                                            isSubmitting = true
+                                            userService?.submitIbanAndTckn(ibanInput, tcknInput)
+                                            isSubmitting = false
+                                            showIbanDialog = false
+                                        }
+                                    },
+                                    enabled = !isSubmitting && tcknInput.length == 11 && ibanInput.length > 15
+                                ) {
+                                    Text("Kaydet & +200 PP Kazan")
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showIbanDialog = false }) {
+                                    Text("Vazgeç")
+                                }
+                            }
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(PAGTheme.spacing.lg))

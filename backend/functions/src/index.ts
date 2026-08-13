@@ -29,7 +29,10 @@ import {
 } from './admin';
 import {
   getBasicProfileHandler,
-  updateBasicProfileHandler
+  updateBasicProfileHandler,
+  verifyPhoneHandler,
+  submitIbanAndTcknHandler,
+  submitKycHandler
 } from './profile';
 import {
   getProfileQuestionsHandler,
@@ -73,6 +76,9 @@ export const updateProfileQuestionAnswer = functions.https.onCall(updateProfileQ
  */
 export const getBasicProfile = functions.https.onCall(getBasicProfileHandler);
 export const updateBasicProfile = functions.https.onCall(updateBasicProfileHandler);
+export const verifyPhone = functions.https.onCall(verifyPhoneHandler);
+export const submitIbanAndTckn = functions.https.onCall(submitIbanAndTcknHandler);
+export const submitKyc = functions.https.onCall(submitKycHandler);
 
 /**
  * User Ranking Foundation Callable Function.

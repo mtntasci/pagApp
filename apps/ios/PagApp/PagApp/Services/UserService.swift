@@ -73,6 +73,9 @@ public final class UserService: ObservableObject {
                     phoneVerified: userData["phoneVerified"] as? Bool ?? false,
                     emailVerified: userData["emailVerified"] as? Bool ?? false,
                     kycStatus: userData["kycStatus"] as? String ?? "NOT_STARTED",
+                    iban: userData["iban"] as? String,
+                    tckn: userData["tckn"] as? String,
+                    ibanVerified: userData["ibanVerified"] as? Bool ?? false,
                     activeDeviceId: userData["activeDeviceId"] as? String
                 )
                 
@@ -154,6 +157,48 @@ public final class UserService: ObservableObject {
         }
     }
     
+    public func verifyPhone(phone: String) async -> Bool {
+        do {
+            let result = try await Functions.functions().httpsCallable("verifyPhone").call(["phone": phone])
+            if let responseData = result.data as? [String: Any],
+               let success = responseData["success"] as? Bool, success {
+                await bootstrapCurrentUser()
+                return true
+            }
+        } catch {
+            print("verifyPhone error: \(error.localizedDescription)")
+        }
+        return false
+    }
+    
+    public func submitIbanAndTckn(iban: String, tckn: String) async -> Bool {
+        do {
+            let result = try await Functions.functions().httpsCallable("submitIbanAndTckn").call(["iban": iban, "tckn": tckn])
+            if let responseData = result.data as? [String: Any],
+               let success = responseData["success"] as? Bool, success {
+                await bootstrapCurrentUser()
+                return true
+            }
+        } catch {
+            print("submitIbanAndTckn error: \(error.localizedDescription)")
+        }
+        return false
+    }
+    
+    public func submitKyc() async -> Bool {
+        do {
+            let result = try await Functions.functions().httpsCallable("submitKyc").call()
+            if let responseData = result.data as? [String: Any],
+               let success = responseData["success"] as? Bool, success {
+                await bootstrapCurrentUser()
+                return true
+            }
+        } catch {
+            print("submitKyc error: \(error.localizedDescription)")
+        }
+        return false
+    }
+
     public func clearUserSession() {
         self.currentUser = nil
         self.currentRanking = nil

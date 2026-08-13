@@ -79,6 +79,9 @@ class UserService(private val context: Context) {
                         phoneVerified = userData["phoneVerified"] as? Boolean ?: false,
                         emailVerified = userData["emailVerified"] as? Boolean ?: false,
                         kycStatus = userData["kycStatus"] as? String ?: "NOT_STARTED",
+                        iban = userData["iban"] as? String,
+                        tckn = userData["tckn"] as? String,
+                        ibanVerified = userData["ibanVerified"] as? Boolean ?: false,
                         activeDeviceId = userData["activeDeviceId"] as? String
                     )
                     _currentUser.value = user
@@ -137,6 +140,56 @@ class UserService(private val context: Context) {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    suspend fun verifyPhone(phoneNumber: String): Boolean {
+        return try {
+            val payload = mapOf("phone" to phoneNumber)
+            val result = functions.getHttpsCallable("verifyPhone").call(payload).await()
+            @Suppress("UNCHECKED_CAST")
+            val resMap = result.getData() as? Map<String, Any>
+            val success = resMap?.get("success") as? Boolean ?: false
+            if (success) {
+                bootstrapCurrentUser()
+            }
+            success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun submitIbanAndTckn(iban: String, tckn: String): Boolean {
+        return try {
+            val payload = mapOf("iban" to iban, "tckn" to tckn)
+            val result = functions.getHttpsCallable("submitIbanAndTckn").call(payload).await()
+            @Suppress("UNCHECKED_CAST")
+            val resMap = result.getData() as? Map<String, Any>
+            val success = resMap?.get("success") as? Boolean ?: false
+            if (success) {
+                bootstrapCurrentUser()
+            }
+            success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    suspend fun submitKyc(): Boolean {
+        return try {
+            val result = functions.getHttpsCallable("submitKyc").call().await()
+            @Suppress("UNCHECKED_CAST")
+            val resMap = result.getData() as? Map<String, Any>
+            val success = resMap?.get("success") as? Boolean ?: false
+            if (success) {
+                bootstrapCurrentUser()
+            }
+            success
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 

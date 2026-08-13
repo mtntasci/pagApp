@@ -15,6 +15,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public let phoneVerified: Bool
     public let emailVerified: Bool
     public let kycStatus: String
+    public let iban: String?
+    public let tckn: String?
+    public let ibanVerified: Bool
     public let activeDeviceId: String?
     
     public init(
@@ -30,6 +33,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         phoneVerified: Bool = false,
         emailVerified: Bool = false,
         kycStatus: String = "NOT_STARTED",
+        iban: String? = nil,
+        tckn: String? = nil,
+        ibanVerified: Bool = false,
         activeDeviceId: String? = nil
     ) {
         self.userId = userId
@@ -44,6 +50,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         self.phoneVerified = phoneVerified
         self.emailVerified = emailVerified
         self.kycStatus = kycStatus
+        self.iban = iban
+        self.tckn = tckn
+        self.ibanVerified = ibanVerified
         self.activeDeviceId = activeDeviceId
     }
 }

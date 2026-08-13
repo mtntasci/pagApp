@@ -330,3 +330,164 @@ export const updateBasicProfileHandler = async (
     }
   };
 };
+
+export const PHONE_VERIFY_REWARD_AMOUNT = 200;
+export const IBAN_VERIFY_REWARD_AMOUNT = 200;
+export const KYC_VERIFY_REWARD_AMOUNT = 500;
+
+// --------------------------------------------------
+// 3. VERIFY PHONE & AWARD +200 PP
+// --------------------------------------------------
+export const verifyPhoneHandler = async (
+  data: { phone?: string },
+  context: functions.https.CallableContext
+) => {
+  if (!admin.apps.length) admin.initializeApp();
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+
+  let awardedScore = 0;
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User record not found.');
+    const userData = userDoc.data() || {};
+
+    const phone = data?.phone || userData.phone || '+905550000000';
+
+    if (!userData.phoneVerified) {
+      awardedScore = PHONE_VERIFY_REWARD_AMOUNT;
+      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      transaction.set(ledgerRef, {
+        ledgerId: ledgerRef.id,
+        userId: uid,
+        sourceType: 'PHONE_VERIFIED',
+        sourceId: 'phone_verification',
+        amount: PHONE_VERIFY_REWARD_AMOUNT,
+        reason: 'Telefon Doğrulama Ödülü',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(userRef, {
+        phone: phone,
+        phoneVerified: true,
+        profileScore: admin.firestore.FieldValue.increment(PHONE_VERIFY_REWARD_AMOUNT),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } else {
+      transaction.set(userRef, {
+        phone: phone,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  });
+
+  return { success: true, data: { phoneVerified: true, scoreAwarded: awardedScore > 0, scoreAmount: awardedScore } };
+};
+
+// --------------------------------------------------
+// 4. SUBMIT IBAN & TCKN & AWARD +200 PP
+// --------------------------------------------------
+export const submitIbanAndTcknHandler = async (
+  data: { iban: string; tckn: string },
+  context: functions.https.CallableContext
+) => {
+  if (!admin.apps.length) admin.initializeApp();
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+
+  const uid = context.auth.uid;
+  const { iban, tckn } = data || {};
+
+  if (!iban || typeof iban !== 'string' || iban.trim().length < 15) {
+    throw new functions.https.HttpsError('invalid-argument', 'Geçerli bir IBAN giriniz.');
+  }
+  if (!tckn || typeof tckn !== 'string' || tckn.trim().length !== 11) {
+    throw new functions.https.HttpsError('invalid-argument', 'Geçerli 11 haneli TC Kimlik No giriniz.');
+  }
+
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+
+  let awardedScore = 0;
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User record not found.');
+    const userData = userDoc.data() || {};
+
+    const cleanIban = iban.trim().toUpperCase();
+    const cleanTckn = tckn.trim();
+
+    if (!userData.ibanVerified) {
+      awardedScore = IBAN_VERIFY_REWARD_AMOUNT;
+      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      transaction.set(ledgerRef, {
+        ledgerId: ledgerRef.id,
+        userId: uid,
+        sourceType: 'IBAN_VERIFIED',
+        sourceId: 'iban_verification',
+        amount: IBAN_VERIFY_REWARD_AMOUNT,
+        reason: 'IBAN & TCKN Doğrulama Ödülü',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(userRef, {
+        iban: cleanIban,
+        tckn: cleanTckn,
+        ibanVerified: true,
+        profileScore: admin.firestore.FieldValue.increment(IBAN_VERIFY_REWARD_AMOUNT),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    } else {
+      transaction.set(userRef, {
+        iban: cleanIban,
+        tckn: cleanTckn,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  });
+
+  return { success: true, data: { ibanVerified: true, scoreAwarded: awardedScore > 0, scoreAmount: awardedScore } };
+};
+
+// --------------------------------------------------
+// 5. SUBMIT KYC & AWARD +500 PP
+// --------------------------------------------------
+export const submitKycHandler = async (
+  data: { idNumber?: string; fullLegalName?: string },
+  context: functions.https.CallableContext
+) => {
+  if (!admin.apps.length) admin.initializeApp();
+  if (!context.auth) throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+
+  const uid = context.auth.uid;
+  const db = admin.firestore();
+  const userRef = db.collection('users').doc(uid);
+
+  let awardedScore = 0;
+  await db.runTransaction(async (transaction) => {
+    const userDoc = await transaction.get(userRef);
+    if (!userDoc.exists) throw new functions.https.HttpsError('not-found', 'User record not found.');
+    const userData = userDoc.data() || {};
+
+    if (userData.kycStatus !== 'VERIFIED') {
+      awardedScore = KYC_VERIFY_REWARD_AMOUNT;
+      const ledgerRef = db.collection('users').doc(uid).collection('scoreLedger').doc();
+      transaction.set(ledgerRef, {
+        ledgerId: ledgerRef.id,
+        userId: uid,
+        sourceType: 'KYC_VERIFIED',
+        sourceId: 'kyc_verification',
+        amount: KYC_VERIFY_REWARD_AMOUNT,
+        reason: 'KYC Kimlik Doğrulama Ödülü',
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      transaction.set(userRef, {
+        kycStatus: 'VERIFIED',
+        profileScore: admin.firestore.FieldValue.increment(KYC_VERIFY_REWARD_AMOUNT),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+  });
+
+  return { success: true, data: { kycStatus: 'VERIFIED', scoreAwarded: awardedScore > 0, scoreAmount: awardedScore } };
+};

@@ -130,6 +130,7 @@ export const getAdminDashboardMetricsHandler = async (
   const db = admin.firestore();
 
   let activeSurveys = 0;
+  let activeProfileSurveys = 0;
   let scheduledSurveys = 0;
   let endedSurveys = 0;
   let draftSurveys = 0;
@@ -137,6 +138,19 @@ export const getAdminDashboardMetricsHandler = async (
   let totalResponses = 0;
   let totalProfileScoreDistributed = 0;
   let totalMoneyRewardDistributed = 0;
+  let totalUsers = 0;
+  let activePushUsers = 0;
+
+  let basicProfileCompletedCount = 0;
+  let phoneVerifiedCount = 0;
+  let kycVerifiedCount = 0;
+  let ibanSubmittedCount = 0;
+
+  const activeSurveysList: Array<{
+    surveyId: string;
+    title: string;
+    responseCount: number;
+  }> = [];
 
   try {
     const surveysSnap = await db.collection('surveys').get();
@@ -148,14 +162,52 @@ export const getAdminDashboardMetricsHandler = async (
         return;
       }
 
+      if (s.surveyType === 'PROFILE') {
+        if (s.status === 'ACTIVE') activeProfileSurveys++;
+      } else {
+        if (s.status === 'ACTIVE') {
+          activeSurveys++;
+          activeSurveysList.push({
+            surveyId: doc.id,
+            title: s.title || 'İsimsiz Anket',
+            responseCount: s.responseCount || 0
+          });
+        }
+      }
+
       switch (s.status) {
-        case 'ACTIVE': activeSurveys++; break;
         case 'SCHEDULED': scheduledSurveys++; break;
         case 'ENDED': endedSurveys++; break;
         case 'DRAFT': draftSurveys++; break;
         case 'PENDING_APPROVAL': pendingSurveys++; break;
       }
     });
+
+    try {
+      const profileQuestionsSnap = await db.collection('profileQuestions').get();
+      const count = profileQuestionsSnap.docs.filter(d => d.data()?.status === 'ACTIVE' || d.data()?.isActive !== false).length;
+      if (count > 0) activeProfileSurveys = count;
+    } catch (e) {}
+
+    const usersSnap = await db.collection('users').get();
+    totalUsers = usersSnap.docs.length;
+    usersSnap.docs.forEach((doc) => {
+      const u = doc.data() || {};
+      if (u.profileCompleted) basicProfileCompletedCount++;
+      if (u.phoneVerified) phoneVerifiedCount++;
+      if (u.kycStatus === 'VERIFIED') kycVerifiedCount++;
+      if (u.ibanVerified || (u.iban && u.iban.length > 5)) ibanSubmittedCount++;
+    });
+
+    const devicesSnap = await db.collection('devices').get();
+    const activeDeviceUserIds = new Set<string>();
+    devicesSnap.docs.forEach((doc) => {
+      const d = doc.data() || {};
+      if (d.isActive !== false && d.userId) {
+        activeDeviceUserIds.add(d.userId);
+      }
+    });
+    activePushUsers = activeDeviceUserIds.size > 0 ? activeDeviceUserIds.size : totalUsers;
 
     const responsesSnap = await db.collection('surveyResponses').get();
     totalResponses = responsesSnap.docs.length;
@@ -180,13 +232,21 @@ export const getAdminDashboardMetricsHandler = async (
     success: true,
     data: {
       activeSurveys,
+      activeProfileSurveys,
       scheduledSurveys,
       endedSurveys,
       draftSurveys,
       pendingSurveys,
       totalResponses,
       totalProfileScoreDistributed,
-      totalMoneyRewardDistributed
+      totalMoneyRewardDistributed,
+      totalUsers,
+      activePushUsers,
+      basicProfileCompletedCount,
+      phoneVerifiedCount,
+      kycVerifiedCount,
+      ibanSubmittedCount,
+      activeSurveysList
     }
   };
 };

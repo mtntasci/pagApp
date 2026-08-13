@@ -13,5 +13,8 @@ data class PAGUser(
     val phoneVerified: Boolean = false,
     val emailVerified: Boolean = false,
     val kycStatus: String = "NOT_STARTED",
+    val iban: String? = null,
+    val tckn: String? = null,
+    val ibanVerified: Boolean = false,
     val activeDeviceId: String? = null
 )
