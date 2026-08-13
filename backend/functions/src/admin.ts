@@ -1399,6 +1399,11 @@ export const getEligibleStoriesHandler = async (
 
       const sortOrder = typeof d.sortOrder === 'number' ? d.sortOrder : (typeof d.position === 'number' ? d.position : 999);
 
+      let imgUrl = d.imageUrl || '';
+      if (imgUrl && imgUrl.startsWith('/')) {
+        imgUrl = `https://app.pagapp.com.tr${imgUrl}`;
+      }
+
       stories.push({
         id: doc.id,
         storyId: doc.id,
@@ -1406,7 +1411,7 @@ export const getEligibleStoriesHandler = async (
         type: d.type || 'SURVEY',
         shortLabel: d.shortLabel || d.label || 'Anket',
         label: d.label || d.shortLabel || 'Anket',
-        imageUrl: d.imageUrl || '',
+        imageUrl: imgUrl,
         imageCategory: d.imageCategory || 'General',
         position: sortOrder,
         sortOrder: sortOrder,

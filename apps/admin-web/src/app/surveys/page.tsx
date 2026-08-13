@@ -26,130 +26,130 @@ const STORY_CATEGORY_IMAGES: Record<string, { id: string; name: string; images: 
     id: 'lifestyle',
     name: 'Yaşam',
     images: [
-      { id: 'story_lifestyle_1', label: 'Resim 1 (Şehir Yaşamı)', file: 'story_lifestyle_1.jpg', color: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' },
-      { id: 'story_lifestyle_2', label: 'Resim 2 (Sosyal Yaşam)', file: 'story_lifestyle_2.jpg', color: 'linear-gradient(135deg, #60A5FA, #2563EB)' },
-      { id: 'story_lifestyle_3', label: 'Resim 3 (Açık Hava & Doğa)', file: 'story_lifestyle_3.jpg', color: 'linear-gradient(135deg, #93C5FD, #1E40AF)' },
-      { id: 'story_lifestyle_4', label: 'Resim 4 (Kişisel Gelişim)', file: 'story_lifestyle_4.jpg', color: 'linear-gradient(135deg, #BFDBFE, #1E3A8A)' },
+      { id: 'story_lifestyle_1', label: 'Resim 1 (Şehir Yaşamı)', file: '/story_lifestyle_1.jpg', color: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' },
+      { id: 'story_lifestyle_2', label: 'Resim 2 (Sosyal Yaşam)', file: '/story_lifestyle_2.jpg', color: 'linear-gradient(135deg, #60A5FA, #2563EB)' },
+      { id: 'story_lifestyle_3', label: 'Resim 3 (Açık Hava & Doğa)', file: '/story_lifestyle_3.jpg', color: 'linear-gradient(135deg, #93C5FD, #1E40AF)' },
+      { id: 'story_lifestyle_4', label: 'Resim 4 (Kişisel Gelişim)', file: '/story_lifestyle_4.jpg', color: 'linear-gradient(135deg, #BFDBFE, #1E3A8A)' },
     ]
   },
   'Alışveriş & Tüketim': {
     id: 'shopping',
     name: 'Alışveriş & Tüketim',
     images: [
-      { id: 'story_shopping_1', label: 'Resim 1 (E-Ticaret & İndirim)', file: 'story_shopping_1.jpg', color: 'linear-gradient(135deg, #EC4899, #BE185D)' },
-      { id: 'story_shopping_2', label: 'Resim 2 (Giyim & Moda)', file: 'story_shopping_2.jpg', color: 'linear-gradient(135deg, #F472B6, #9D174D)' },
-      { id: 'story_shopping_3', label: 'Resim 3 (Süpermarket)', file: 'story_shopping_3.jpg', color: 'linear-gradient(135deg, #FBCFE8, #831843)' },
-      { id: 'story_shopping_4', label: 'Resim 4 (Kupon & Fırsat)', file: 'story_shopping_4.jpg', color: 'linear-gradient(135deg, #FCE7F3, #500724)' },
+      { id: 'story_shopping_1', label: 'Resim 1 (E-Ticaret & İndirim)', file: '/story_shopping_1.jpg', color: 'linear-gradient(135deg, #EC4899, #BE185D)' },
+      { id: 'story_shopping_2', label: 'Resim 2 (Giyim & Moda)', file: '/story_shopping_2.jpg', color: 'linear-gradient(135deg, #F472B6, #9D174D)' },
+      { id: 'story_shopping_3', label: 'Resim 3 (Süpermarket)', file: '/story_shopping_3.jpg', color: 'linear-gradient(135deg, #FBCFE8, #831843)' },
+      { id: 'story_shopping_4', label: 'Resim 4 (Kupon & Fırsat)', file: '/story_shopping_4.jpg', color: 'linear-gradient(135deg, #FCE7F3, #500724)' },
     ]
   },
   'Yeme & İçme': {
     id: 'food_beverage',
     name: 'Yeme & İçme',
     images: [
-      { id: 'story_food_beverage_1', label: 'Resim 1 (Kahve & Kafe)', file: 'story_food_beverage_1.jpg', color: 'linear-gradient(135deg, #F59E0B, #B45309)' },
-      { id: 'story_food_beverage_2', label: 'Resim 2 (Restoran & Fast Food)', file: 'story_food_beverage_2.jpg', color: 'linear-gradient(135deg, #FBBF24, #92400E)' },
-      { id: 'story_food_beverage_3', label: 'Resim 3 (Organik & Gurme)', file: 'story_food_beverage_3.jpg', color: 'linear-gradient(135deg, #FDE68A, #78350F)' },
-      { id: 'story_food_beverage_4', label: 'Resim 4 (İçecekler & Tatlılar)', file: 'story_food_beverage_4.jpg', color: 'linear-gradient(135deg, #FEF3C7, #451A03)' },
+      { id: 'story_food_beverage_1', label: 'Resim 1 (Kahve & Kafe)', file: '/story_food_beverage_1.jpg', color: 'linear-gradient(135deg, #F59E0B, #B45309)' },
+      { id: 'story_food_beverage_2', label: 'Resim 2 (Restoran & Fast Food)', file: '/story_food_beverage_2.jpg', color: 'linear-gradient(135deg, #FBBF24, #92400E)' },
+      { id: 'story_food_beverage_3', label: 'Resim 3 (Organik & Gurme)', file: '/story_food_beverage_3.jpg', color: 'linear-gradient(135deg, #FDE68A, #78350F)' },
+      { id: 'story_food_beverage_4', label: 'Resim 4 (İçecekler & Tatlılar)', file: '/story_food_beverage_4.jpg', color: 'linear-gradient(135deg, #FEF3C7, #451A03)' },
     ]
   },
   'Teknoloji': {
     id: 'technology',
     name: 'Teknoloji',
     images: [
-      { id: 'story_technology_1', label: 'Resim 1 (Dijital Trendler)', file: 'story_technology_1.jpg', color: 'linear-gradient(135deg, #8B5CF6, #6D28D9)' },
-      { id: 'story_technology_2', label: 'Resim 2 (Yazılım & Yapay Zeka)', file: 'story_technology_2.jpg', color: 'linear-gradient(135deg, #A78BFA, #5B21B6)' },
-      { id: 'story_technology_3', label: 'Resim 3 (Mobil & Donanım)', file: 'story_technology_3.jpg', color: 'linear-gradient(135deg, #C4B5FD, #4C1D95)' },
-      { id: 'story_technology_4', label: 'Resim 4 (Geleceğin Teknolojisi)', file: 'story_technology_4.jpg', color: 'linear-gradient(135deg, #DDD6FE, #3B0764)' },
+      { id: 'story_technology_1', label: 'Resim 1 (Dijital Trendler)', file: '/story_technology_1.jpg', color: 'linear-gradient(135deg, #8B5CF6, #6D28D9)' },
+      { id: 'story_technology_2', label: 'Resim 2 (Yazılım & Yapay Zeka)', file: '/story_technology_2.jpg', color: 'linear-gradient(135deg, #A78BFA, #5B21B6)' },
+      { id: 'story_technology_3', label: 'Resim 3 (Mobil & Donanım)', file: '/story_technology_3.jpg', color: 'linear-gradient(135deg, #C4B5FD, #4C1D95)' },
+      { id: 'story_technology_4', label: 'Resim 4 (Geleceğin Teknolojisi)', file: '/story_technology_4.jpg', color: 'linear-gradient(135deg, #DDD6FE, #3B0764)' },
     ]
   },
   'Otomotiv & Ulaşım': {
     id: 'automotive',
     name: 'Otomotiv & Ulaşım',
     images: [
-      { id: 'story_automotive_1', label: 'Resim 1 (Elektrikli Araçlar)', file: 'story_automotive_1.jpg', color: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
-      { id: 'story_automotive_2', label: 'Resim 2 (Konsept Otomobil)', file: 'story_automotive_2.jpg', color: 'linear-gradient(135deg, #F87171, #991B1B)' },
-      { id: 'story_automotive_3', label: 'Resim 3 (Sürüş Teknoloji)', file: 'story_automotive_3.jpg', color: 'linear-gradient(135deg, #FCA5A5, #7F1D1D)' },
-      { id: 'story_automotive_4', label: 'Resim 4 (Araç Bakım & Servis)', file: 'story_automotive_4.jpg', color: 'linear-gradient(135deg, #FECACA, #450A0A)' },
+      { id: 'story_automotive_1', label: 'Resim 1 (Elektrikli Araçlar)', file: '/story_automotive_1.jpg', color: 'linear-gradient(135deg, #EF4444, #B91C1C)' },
+      { id: 'story_automotive_2', label: 'Resim 2 (Konsept Otomobil)', file: '/story_automotive_2.jpg', color: 'linear-gradient(135deg, #F87171, #991B1B)' },
+      { id: 'story_automotive_3', label: 'Resim 3 (Sürüş Teknoloji)', file: '/story_automotive_3.jpg', color: 'linear-gradient(135deg, #FCA5A5, #7F1D1D)' },
+      { id: 'story_automotive_4', label: 'Resim 4 (Araç Bakım & Servis)', file: '/story_automotive_4.jpg', color: 'linear-gradient(135deg, #FECACA, #450A0A)' },
     ]
   },
   'Spor & Sağlıklı Yaşam': {
     id: 'sports',
     name: 'Spor & Sağlıklı Yaşam',
     images: [
-      { id: 'story_sports_1', label: 'Resim 1 (Futbol & Takım)', file: 'story_sports_1.jpg', color: 'linear-gradient(135deg, #059669, #047857)' },
-      { id: 'story_sports_2', label: 'Resim 2 (Fitness & Salon)', file: 'story_sports_2.jpg', color: 'linear-gradient(135deg, #10B981, #065F46)' },
-      { id: 'story_sports_3', label: 'Resim 3 (Beslenme & Fit)', file: 'story_sports_3.jpg', color: 'linear-gradient(135deg, #34D399, #064E3B)' },
-      { id: 'story_sports_4', label: 'Resim 4 (Extreme & Açık Hava)', file: 'story_sports_4.jpg', color: 'linear-gradient(135deg, #6EE7B7, #022C22)' },
+      { id: 'story_sports_1', label: 'Resim 1 (Futbol & Takım)', file: '/story_sports_1.jpg', color: 'linear-gradient(135deg, #059669, #047857)' },
+      { id: 'story_sports_2', label: 'Resim 2 (Fitness & Salon)', file: '/story_sports_2.jpg', color: 'linear-gradient(135deg, #10B981, #065F46)' },
+      { id: 'story_sports_3', label: 'Resim 3 (Beslenme & Fit)', file: '/story_sports_3.jpg', color: 'linear-gradient(135deg, #34D399, #064E3B)' },
+      { id: 'story_sports_4', label: 'Resim 4 (Extreme & Açık Hava)', file: '/story_sports_4.jpg', color: 'linear-gradient(135deg, #6EE7B7, #022C22)' },
     ]
   },
   'Seyahat & Eğlence': {
     id: 'travel',
     name: 'Seyahat & Eğlence',
     images: [
-      { id: 'story_travel_1', label: 'Resim 1 (Tatil & Otel)', file: 'story_travel_1.jpg', color: 'linear-gradient(135deg, #0284C7, #0369A1)' },
-      { id: 'story_travel_2', label: 'Resim 2 (Uçak & Bilet)', file: 'story_travel_2.jpg', color: 'linear-gradient(135deg, #0EA5E9, #075985)' },
-      { id: 'story_travel_3', label: 'Resim 3 (Sinema & Müzik)', file: 'story_travel_3.jpg', color: 'linear-gradient(135deg, #38BDF8, #0C4A6E)' },
-      { id: 'story_travel_4', label: 'Resim 4 (Kültür & Şehir)', file: 'story_travel_4.jpg', color: 'linear-gradient(135deg, #7DD3FC, #082F49)' },
+      { id: 'story_travel_1', label: 'Resim 1 (Tatil & Otel)', file: '/story_travel_1.jpg', color: 'linear-gradient(135deg, #0284C7, #0369A1)' },
+      { id: 'story_travel_2', label: 'Resim 2 (Uçak & Bilet)', file: '/story_travel_2.jpg', color: 'linear-gradient(135deg, #0EA5E9, #075985)' },
+      { id: 'story_travel_3', label: 'Resim 3 (Sinema & Müzik)', file: '/story_travel_3.jpg', color: 'linear-gradient(135deg, #38BDF8, #0C4A6E)' },
+      { id: 'story_travel_4', label: 'Resim 4 (Kültür & Şehir)', file: '/story_travel_4.jpg', color: 'linear-gradient(135deg, #7DD3FC, #082F49)' },
     ]
   },
   'Finans': {
     id: 'finance',
     name: 'Finans',
     images: [
-      { id: 'story_finance_1', label: 'Resim 1 (Yatırım & Borsa)', file: 'story_finance_1.jpg', color: 'linear-gradient(135deg, #10B981, #047857)' },
-      { id: 'story_finance_2', label: 'Resim 2 (Dijital Bankacılık)', file: 'story_finance_2.jpg', color: 'linear-gradient(135deg, #34D399, #065F46)' },
-      { id: 'story_finance_3', label: 'Resim 3 (Kredi & Kartlar)', file: 'story_finance_3.jpg', color: 'linear-gradient(135deg, #6EE7B7, #064E3B)' },
-      { id: 'story_finance_4', label: 'Resim 4 (Tasarruf & Bütçe)', file: 'story_finance_4.jpg', color: 'linear-gradient(135deg, #A7F3D0, #022C22)' },
+      { id: 'story_finance_1', label: 'Resim 1 (Yatırım & Borsa)', file: '/story_finance_1.jpg', color: 'linear-gradient(135deg, #10B981, #047857)' },
+      { id: 'story_finance_2', label: 'Resim 2 (Dijital Bankacılık)', file: '/story_finance_2.jpg', color: 'linear-gradient(135deg, #34D399, #065F46)' },
+      { id: 'story_finance_3', label: 'Resim 3 (Kredi & Kartlar)', file: '/story_finance_3.jpg', color: 'linear-gradient(135deg, #6EE7B7, #064E3B)' },
+      { id: 'story_finance_4', label: 'Resim 4 (Tasarruf & Bütçe)', file: '/story_finance_4.jpg', color: 'linear-gradient(135deg, #A7F3D0, #022C22)' },
     ]
   },
   'Ev & Yaşam': {
     id: 'home_living',
     name: 'Ev & Yaşam',
     images: [
-      { id: 'story_home_living_1', label: 'Resim 1 (Mobilya & Dekor)', file: 'story_home_living_1.jpg', color: 'linear-gradient(135deg, #D97706, #B45309)' },
-      { id: 'story_home_living_2', label: 'Resim 2 (Ev Aletleri & Mutfak)', file: 'story_home_living_2.jpg', color: 'linear-gradient(135deg, #F59E0B, #92400E)' },
-      { id: 'story_home_living_3', label: 'Resim 3 (Bahçe & Yapı Market)', file: 'story_home_living_3.jpg', color: 'linear-gradient(135deg, #FBBF24, #78350F)' },
-      { id: 'story_home_living_4', label: 'Resim 4 (Ev Tekstili)', file: 'story_home_living_4.jpg', color: 'linear-gradient(135deg, #FDE68A, #451A03)' },
+      { id: 'story_home_living_1', label: 'Resim 1 (Mobilya & Dekor)', file: '/story_home_living_1.jpg', color: 'linear-gradient(135deg, #D97706, #B45309)' },
+      { id: 'story_home_living_2', label: 'Resim 2 (Ev Aletleri & Mutfak)', file: '/story_home_living_2.jpg', color: 'linear-gradient(135deg, #F59E0B, #92400E)' },
+      { id: 'story_home_living_3', label: 'Resim 3 (Bahçe & Yapı Market)', file: '/story_home_living_3.jpg', color: 'linear-gradient(135deg, #FBBF24, #78350F)' },
+      { id: 'story_home_living_4', label: 'Resim 4 (Ev Tekstili)', file: '/story_home_living_4.jpg', color: 'linear-gradient(135deg, #FDE68A, #451A03)' },
     ]
   },
   'Moda & Kişisel Bakım': {
     id: 'fashion',
     name: 'Moda & Kişisel Bakım',
     images: [
-      { id: 'story_fashion_1', label: 'Resim 1 (Trend Giyim)', file: 'story_fashion_1.jpg', color: 'linear-gradient(135deg, #F472B6, #BE185D)' },
-      { id: 'story_fashion_2', label: 'Resim 2 (Kozmetik & Parfüm)', file: 'story_fashion_2.jpg', color: 'linear-gradient(135deg, #FB7185, #E11D48)' },
-      { id: 'story_fashion_3', label: 'Resim 3 (Aksesuar & Takı)', file: 'story_fashion_3.jpg', color: 'linear-gradient(135deg, #FDA4AF, #9F1239)' },
-      { id: 'story_fashion_4', label: 'Resim 4 (Saç & Cilt Bakımı)', file: 'story_fashion_4.jpg', color: 'linear-gradient(135deg, #FECDD3, #881337)' },
+      { id: 'story_fashion_1', label: 'Resim 1 (Trend Giyim)', file: '/story_fashion_1.jpg', color: 'linear-gradient(135deg, #F472B6, #BE185D)' },
+      { id: 'story_fashion_2', label: 'Resim 2 (Kozmetik & Parfüm)', file: '/story_fashion_2.jpg', color: 'linear-gradient(135deg, #FB7185, #E11D48)' },
+      { id: 'story_fashion_3', label: 'Resim 3 (Aksesuar & Takı)', file: '/story_fashion_3.jpg', color: 'linear-gradient(135deg, #FDA4AF, #9F1239)' },
+      { id: 'story_fashion_4', label: 'Resim 4 (Saç & Cilt Bakımı)', file: '/story_fashion_4.jpg', color: 'linear-gradient(135deg, #FECDD3, #881337)' },
     ]
   },
   'Medya & Dijital İçerik': {
     id: 'media',
     name: 'Medya & Dijital İçerik',
     images: [
-      { id: 'story_media_1', label: 'Resim 1 (Dijital Yayıncılık)', file: 'story_media_1.jpg', color: 'linear-gradient(135deg, #6366F1, #4338CA)' },
-      { id: 'story_media_2', label: 'Resim 2 (Sosyal Medya)', file: 'story_media_2.jpg', color: 'linear-gradient(135deg, #818CF8, #3730A3)' },
-      { id: 'story_media_3', label: 'Resim 3 (Podcast & İçerik)', file: 'story_media_3.jpg', color: 'linear-gradient(135deg, #A5B4FC, #312E81)' },
-      { id: 'story_media_4', label: 'Resim 4 (Haber & Dergi)', file: 'story_media_4.jpg', color: 'linear-gradient(135deg, #C7D2FE, #1E1B4B)' },
+      { id: 'story_media_1', label: 'Resim 1 (Dijital Yayıncılık)', file: '/story_media_1.jpg', color: 'linear-gradient(135deg, #6366F1, #4338CA)' },
+      { id: 'story_media_2', label: 'Resim 2 (Sosyal Medya)', file: '/story_media_2.jpg', color: 'linear-gradient(135deg, #818CF8, #3730A3)' },
+      { id: 'story_media_3', label: 'Resim 3 (Podcast & İçerik)', file: '/story_media_3.jpg', color: 'linear-gradient(135deg, #A5B4FC, #312E81)' },
+      { id: 'story_media_4', label: 'Resim 4 (Haber & Dergi)', file: '/story_media_4.jpg', color: 'linear-gradient(135deg, #C7D2FE, #1E1B4B)' },
     ]
   },
   'Eğitim & Kariyer': {
     id: 'education',
     name: 'Eğitim & Kariyer',
     images: [
-      { id: 'story_education_1', label: 'Resim 1 (Online Akademi)', file: 'story_education_1.jpg', color: 'linear-gradient(135deg, #7C3AED, #5B21B6)' },
-      { id: 'story_education_2', label: 'Resim 2 (Kariyer & İş)', file: 'story_education_2.jpg', color: 'linear-gradient(135deg, #8B5CF6, #4C1D95)' },
-      { id: 'story_education_3', label: 'Resim 3 (Sertifika Programı)', file: 'story_education_3.jpg', color: 'linear-gradient(135deg, #A78BFA, #3B0764)' },
-      { id: 'story_education_4', label: 'Resim 4 (Yabancı Dil)', file: 'story_education_4.jpg', color: 'linear-gradient(135deg, #C4B5FD, #2E1065)' },
+      { id: 'story_education_1', label: 'Resim 1 (Online Akademi)', file: '/story_education_1.jpg', color: 'linear-gradient(135deg, #7C3AED, #5B21B6)' },
+      { id: 'story_education_2', label: 'Resim 2 (Kariyer & İş)', file: '/story_education_2.jpg', color: 'linear-gradient(135deg, #8B5CF6, #4C1D95)' },
+      { id: 'story_education_3', label: 'Resim 3 (Sertifika Programı)', file: '/story_education_3.jpg', color: 'linear-gradient(135deg, #A78BFA, #3B0764)' },
+      { id: 'story_education_4', label: 'Resim 4 (Yabancı Dil)', file: '/story_education_4.jpg', color: 'linear-gradient(135deg, #C4B5FD, #2E1065)' },
     ]
   },
   'Genel': {
     id: 'general',
     name: 'Genel',
     images: [
-      { id: 'story_general_1', label: 'Resim 1 (Genel Kampanya)', file: 'story_general_1.jpg', color: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' },
-      { id: 'story_general_2', label: 'Resim 2 (Genel Duyuru)', file: 'story_general_2.jpg', color: 'linear-gradient(135deg, #60A5FA, #2563EB)' },
-      { id: 'story_general_3', label: 'Resim 3 (Genel Anket)', file: 'story_general_3.jpg', color: 'linear-gradient(135deg, #93C5FD, #1E40AF)' },
-      { id: 'story_general_4', label: 'Resim 4 (Genel İnceleme)', file: 'story_general_4.jpg', color: 'linear-gradient(135deg, #BFDBFE, #1E3A8A)' },
+      { id: 'story_general_1', label: 'Resim 1 (Genel Kampanya)', file: '/story_general_1.jpg', color: 'linear-gradient(135deg, #3B82F6, #1D4ED8)' },
+      { id: 'story_general_2', label: 'Resim 2 (Genel Duyuru)', file: '/story_general_2.jpg', color: 'linear-gradient(135deg, #60A5FA, #2563EB)' },
+      { id: 'story_general_3', label: 'Resim 3 (Genel Anket)', file: '/story_general_3.jpg', color: 'linear-gradient(135deg, #93C5FD, #1E40AF)' },
+      { id: 'story_general_4', label: 'Resim 4 (Genel İnceleme)', file: '/story_general_4.jpg', color: 'linear-gradient(135deg, #BFDBFE, #1E3A8A)' },
     ]
   }
 };
