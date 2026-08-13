@@ -216,6 +216,35 @@ public struct BasicProfileView: View {
             .presentationDetents([.height(300)])
             .background(PAGTheme.backgroundPrimary)
         }
+        // Child Birth Date Sheet Picker
+        .sheet(isPresented: Binding(
+            get: { activeChildIndexForPicker != nil },
+            set: { if !$0 { activeChildIndexForPicker = nil } }
+        )) {
+            VStack {
+                HStack {
+                    Spacer()
+                    Button("Tamam") {
+                        if let idx = activeChildIndexForPicker, idx < draftProfile.childrenInfo.children.count {
+                            draftProfile.childrenInfo.children[idx].birthDate = stringFromDate(selectedChildBirthDate)
+                        }
+                        activeChildIndexForPicker = nil
+                    }
+                    .font(PAGTypography.heading)
+                    .foregroundColor(PAGTheme.brandLime)
+                }
+                .padding()
+                
+                DatePicker("Çocuk Doğum Tarihi", selection: $selectedChildBirthDate, in: ...Date(), displayedComponents: .date)
+                    .datePickerStyle(WheelDatePickerStyle())
+                    .labelsHidden()
+                    .environment(\.locale, Locale(identifier: "tr_TR"))
+                
+                Spacer()
+            }
+            .presentationDetents([.height(300)])
+            .background(PAGTheme.backgroundPrimary)
+        }
     }
     
     private func stepTitle(_ step: Int) -> String {
@@ -521,11 +550,24 @@ public struct BasicProfileView: View {
                                 .font(PAGTypography.caption)
                                 .foregroundColor(PAGTheme.textMuted)
                             
-                            TextField("YYYY-MM-DD", text: $draftProfile.childrenInfo.children[idx].birthDate)
+                            Button(action: {
+                                activeChildIndexForPicker = idx
+                                let dStr = draftProfile.childrenInfo.children[idx].birthDate
+                                selectedChildBirthDate = dateFromString(dStr)
+                            }) {
+                                HStack {
+                                    Text(formatTurkishDate(draftProfile.childrenInfo.children[idx].birthDate))
+                                        .font(PAGTypography.body)
+                                        .foregroundColor(draftProfile.childrenInfo.children[idx].birthDate.isEmpty ? PAGTheme.textMuted : PAGTheme.textPrimary)
+                                    Spacer()
+                                    Image(systemName: "calendar")
+                                        .foregroundColor(PAGTheme.brandLime)
+                                }
                                 .padding(10)
                                 .background(PAGTheme.backgroundPrimary)
                                 .cornerRadius(6)
-                                .foregroundColor(PAGTheme.textPrimary)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(PAGTheme.borderDefault, lineWidth: 1))
+                            }
                         }
                     }
                     .padding(14)
@@ -639,6 +681,22 @@ public struct BasicProfileView: View {
                 }
                 .disabled(draftProfile.residenceAddress.districtId.isEmpty)
                 .opacity(draftProfile.residenceAddress.districtId.isEmpty ? 0.5 : 1.0)
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Açık Adres / Adres Detayı (İsteğe Bağlı)")
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(PAGTheme.textPrimary)
+                
+                TextField("Sokak, bina no, daire no vb. (Boş bırakabilirsiniz)", text: Binding(
+                    get: { draftProfile.residenceAddress.fullAddress ?? "" },
+                    set: { draftProfile.residenceAddress.fullAddress = $0 }
+                ))
+                .padding(14)
+                .background(PAGTheme.surfacePrimary)
+                .cornerRadius(PAGRadius.medium)
+                .overlay(RoundedRectangle(cornerRadius: PAGRadius.medium).stroke(PAGTheme.borderDefault, lineWidth: 1))
+                .foregroundColor(PAGTheme.textPrimary)
             }
         }
     }

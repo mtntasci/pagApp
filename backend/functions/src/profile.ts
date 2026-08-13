@@ -13,6 +13,7 @@ export interface LocationPair {
   districtName: string;
   neighborhoodId?: string;
   neighborhoodName?: string;
+  fullAddress?: string;
 }
 
 export interface BasicProfileInput {
@@ -41,13 +42,28 @@ export interface BasicProfileInput {
 export const BASIC_PROFILE_REWARD_AMOUNT = 100; // Profile score awarded upon 100% basic profile completion
 
 /**
- * Dynamically computes age in years from a YYYY-MM-DD birthDate string.
+ * Normalizes DD.MM.YYYY or YYYY-MM-DD date strings into standard YYYY-MM-DD.
+ */
+export function normalizeDateStringToISO(dateStr?: string): string {
+  if (!dateStr) return '';
+  const trimmed = dateStr.trim();
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(trimmed)) {
+    const [day, month, year] = trimmed.split('.');
+    return `${year}-${month}-${day}`;
+  }
+  return trimmed;
+}
+
+/**
+ * Dynamically computes age in years from a birthDate string (YYYY-MM-DD or DD.MM.YYYY).
  */
 export function calculateAgeFromBirthDate(birthDateStr?: string): number | null {
-  if (!birthDateStr || !/^\d{4}-\d{2}-\d{2}$/.test(birthDateStr)) {
+  if (!birthDateStr) return null;
+  const isoStr = normalizeDateStringToISO(birthDateStr);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoStr)) {
     return null;
   }
-  const birth = new Date(birthDateStr);
+  const birth = new Date(isoStr);
   if (isNaN(birth.getTime())) return null;
 
   const now = new Date();
@@ -182,10 +198,11 @@ export const updateBasicProfileHandler = async (
   const db = admin.firestore();
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
 
-  // Validate Birth Date format YYYY-MM-DD if provided
+  // Normalize & Validate Birth Date if provided
   if (data.birthDetails?.birthDate && data.birthDetails.birthDate.trim() !== '') {
+    data.birthDetails.birthDate = normalizeDateStringToISO(data.birthDetails.birthDate);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDetails.birthDate)) {
-      throw new functions.https.HttpsError('invalid-argument', 'birthDate must be in YYYY-MM-DD format.');
+      throw new functions.https.HttpsError('invalid-argument', 'birthDate must be in YYYY-MM-DD or DD.MM.YYYY format.');
     }
   }
 
@@ -197,7 +214,7 @@ export const updateBasicProfileHandler = async (
     }
   }
 
-  // Validate Children Array matching count
+  // Normalize & Validate Children Array matching count
   if (data.childrenInfo) {
     if (data.childrenInfo.hasChildren) {
       if (!Array.isArray(data.childrenInfo.children) || data.childrenInfo.children.length !== data.childrenInfo.childrenCount) {
@@ -207,8 +224,11 @@ export const updateBasicProfileHandler = async (
         );
       }
       for (const child of data.childrenInfo.children) {
+        if (child.birthDate) {
+          child.birthDate = normalizeDateStringToISO(child.birthDate);
+        }
         if (!child.birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(child.birthDate)) {
-          throw new functions.https.HttpsError('invalid-argument', 'Child birthDate must be in YYYY-MM-DD format.');
+          throw new functions.https.HttpsError('invalid-argument', 'Child birthDate must be in YYYY-MM-DD or DD.MM.YYYY format.');
         }
       }
     }

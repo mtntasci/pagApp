@@ -19,14 +19,16 @@ public struct PAGLocationPair: Codable {
     public var districtName: String
     public var neighborhoodId: String?
     public var neighborhoodName: String?
+    public var fullAddress: String?
     
-    public init(cityId: String = "", cityName: String = "", districtId: String = "", districtName: String = "", neighborhoodId: String? = nil, neighborhoodName: String? = nil) {
+    public init(cityId: String = "", cityName: String = "", districtId: String = "", districtName: String = "", neighborhoodId: String? = nil, neighborhoodName: String? = nil, fullAddress: String? = nil) {
         self.cityId = cityId
         self.cityName = cityName
         self.districtId = districtId
         self.districtName = districtName
         self.neighborhoodId = neighborhoodId
         self.neighborhoodName = neighborhoodName
+        self.fullAddress = fullAddress
     }
 }
 

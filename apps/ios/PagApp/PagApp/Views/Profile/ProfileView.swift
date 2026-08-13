@@ -116,39 +116,7 @@ public struct ProfileView: View {
                         }
                         .padding(.top, PAGSpacing.lg)
 
-                        // 1. Temel Profil Navigation Link Card
-                        NavigationLink(destination: BasicProfileView()) {
-                            HStack(spacing: PAGSpacing.md) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text("Temel Profil")
-                                            .font(PAGTypography.heading)
-                                            .foregroundColor(PAGTheme.textPrimary)
-                                        Spacer()
-                                        Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
-                                            .font(PAGTypography.caption)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(PAGTheme.brandLime)
-                                    }
-                                    Text("Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.")
-                                        .font(PAGTypography.caption)
-                                        .foregroundColor(PAGTheme.textMuted)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(PAGTheme.textMuted)
-                            }
-                            .padding()
-                            .background(PAGTheme.surfacePrimary)
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(PAGTheme.brandLime.opacity(0.3), lineWidth: 1)
-                            )
-                        }
-                        .padding(.horizontal, PAGSpacing.md)
-
-                        // 2. Yeni Kart — Profilini Güçlendir
+                        // 1. Profilini Güçlendir Kartı
                         VStack(alignment: .leading, spacing: PAGSpacing.xs) {
                             HStack {
                                 Text("Profilini Güçlendir")
@@ -212,7 +180,7 @@ public struct ProfileView: View {
                         )
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // 3. Verifications (Doğrulamalar - Source of Truth)
+                        // 2. Verifications (Doğrulamalar)
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Doğrulamalar")
                                 .font(PAGTypography.title)
@@ -230,7 +198,39 @@ public struct ProfileView: View {
                             .padding(.horizontal, PAGSpacing.md)
                         }
 
-                        // 4. Logout Button
+                        // 3. Temel Profil Box (Çıkış Yap Üstü)
+                        NavigationLink(destination: BasicProfileView()) {
+                            HStack(spacing: PAGSpacing.md) {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text("Temel Profil")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                        Spacer()
+                                        Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
+                                            .font(PAGTypography.caption)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(PAGTheme.brandLime)
+                                    }
+                                    Text("Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                        .multilineTextAlignment(.leading)
+                                }
+                                Image(systemName: "chevron.right")
+                                    .foregroundColor(PAGTheme.textMuted)
+                            }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(PAGTheme.brandLime.opacity(0.3), lineWidth: 1)
+                            )
+                        }
+                        .padding(.horizontal, PAGSpacing.md)
+
+                        // 4. Logout Button (Çıkış Yap)
                         Button(action: {
                             authService.signOut()
                         }) {
@@ -251,6 +251,30 @@ public struct ProfileView: View {
                                     .stroke(PAGTheme.error.opacity(0.3), lineWidth: 1)
                             )
                         }
+                        .padding(.horizontal, PAGSpacing.md)
+
+                        // 5. Sign Out & Clear Data Button (Çıkış Yap ve Verilerimi Temizle - Pasif, Koyu Kırmızı)
+                        Button(action: {
+                            // Currently passive / disabled
+                        }) {
+                            HStack {
+                                Image(systemName: "trash.fill")
+                                    .font(.system(size: 20))
+                                Text("Çıkış Yap ve Verilerimi Temizle")
+                                    .font(PAGTypography.heading)
+                                Spacer()
+                            }
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(red: 0.40, green: 0.05, blue: 0.05))
+                            .foregroundColor(Color.white.opacity(0.5))
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(Color(red: 0.50, green: 0.08, blue: 0.08), lineWidth: 1)
+                            )
+                        }
+                        .disabled(true)
                         .padding(.horizontal, PAGSpacing.md)
 
                         Spacer().frame(height: 40)
