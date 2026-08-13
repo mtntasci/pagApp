@@ -76,6 +76,17 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
           }}>
             ⭐ Story Bar
           </Link>
+          <Link href="/applications" style={{
+            padding: '12px 16px',
+            borderRadius: '8px',
+            color: 'var(--text-primary)',
+            fontSize: '14px',
+            fontWeight: 500,
+            backgroundColor: pathname === '/applications' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
+            borderLeft: pathname === '/applications' ? '4px solid var(--brand-lime)' : 'none'
+          }}>
+            🏢 Firma Başvuruları
+          </Link>
         </nav>
 
         <div style={{ marginTop: 'auto', padding: '16px 12px', borderTop: '1px solid var(--border-color)' }}>

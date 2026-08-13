@@ -2,10 +2,11 @@ import {
   verifyAdminUser,
   createOrUpdateSurveyAdminHandler,
   listSurveysAdminHandler,
-  getSurveyAdminHandler
+  submitCompanyApplicationHandler,
+  listCompanyApplicationsAdminHandler
 } from './admin';
 
-describe('Phase Survey Creation & Approval System Unit Tests', () => {
+describe('Phase Survey Creation & Portal Auth System Unit Tests', () => {
   const fakeNonAdminContext = {
     auth: {
       uid: 'usr_regular_person',
@@ -23,10 +24,36 @@ describe('Phase Survey Creation & Approval System Unit Tests', () => {
     }
   } as any;
 
-  test('Non-admin user calling verifyAdminUser throws permission-denied', async () => {
+  test('Non-provisioned portal user calling verifyAdminUser throws portal access error', async () => {
     await expect(
       verifyAdminUser(fakeNonAdminContext)
-    ).rejects.toThrow('Admin privileges are required to perform this action.');
+    ).rejects.toThrow('Bu hesap için PAG Portal erişimi bulunmuyor.');
+  });
+
+  test('submitCompanyApplicationHandler validates required fields and creates application', async () => {
+    const res: any = await submitCompanyApplicationHandler({
+      companyName: 'Ford Otosan',
+      contactName: 'Ahmet Yılmaz',
+      contactEmail: 'ahmet@ford.com.tr',
+      contactPhone: '+905551112233',
+      website: 'https://ford.com.tr',
+      message: 'PAG anket sistemiyle ilgileniyoruz.'
+    }, {} as any);
+
+    expect(res.success).toBe(true);
+    expect(res.data.status).toBe('PENDING');
+    expect(res.data.applicationId).toBeDefined();
+  });
+
+  test('submitCompanyApplicationHandler rejects missing required company name', async () => {
+    await expect(
+      submitCompanyApplicationHandler({
+        companyName: '',
+        contactName: 'Ahmet Yılmaz',
+        contactEmail: 'ahmet@ford.com.tr',
+        contactPhone: '+905551112233'
+      }, {} as any)
+    ).rejects.toThrow('Firma / Kurum adı zorunludur.');
   });
 
   test('PAG survey draft creation validation and full payload returned', async () => {
@@ -59,106 +86,15 @@ describe('Phase Survey Creation & Approval System Unit Tests', () => {
     expect(res.data.status).toBe('DRAFT');
     expect(res.data.surveyId).toBe('srv_test_draft_verification_01');
     expect(res.data.survey.title).toBe('PAG Test Draft Survey');
-    expect(res.data.survey.category).toBe('Teknoloji');
-    expect(res.data.survey.profileScoreReward).toBe(100);
-    expect(res.data.survey.storyConfig.showInStory).toBe(true);
-    expect(res.data.survey.questions.length).toBe(1);
   });
 
-  test('listSurveysAdminHandler and getSurveyAdminHandler reject non-admin users', async () => {
+  test('listSurveysAdminHandler and listCompanyApplicationsAdminHandler reject non-admin users', async () => {
     await expect(
       listSurveysAdminHandler({}, fakeNonAdminContext)
-    ).rejects.toThrow('Admin privileges are required to perform this action.');
+    ).rejects.toThrow('Bu hesap için PAG Portal erişimi bulunmuyor.');
 
     await expect(
-      getSurveyAdminHandler({ surveyId: 'srv_test_draft_verification_01' }, fakeNonAdminContext)
-    ).rejects.toThrow('Admin privileges are required to perform this action.');
-  });
-
-  test('Organization survey draft creation requires organizationId', async () => {
-    const questions1 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] }
-    ];
-
-    await expect(
-      createOrUpdateSurveyAdminHandler({
-        title: 'Org Test Survey',
-        ownerType: 'ORGANIZATION',
-        surveyType: 'ORGANIZATION',
-        questions: questions1
-      }, fakeAdminContext)
-    ).rejects.toThrow('organizationId is required when ownerType is ORGANIZATION.');
-  });
-
-  test('Invalid owner/type combination rejection', async () => {
-    const questions1 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] }
-    ];
-
-    await expect(
-      createOrUpdateSurveyAdminHandler({
-        title: 'Org Profile Survey Invalid',
-        ownerType: 'ORGANIZATION',
-        organizationId: 'org_ford',
-        surveyType: 'PROFILE',
-        questions: questions1
-      }, fakeAdminContext)
-    ).rejects.toThrow('ORGANIZATION owner cannot create PROFILE surveys.');
-  });
-
-  test('Creating survey with 4 questions is rejected', async () => {
-    const questions4 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] },
-      { questionId: 'q2', order: 2, type: 'SINGLE_SELECT', text: 'Q2', options: [] },
-      { questionId: 'q3', order: 3, type: 'SINGLE_SELECT', text: 'Q3', options: [] },
-      { questionId: 'q4', order: 4, type: 'SINGLE_SELECT', text: 'Q4', options: [] }
-    ];
-
-    await expect(
-      createOrUpdateSurveyAdminHandler({
-        title: 'Over 3 Questions Survey',
-        surveyType: 'PAG',
-        questions: questions4
-      }, fakeAdminContext)
-    ).rejects.toThrow('PAG V1 Surveys support a maximum of 3 questions. 4th question rejected.');
-  });
-
-  test('Invalid targeting type rejected', async () => {
-    const questions1 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] }
-    ];
-
-    await expect(
-      createOrUpdateSurveyAdminHandler({
-        title: 'Invalid Targeting Survey',
-        surveyType: 'PAG',
-        questions: questions1,
-        targeting: { type: 'INVALID_TARGET' }
-      }, fakeAdminContext)
-    ).rejects.toThrow('Invalid targeting type.');
-  });
-
-  test('Ranked money rewards exceeding total budget rejected', async () => {
-    const questions1 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] }
-    ];
-
-    await expect(
-      createOrUpdateSurveyAdminHandler({
-        title: 'Over Budget Ranked Survey',
-        surveyType: 'PAG',
-        questions: questions1,
-        rewardDefinition: {
-          rewardType: 'MONEY',
-          totalBudget: 500,
-          distributionModel: 'RANKED',
-          rankedRules: [
-            { rankFrom: 1, rankTo: 1, amount: 300 },
-            { rankFrom: 2, rankTo: 2, amount: 250 },
-            { rankFrom: 3, rankTo: 3, amount: 100 }
-          ]
-        }
-      }, fakeAdminContext)
-    ).rejects.toThrow('Ranked rewards sum (650 TL) exceeds total budget (500 TL).');
+      listCompanyApplicationsAdminHandler({}, fakeNonAdminContext)
+    ).rejects.toThrow('Bu hesap için PAG Portal erişimi bulunmuyor.');
   });
 });

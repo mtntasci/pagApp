@@ -18,7 +18,11 @@ import {
   approveSurveyAdminHandler,
   archiveSurveyAdminHandler,
   manageVoucherPoolAdminHandler,
-  manageStoryBarAdminHandler
+  manageStoryBarAdminHandler,
+  getPortalUserHandler,
+  submitCompanyApplicationHandler,
+  listCompanyApplicationsAdminHandler,
+  updateCompanyApplicationStatusAdminHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -60,7 +64,7 @@ export const getCurrentUserRanking = functions.https.onCall(getCurrentUserRankin
 export const getUserRewards = functions.https.onCall(getUserRewardsHandler);
 
 /**
- * Admin Portal Callable Functions.
+ * Admin Portal & Company Application Callable Functions.
  */
 export const getAdminDashboardMetrics = functions.https.onCall(getAdminDashboardMetricsHandler);
 export const createOrUpdateSurveyAdmin = functions.https.onCall(createOrUpdateSurveyAdminHandler);
@@ -71,3 +75,8 @@ export const approveSurveyAdmin = functions.https.onCall(approveSurveyAdminHandl
 export const archiveSurveyAdmin = functions.https.onCall(archiveSurveyAdminHandler);
 export const manageVoucherPoolAdmin = functions.https.onCall(manageVoucherPoolAdminHandler);
 export const manageStoryBarAdmin = functions.https.onCall(manageStoryBarAdminHandler);
+
+export const getPortalUser = functions.https.onCall(getPortalUserHandler);
+export const submitCompanyApplication = functions.https.onCall(submitCompanyApplicationHandler);
+export const listCompanyApplicationsAdmin = functions.https.onCall(listCompanyApplicationsAdminHandler);
+export const updateCompanyApplicationStatusAdmin = functions.https.onCall(updateCompanyApplicationStatusAdminHandler);
