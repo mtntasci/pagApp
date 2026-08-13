@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.pagapp.pag"
+    namespace = "com.alafteknoloji.pagapp"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.pagapp.pag"
+        applicationId = "com.alafteknoloji.pagapp"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

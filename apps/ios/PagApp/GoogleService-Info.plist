@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CLIENT_ID</key>
-	<string>1011540629150-fsm8upan3s6p5uvisk381a8c1k5913f4.apps.googleusercontent.com</string>
+	<string>1011540629150-2q50noosi1n2jlv5135gsaset6l90lnn.apps.googleusercontent.com</string>
 	<key>REVERSED_CLIENT_ID</key>
-	<string>com.googleusercontent.apps.1011540629150-fsm8upan3s6p5uvisk381a8c1k5913f4</string>
+	<string>com.googleusercontent.apps.1011540629150-2q50noosi1n2jlv5135gsaset6l90lnn</string>
 	<key>API_KEY</key>
 	<string>AIzaSyDeOTg7cYD87p_jAkaNW7B98WnT04H3Cb8</string>
 	<key>GCM_SENDER_ID</key>
@@ -13,7 +13,7 @@
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>com.pagapp.pag</string>
+	<string>com.alafteknoloji.pagapp</string>
 	<key>PROJECT_ID</key>
 	<string>pagwebapp</string>
 	<key>STORAGE_BUCKET</key>
@@ -29,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:1011540629150:ios:4d89ded6172d7778b5cd8f</string>
+	<string>1:1011540629150:ios:16ed7aafd8cf5730b5cd8f</string>
 </dict>
 </plist>
