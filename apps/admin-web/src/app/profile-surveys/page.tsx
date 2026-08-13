@@ -125,6 +125,103 @@ export default function ProfileSurveysPage() {
     }
   };
 
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [jsonInputText, setJsonInputText] = useState('');
+  const [jsonImportError, setJsonImportError] = useState<string | null>(null);
+  const [isJsonImporting, setIsJsonImporting] = useState(false);
+
+  const sampleProfileQuestionJson = JSON.stringify({
+    "id": "pq_otomobil_sahipligi",
+    "questionText": "Kişisel bir otomobiliniz var mı?",
+    "categoryId": "cat_automotive",
+    "categoryName": "Otomotiv & Ulaşım",
+    "targetingGender": "ALL",
+    "profileScoreReward": 50,
+    "status": "ACTIVE",
+    "showOnHome": true,
+    "options": [
+      { "optionId": "opt_auto_own", "label": "Evet, kendi aracıma sahibim", "order": 1 },
+      { "optionId": "opt_auto_company", "label": "Şirket aracı kullanıyorum", "order": 2 },
+      { "optionId": "opt_auto_plan", "label": "Aracım yok, yakın zamanda almayı planlıyorum", "order": 3 },
+      { "optionId": "opt_auto_none", "label": "Aracım yok ve almayı planlamıyorum", "order": 4 }
+    ]
+  }, null, 2);
+
+  const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setJsonInputText(event.target.result as string);
+        setJsonImportError(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportJson = async () => {
+    setJsonImportError(null);
+    if (!jsonInputText.trim()) {
+      setJsonImportError('Lütfen bir JSON verisi yapıştırın veya dosya seçin.');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(jsonInputText);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      setIsJsonImporting(true);
+
+      const saveFn = httpsCallable(functions, 'createOrUpdateProfileQuestionAdmin');
+
+      for (const q of items) {
+        if (!q.questionText || !Array.isArray(q.options) || q.options.length < 2) {
+          throw new Error('Geçersiz soru formatı. "questionText" ve en az 2 "options" gereklidir.');
+        }
+
+        const catObj = categories.find((c) => c.id === q.categoryId) || categories[0];
+        const catName = q.categoryName || (catObj ? catObj.name : 'Genel');
+        const catId = q.categoryId || (catObj ? catObj.id : 'cat_lifestyle');
+
+        const mappedOpts = q.options.map((opt: any, idx: number) => ({
+          optionId: opt.optionId || 'opt_' + (idx + 1),
+          label: typeof opt === 'string' ? opt : opt.label || `Seçenek ${idx + 1}`,
+          order: opt.order || idx + 1
+        }));
+
+        const payload = {
+          id: q.id || undefined,
+          questionText: q.questionText.trim(),
+          categoryId: catId,
+          categoryName: catName,
+          targetingGender: q.targetingGender || 'ALL',
+          options: mappedOpts,
+          profileScoreReward: Number(q.profileScoreReward) || 10,
+          showOnHome: Boolean(q.showOnHome),
+          status: q.status || 'ACTIVE'
+        };
+
+        await saveFn(payload);
+      }
+
+      setSuccessMessage(`${items.length} adet profil sorusu başarıyla içeri aktarıldı.`);
+      setIsJsonModalOpen(false);
+      setJsonInputText('');
+
+      // Refresh list
+      const listFn = httpsCallable(functions, 'listProfileQuestionsAdmin');
+      const res = (await listFn({})) as any;
+      if (res.data && res.data.success && Array.isArray(res.data.data.questions)) {
+        setQuestions(res.data.data.questions);
+      }
+    } catch (err: any) {
+      console.error(err);
+      setJsonImportError('JSON İşleme Hata: ' + (err.message || 'Geçersiz JSON formatı.'));
+    } finally {
+      setIsJsonImporting(false);
+    }
+  };
+
   return (
     <div>
       <header style={{ marginBottom: '24px' }}>
@@ -136,21 +233,37 @@ export default function ProfileSurveysPage() {
         </p>
       </header>
 
-      <button
-        onClick={handleOpenNewModal}
-        style={{
-          padding: '10px 18px',
-          backgroundColor: 'var(--brand-lime)',
-          color: 'var(--brand-navy)',
-          fontWeight: 700,
-          borderRadius: '8px',
-          border: 'none',
-          marginBottom: '20px',
-          cursor: 'pointer'
-        }}
-      >
-        Yeni Profil Sorusu Ekle
-      </button>
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px' }}>
+        <button
+          onClick={handleOpenNewModal}
+          style={{
+            padding: '10px 18px',
+            backgroundColor: 'var(--brand-lime)',
+            color: 'var(--brand-navy)',
+            fontWeight: 700,
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer'
+          }}
+        >
+          + Yeni Profil Sorusu Ekle
+        </button>
+
+        <button
+          onClick={() => { setJsonInputText(''); setJsonImportError(null); setIsJsonModalOpen(true); }}
+          style={{
+            padding: '10px 18px',
+            backgroundColor: '#0F172A',
+            color: '#CCFF00',
+            fontWeight: 700,
+            borderRadius: '8px',
+            border: '1px solid #CCFF00',
+            cursor: 'pointer'
+          }}
+        >
+          📥 JSON İle İçeri Aktar
+        </button>
+      </div>
 
       {errorMessage ? (
         <div style={{ padding: '12px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', borderRadius: '8px', marginBottom: '16px' }}>
@@ -268,6 +381,69 @@ export default function ProfileSurveysPage() {
                 <button type="submit" disabled={isSaving}>{isSaving ? 'Kaydediliyor...' : 'Kaydet'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {isJsonModalOpen ? (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div style={{ backgroundColor: 'var(--bg-surface)', padding: '24px', borderRadius: '12px', width: '92%', maxWidth: '650px', border: '1px solid var(--border-color)', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)' }}>📥 JSON İle Profil Sorusu Yükle</h3>
+              <button onClick={() => setIsJsonModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)' }}>✕</button>
+            </div>
+
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+              Bir `.json` dosyası yükleyebilir veya aşağıdaki alana JSON metnini doğrudan yapıştırabilirsiniz (Tek nesne veya nesne dizisi desteklenir).
+            </p>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+              <input type="file" accept=".json" onChange={handleJsonFileUpload} style={{ fontSize: '13px' }} />
+              <button
+                type="button"
+                onClick={() => setJsonInputText(sampleProfileQuestionJson)}
+                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', cursor: 'pointer' }}
+              >
+                📋 Örnek Şablon Yapıştır
+              </button>
+            </div>
+
+            {jsonImportError && (
+              <div style={{ padding: '10px 12px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: '6px', fontSize: '13px', marginBottom: '12px' }}>
+                {jsonImportError}
+              </div>
+            )}
+
+            <textarea
+              rows={12}
+              value={jsonInputText}
+              onChange={(e) => setJsonInputText(e.target.value)}
+              placeholder="JSON formatını buraya yapıştırın..."
+              style={{
+                width: '100%',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: '#0F172A',
+                color: '#CCFF00',
+                marginBottom: '16px',
+                resize: 'vertical'
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setIsJsonModalOpen(false)} style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>İptal</button>
+              <button
+                type="button"
+                onClick={handleImportJson}
+                disabled={isJsonImporting}
+                style={{ padding: '8px 20px', borderRadius: '6px', backgroundColor: '#CCFF00', color: '#0F172A', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {isJsonImporting ? 'Yükleniyor...' : '🚀 Yükle & Kaydet'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

@@ -63,6 +63,137 @@ export default function SurveysPage() {
   const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
+  const [jsonInputText, setJsonInputText] = useState('');
+  const [jsonImportError, setJsonImportError] = useState<string | null>(null);
+  const [isJsonImporting, setIsJsonImporting] = useState(false);
+
+  const sampleSurveyJson = JSON.stringify({
+    "surveyId": "srv_kahve_tercihleri_2026",
+    "title": "Kahve Tüketim Alışkanlıkları Araştırması",
+    "description": "Günlük kahve içme tercihlerinizi paylaşın, Profile Score ve ödül kazanın.",
+    "ownerType": "PAG",
+    "surveyType": "PAG",
+    "category": "FOR_YOU",
+    "status": "DRAFT",
+    "profileScoreReward": 100,
+    "startAt": "2026-08-15T09:00:00.000Z",
+    "endAt": "2026-08-25T23:59:59.000Z",
+    "targeting": {
+      "type": "ALL"
+    },
+    "rewardDefinition": {
+      "rewardType": "MONEY",
+      "totalBudget": 1000,
+      "currency": "TRY",
+      "distributionModel": "RANKED",
+      "rankedRules": [
+        { "rankRangeStart": 1, "rankRangeEnd": 1, "amount": 300 },
+        { "rankRangeStart": 2, "rankRangeEnd": 2, "amount": 200 },
+        { "rankRangeStart": 3, "rankRangeEnd": 3, "amount": 100 }
+      ]
+    },
+    "questions": [
+      {
+        "id": "q1",
+        "questionText": "Günde ortalama kaç fincan kahve tüketiyorsunuz?",
+        "order": 1,
+        "options": [
+          { "optionId": "o1", "label": "Tüketmiyorum / Nadiren", "order": 1 },
+          { "optionId": "o2", "label": "1 - 2 Fincan", "order": 2 },
+          { "optionId": "o3", "label": "3 - 4 Fincan", "order": 3 }
+        ]
+      },
+      {
+        "id": "q2",
+        "questionText": "En çok tercih ettiğiniz kahve türü hangisidir?",
+        "order": 2,
+        "options": [
+          { "optionId": "o1", "label": "Türk Kahvesi", "order": 1 },
+          { "optionId": "o2", "label": "Filtre Kahve", "order": 2 },
+          { "optionId": "o3", "label": "Espresso / Americano", "order": 3 }
+        ]
+      }
+    ]
+  }, null, 2);
+
+  const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (event.target?.result) {
+        setJsonInputText(event.target.result as string);
+        setJsonImportError(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportJsonSurvey = async () => {
+    setJsonImportError(null);
+    if (!jsonInputText.trim()) {
+      setJsonImportError('Lütfen bir JSON verisi yapıştırın veya dosya seçin.');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(jsonInputText);
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      setIsJsonImporting(true);
+
+      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
+
+      for (const surveyObj of items) {
+        if (!surveyObj.title || !Array.isArray(surveyObj.questions) || surveyObj.questions.length === 0) {
+          throw new Error('Geçersiz anket formatı. "title" ve en az 1 soru ("questions") gereklidir.');
+        }
+
+        const formattedQuestions = surveyObj.questions.map((q: any, idx: number) => ({
+          questionId: q.id || q.questionId || `q${idx + 1}`,
+          order: q.order || idx + 1,
+          type: 'SINGLE_SELECT',
+          text: q.questionText || q.text || `${idx + 1}. Soru`,
+          options: (q.options || []).map((opt: any, oIdx: number) => ({
+            optionId: typeof opt === 'object' ? (opt.optionId || `opt_${oIdx + 1}`) : `opt_${oIdx + 1}`,
+            label: typeof opt === 'string' ? opt : (opt.label || `Seçenek ${oIdx + 1}`),
+            order: typeof opt === 'object' ? (opt.order || oIdx + 1) : oIdx + 1
+          }))
+        }));
+
+        const cleanedPayload = removeUndefinedFields({
+          surveyId: surveyObj.surveyId || undefined,
+          ownerType: surveyObj.ownerType || 'PAG',
+          organizationId: surveyObj.organizationId || undefined,
+          surveyType: surveyObj.surveyType || 'PAG',
+          category: surveyObj.category || 'Genel',
+          title: surveyObj.title.trim(),
+          description: surveyObj.description || undefined,
+          status: surveyObj.status || 'DRAFT',
+          startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
+          endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : undefined,
+          questions: formattedQuestions,
+          targeting: surveyObj.targeting || { type: 'ALL' },
+          profileScoreReward: Number(surveyObj.profileScoreReward) || 50,
+          rewardDefinition: surveyObj.rewardDefinition || { rewardType: 'NONE' },
+          storyConfig: surveyObj.storyConfig || undefined
+        });
+
+        await createOrUpdateFn(cleanedPayload);
+      }
+
+      setIsJsonModalOpen(false);
+      setJsonInputText('');
+      alert(`${items.length} adet anket taslağı başarıyla oluşturuldu!`);
+      fetchSurveys();
+    } catch (err: any) {
+      console.error(err);
+      setJsonImportError('JSON Yükleme Hatası: ' + (err.message || 'Geçersiz JSON formatı.'));
+    } finally {
+      setIsJsonImporting(false);
+    }
+  };
+
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -365,21 +496,40 @@ export default function SurveysPage() {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenNewWizard}
-            style={{
-              padding: '12px 20px',
-              backgroundColor: 'var(--brand-navy)',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              borderRadius: '8px',
-              fontSize: '14px',
-              boxShadow: 'var(--shadow-sm)',
-              width: 'auto'
-            }}
-          >
-            + Yeni Kampanya / Anket Oluştur
-          </button>
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={handleOpenNewWizard}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: 'var(--brand-navy)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                borderRadius: '8px',
+                fontSize: '14px',
+                boxShadow: 'var(--shadow-sm)',
+                width: 'auto'
+              }}
+            >
+              + Yeni Kampanya / Anket Oluştur
+            </button>
+
+            <button
+              onClick={() => { setJsonInputText(''); setJsonImportError(null); setIsJsonModalOpen(true); }}
+              style={{
+                padding: '12px 20px',
+                backgroundColor: '#0F172A',
+                color: '#CCFF00',
+                fontWeight: 700,
+                borderRadius: '8px',
+                fontSize: '14px',
+                border: '1px solid #CCFF00',
+                cursor: 'pointer',
+                width: 'auto'
+              }}
+            >
+              📥 JSON İle İçeri Aktar
+            </button>
+          </div>
         </div>
       </header>
 
@@ -953,6 +1103,92 @@ export default function SurveysPage() {
             )}
           </div>
         </>
+      )}
+
+      {isJsonModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2100,
+          padding: '16px'
+        }}>
+          <div style={{
+            width: '100%',
+            maxWidth: '750px',
+            maxHeight: '92vh',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '24px 20px',
+            overflowY: 'auto',
+            boxShadow: 'var(--shadow-lg)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+                  📥 JSON İle Anket / Kampanya Yükle & Taslak Oluştur
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  Hazır bir Anket JSON verisi yapıştırın veya `.json` dosyası yükleyin.
+                </p>
+              </div>
+              <button onClick={() => setIsJsonModalOpen(false)} style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', minHeight: 'auto', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '12px', alignItems: 'center' }}>
+              <input type="file" accept=".json" onChange={handleJsonFileUpload} style={{ fontSize: '13px' }} />
+              <button
+                type="button"
+                onClick={() => setJsonInputText(sampleSurveyJson)}
+                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', cursor: 'pointer' }}
+              >
+                📋 Örnek Şablon Yapıştır
+              </button>
+            </div>
+
+            {jsonImportError && (
+              <div style={{ padding: '10px 12px', backgroundColor: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: '6px', fontSize: '13px', marginBottom: '12px' }}>
+                {jsonImportError}
+              </div>
+            )}
+
+            <textarea
+              rows={14}
+              value={jsonInputText}
+              onChange={(e) => setJsonInputText(e.target.value)}
+              placeholder="Anket JSON verisini buraya yapıştırın..."
+              style={{
+                width: '100%',
+                fontFamily: 'monospace',
+                fontSize: '12px',
+                padding: '12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: '#0F172A',
+                color: '#CCFF00',
+                marginBottom: '16px',
+                resize: 'vertical'
+              }}
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button type="button" onClick={() => setIsJsonModalOpen(false)} style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer' }}>İptal</button>
+              <button
+                type="button"
+                onClick={handleImportJsonSurvey}
+                disabled={isJsonImporting}
+                style={{ padding: '8px 20px', borderRadius: '6px', backgroundColor: '#CCFF00', color: '#0F172A', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {isJsonImporting ? 'Yükleniyor...' : '🚀 Yükle & Taslak Oluştur'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
