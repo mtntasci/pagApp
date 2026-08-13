@@ -9,7 +9,7 @@ public struct SurveyDetailView: View {
     @State private var isLoading: Bool = true
     @State private var errorMessage: String? = nil
     
-    public init(surveyId: String, navPath: Binding<NavigationPath>) {
+    public init(surveyId: String, navPath: Binding<NavigationPath> = .constant(NavigationPath())) {
         self.surveyId = surveyId
         self._navPath = navPath
     }

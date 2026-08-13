@@ -24,12 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alafteknoloji.pagapp.models.*
 import com.alafteknoloji.pagapp.services.BasicProfileService
+import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BasicProfileScreen(
+    userService: UserService? = null,
     onNavigateBack: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -39,6 +41,7 @@ fun BasicProfileScreen(
     val profileState by service.basicProfile.collectAsState()
     val locationsState by service.locations.collectAsState()
     val isSaving by service.isSaving.collectAsState()
+    val serviceErrorMsg by service.errorMessage.collectAsState()
 
     var currentStep by remember { mutableStateOf(1) } // 1..5
     var draftProfile by remember { mutableStateOf(PAGBasicProfile()) }
@@ -116,7 +119,7 @@ fun BasicProfileScreen(
                                 }
 
                                 scope.launch {
-                                    val ok = service.saveBasicProfile(draftProfile)
+                                    val ok = service.saveBasicProfile(draftProfile, userService)
                                     if (ok) {
                                         onNavigateBack()
                                     }
@@ -219,7 +222,7 @@ fun BasicProfileScreen(
                     .padding(PAGTheme.spacing.md),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                inlineErrorMsg?.let { err ->
+                (inlineErrorMsg ?: serviceErrorMsg)?.let { err ->
                     Text(err, color = PAGTheme.colors.error, fontSize = 13.sp, modifier = Modifier.background(PAGTheme.colors.error.copy(alpha = 0.15f), RoundedCornerShape(8.dp)).padding(12.dp).fillMaxWidth())
                 }
 

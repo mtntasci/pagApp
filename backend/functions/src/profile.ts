@@ -183,7 +183,7 @@ export const updateBasicProfileHandler = async (
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
 
   // Validate Birth Date format YYYY-MM-DD if provided
-  if (data.birthDetails?.birthDate) {
+  if (data.birthDetails?.birthDate && data.birthDetails.birthDate.trim() !== '') {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDetails.birthDate)) {
       throw new functions.https.HttpsError('invalid-argument', 'birthDate must be in YYYY-MM-DD format.');
     }
@@ -207,7 +207,7 @@ export const updateBasicProfileHandler = async (
         );
       }
       for (const child of data.childrenInfo.children) {
-        if (!/^\d{4}-\d{2}-\d{2}$/.test(child.birthDate)) {
+        if (!child.birthDate || !/^\d{4}-\d{2}-\d{2}$/.test(child.birthDate)) {
           throw new functions.https.HttpsError('invalid-argument', 'Child birthDate must be in YYYY-MM-DD format.');
         }
       }
@@ -223,12 +223,13 @@ export const updateBasicProfileHandler = async (
   const ledgerRef = db.collection('profileScoreLedgers').doc(ledgerId);
 
   let scoreAwardedNow = 0;
+  let alreadyAwarded = false;
 
   try {
     await db.runTransaction(async (transaction) => {
       const existingProfileDoc = await transaction.get(profileRef);
       const existingProfileData = existingProfileDoc.data() || {};
-      const alreadyAwarded = !!existingProfileData.scoreAwarded;
+      alreadyAwarded = !!existingProfileData.scoreAwarded;
 
       const payload: Record<string, any> = {
         ...data,
@@ -269,12 +270,22 @@ export const updateBasicProfileHandler = async (
         }
       } else if (alreadyAwarded) {
         payload.scoreAwarded = true;
+        if (is100Percent) {
+          transaction.set(userRef, {
+            profileCompleted: true,
+            updatedAt: serverNow
+          }, { merge: true });
+        }
       }
 
       transaction.set(profileRef, payload, { merge: true });
     });
-  } catch (err) {
-    functions.logger.warn(`Basic Profile transaction skipped or failed in test mode:`, err);
+  } catch (err: any) {
+    functions.logger.error(`Basic Profile transaction failed:`, err);
+    if (err instanceof functions.https.HttpsError) {
+      throw err;
+    }
+    throw new functions.https.HttpsError('internal', err?.message || 'Basic profile save transaction failed.');
   }
 
   functions.logger.info(`BASIC_PROFILE_UPDATED: userId=${uid}, progress=${percentage}%, scoreAwarded=${scoreAwardedNow}`);
@@ -282,6 +293,7 @@ export const updateBasicProfileHandler = async (
   return {
     success: true,
     data: {
+      profile: data,
       completionPercentage: percentage,
       completedCategories,
       scoreAwarded: scoreAwardedNow > 0,

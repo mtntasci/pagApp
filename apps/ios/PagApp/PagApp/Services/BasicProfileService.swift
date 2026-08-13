@@ -60,68 +60,70 @@ public final class BasicProfileService: ObservableObject {
             let result = try await Functions.functions().httpsCallable("getBasicProfile").call()
             if let responseData = result.data as? [String: Any],
                let success = responseData["success"] as? Bool, success,
-               let data = responseData["data"] as? [String: Any],
-               let pDict = data["profile"] as? [String: Any] {
+               let data = responseData["data"] as? [String: Any] {
                 
                 var bProfile = PAGBasicProfile()
                 bProfile.completionPercentage = data["completionPercentage"] as? Int ?? 0
                 bProfile.scoreAwarded = data["scoreAwarded"] as? Bool ?? false
                 
-                if let marital = pDict["maritalStatus"] as? String {
-                    bProfile.maritalStatus = marital
-                }
-                
-                if let bDict = pDict["birthDetails"] as? [String: Any] {
-                    bProfile.birthDetails = PAGBirthDetails(
-                        birthDate: bDict["birthDate"] as? String ?? "",
-                        cityId: bDict["cityId"] as? String ?? "",
-                        cityName: bDict["cityName"] as? String ?? "",
-                        districtId: bDict["districtId"] as? String ?? "",
-                        districtName: bDict["districtName"] as? String ?? ""
-                    )
-                }
-                
-                if let cDict = pDict["childrenInfo"] as? [String: Any] {
-                    var childList: [PAGChildInfo] = []
-                    if let cArr = cDict["children"] as? [[String: Any]] {
-                        for item in cArr {
-                            childList.append(PAGChildInfo(
-                                gender: item["gender"] as? String ?? "MALE",
-                                birthDate: item["birthDate"] as? String ?? "2020-01-01"
-                            ))
-                        }
+                if let pDict = data["profile"] as? [String: Any] {
+                    if let marital = pDict["maritalStatus"] as? String {
+                        bProfile.maritalStatus = marital
                     }
-                    bProfile.childrenInfo = PAGChildrenInfo(
-                        hasChildren: cDict["hasChildren"] as? Bool ?? false,
-                        childrenCount: cDict["childrenCount"] as? Int ?? 0,
-                        children: childList
-                    )
-                }
-                
-                if let rDict = pDict["residenceAddress"] as? [String: Any] {
-                    bProfile.residenceAddress = PAGLocationPair(
-                        cityId: rDict["cityId"] as? String ?? "",
-                        cityName: rDict["cityName"] as? String ?? "",
-                        districtId: rDict["districtId"] as? String ?? "",
-                        districtName: rDict["districtName"] as? String ?? "",
-                        neighborhoodId: rDict["neighborhoodId"] as? String,
-                        neighborhoodName: rDict["neighborhoodName"] as? String
-                    )
-                }
-                
-                if let hDict = pDict["hometown"] as? [String: Any] {
-                    bProfile.hometown = PAGLocationPair(
-                        cityId: hDict["cityId"] as? String ?? "",
-                        cityName: hDict["cityName"] as? String ?? "",
-                        districtId: hDict["districtId"] as? String ?? "",
-                        districtName: hDict["districtName"] as? String ?? ""
-                    )
+                    
+                    if let bDict = pDict["birthDetails"] as? [String: Any] {
+                        bProfile.birthDetails = PAGBirthDetails(
+                            birthDate: bDict["birthDate"] as? String ?? "",
+                            cityId: bDict["cityId"] as? String ?? "",
+                            cityName: bDict["cityName"] as? String ?? "",
+                            districtId: bDict["districtId"] as? String ?? "",
+                            districtName: bDict["districtName"] as? String ?? ""
+                        )
+                    }
+                    
+                    if let cDict = pDict["childrenInfo"] as? [String: Any] {
+                        var childList: [PAGChildInfo] = []
+                        if let cArr = cDict["children"] as? [[String: Any]] {
+                            for item in cArr {
+                                childList.append(PAGChildInfo(
+                                    gender: item["gender"] as? String ?? "MALE",
+                                    birthDate: item["birthDate"] as? String ?? "2020-01-01"
+                                ))
+                            }
+                        }
+                        bProfile.childrenInfo = PAGChildrenInfo(
+                            hasChildren: cDict["hasChildren"] as? Bool ?? false,
+                            childrenCount: cDict["childrenCount"] as? Int ?? 0,
+                            children: childList
+                        )
+                    }
+                    
+                    if let rDict = pDict["residenceAddress"] as? [String: Any] {
+                        bProfile.residenceAddress = PAGLocationPair(
+                            cityId: rDict["cityId"] as? String ?? "",
+                            cityName: rDict["cityName"] as? String ?? "",
+                            districtId: rDict["districtId"] as? String ?? "",
+                            districtName: rDict["districtName"] as? String ?? "",
+                            neighborhoodId: rDict["neighborhoodId"] as? String,
+                            neighborhoodName: rDict["neighborhoodName"] as? String
+                        )
+                    }
+                    
+                    if let hDict = pDict["hometown"] as? [String: Any] {
+                        bProfile.hometown = PAGLocationPair(
+                            cityId: hDict["cityId"] as? String ?? "",
+                            cityName: hDict["cityName"] as? String ?? "",
+                            districtId: hDict["districtId"] as? String ?? "",
+                            districtName: hDict["districtName"] as? String ?? ""
+                        )
+                    }
                 }
                 
                 self.basicProfile = bProfile
             }
         } catch {
             print("fetchBasicProfile error: \(error.localizedDescription)")
+            self.errorMessage = "Temel profil yüklenemedi: \(error.localizedDescription)"
         }
         
         isLoading = false
@@ -189,14 +191,18 @@ public final class BasicProfileService: ObservableObject {
                 updated.scoreAwarded = scoreAwarded
                 self.basicProfile = updated
                 
-                if scoreAwarded {
+                if scoreAwarded && scoreAmount > 0 {
                     self.saveSuccessMessage = "Profil başarıyla kaydedildi! +\(scoreAmount) Profil Puanı Kazandınız! 🎉"
+                    let currentScore = UserService.shared.currentUser?.profileScore ?? 0
+                    UserService.shared.updateUserProfileScore(newScore: currentScore + scoreAmount)
                 } else {
                     self.saveSuccessMessage = "Profil başarıyla kaydedildi."
                 }
                 
                 isSaving = false
                 return true
+            } else {
+                self.errorMessage = "Profil kaydedilemedi. Lütfen girdiğiniz bilgileri kontrol edin."
             }
         } catch {
             self.errorMessage = "Profil kaydedilirken bir hata oluştu: \(error.localizedDescription)"

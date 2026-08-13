@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 public struct ProfileView: View {
     @EnvironmentObject private var authService: AuthService
@@ -26,6 +27,43 @@ public struct ProfileView: View {
 
     private var profileScore: Int {
         return userService.currentUser?.profileScore ?? 0
+    }
+
+    private var isPhoneVerified: Bool {
+        if let u = userService.currentUser {
+            return u.phoneVerified
+        }
+        if let p = Auth.auth().currentUser?.phoneNumber, !p.isEmpty {
+            return true
+        }
+        return false
+    }
+
+    private var isEmailVerified: Bool {
+        if let u = userService.currentUser {
+            return u.emailVerified
+        }
+        return Auth.auth().currentUser?.isEmailVerified ?? false
+    }
+
+    private var kycStatusText: String {
+        let status = userService.currentUser?.kycStatus ?? "NOT_STARTED"
+        switch status {
+        case "VERIFIED":
+            return "Doğrulandı"
+        case "PENDING":
+            return "İnceleniyor"
+        default:
+            return "Henüz doğrulanmadı"
+        }
+    }
+
+    private var isKycVerified: Bool {
+        return userService.currentUser?.kycStatus == "VERIFIED"
+    }
+
+    private var isBasicProfileComplete: Bool {
+        return basicProfileService.basicProfile.completionPercentage == 100 || (userService.currentUser?.profileCompleted ?? false)
     }
 
     public var body: some View {
@@ -110,7 +148,71 @@ public struct ProfileView: View {
                         }
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // 2. Verifications (Doğrulamalar)
+                        // 2. Yeni Kart — Profilini Güçlendir
+                        VStack(alignment: .leading, spacing: PAGSpacing.xs) {
+                            HStack {
+                                Text("Profilini Güçlendir")
+                                    .font(PAGTypography.heading)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                                Spacer()
+                                Image(systemName: "bolt.badge.clock.fill")
+                                    .foregroundColor(PAGTheme.brandLime)
+                            }
+
+                            Text("Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?")
+                                .font(PAGTypography.body)
+                                .foregroundColor(PAGTheme.textPrimary)
+
+                            Text("Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.")
+                                .font(PAGTypography.caption)
+                                .foregroundColor(PAGTheme.textMuted)
+
+                            if isBasicProfileComplete {
+                                NavigationLink(destination: ProfileSurveysView()) {
+                                    HStack {
+                                        Text("Profil Sorularını Gör")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                        Spacer()
+                                        Image(systemName: "arrow.right")
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    }
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 16)
+                                    .background(PAGTheme.brandLime)
+                                    .cornerRadius(PAGRadius.medium)
+                                }
+                                .padding(.top, 4)
+                            } else {
+                                HStack {
+                                    Text("Temel profili %100 tamamladıktan sonra erişilebilir")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                    Spacer()
+                                    Image(systemName: "lock.fill")
+                                        .foregroundColor(PAGTheme.textMuted)
+                                }
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 14)
+                                .background(PAGTheme.surfacePrimary.opacity(0.6))
+                                .cornerRadius(PAGRadius.medium)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                        .stroke(PAGTheme.borderDefault, lineWidth: 1)
+                                )
+                                .padding(.top, 4)
+                            }
+                        }
+                        .padding()
+                        .background(PAGTheme.surfacePrimary)
+                        .cornerRadius(PAGRadius.medium)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                .stroke(isBasicProfileComplete ? PAGTheme.brandLime.opacity(0.5) : PAGTheme.borderDefault, lineWidth: 1)
+                        )
+                        .padding(.horizontal, PAGSpacing.md)
+
+                        // 3. Verifications (Doğrulamalar - Source of Truth)
                         VStack(alignment: .leading, spacing: 0) {
                             Text("Doğrulamalar")
                                 .font(PAGTypography.title)
@@ -119,16 +221,16 @@ public struct ProfileView: View {
                                 .padding(.bottom, PAGSpacing.sm)
 
                             VStack(spacing: 0) {
-                                VerificationRow(title: "Telefon", status: "Doğrulandı", isVerified: true, showDivider: true)
-                                VerificationRow(title: "E-posta", status: authService.currentUser?.email != nil ? "Doğrulandı" : "Doğrulanmadı", isVerified: authService.currentUser?.email != nil, showDivider: true)
-                                VerificationRow(title: "Kimlik / KYC", status: "Henüz yapılmadı", isVerified: false, showDivider: false)
+                                VerificationRow(title: "Telefon", status: isPhoneVerified ? "Doğrulandı" : "Doğrulanmadı", isVerified: isPhoneVerified, showDivider: true)
+                                VerificationRow(title: "E-posta", status: isEmailVerified ? "Doğrulandı" : "Doğrulanmadı", isVerified: isEmailVerified, showDivider: true)
+                                VerificationRow(title: "Kimlik / KYC", status: kycStatusText, isVerified: isKycVerified, showDivider: false)
                             }
                             .background(PAGTheme.surfacePrimary)
                             .cornerRadius(PAGRadius.medium)
                             .padding(.horizontal, PAGSpacing.md)
                         }
 
-                        // 3. Logout Button
+                        // 4. Logout Button
                         Button(action: {
                             authService.signOut()
                         }) {

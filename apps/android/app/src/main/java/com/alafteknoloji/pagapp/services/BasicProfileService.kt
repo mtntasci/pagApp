@@ -122,84 +122,99 @@ class BasicProfileService(private val context: Context) {
             if (success) {
                 @Suppress("UNCHECKED_CAST")
                 val data = resMap?.get("data") as? Map<String, Any>
+                val completion = (data?.get("completionPercentage") as? Number)?.toInt() ?: 0
+                val scoreAwarded = data?.get("scoreAwarded") as? Boolean ?: false
+
                 @Suppress("UNCHECKED_CAST")
                 val pMap = data?.get("profile") as? Map<String, Any>
 
-                if (pMap != null) {
-                    val completion = (data["completionPercentage"] as? Number)?.toInt() ?: 0
-                    val scoreAwarded = data["scoreAwarded"] as? Boolean ?: false
+                var birthDetails = PAGBirthDetails()
+                var marital = ""
+                var childrenInfo = PAGChildrenInfo()
+                var residenceAddress = PAGLocationPair()
+                var hometown = PAGLocationPair()
 
-                    val marital = pMap["maritalStatus"] as? String ?: ""
+                if (pMap != null) {
+                    marital = pMap["maritalStatus"] as? String ?: ""
 
                     @Suppress("UNCHECKED_CAST")
                     val bMap = pMap["birthDetails"] as? Map<String, Any>
-                    val birthDetails = PAGBirthDetails(
-                        birthDate = bMap?.get("birthDate") as? String ?: "",
-                        cityId = bMap?.get("cityId") as? String ?: "",
-                        cityName = bMap?.get("cityName") as? String ?: "",
-                        districtId = bMap?.get("districtId") as? String ?: "",
-                        districtName = bMap?.get("districtName") as? String ?: ""
-                    )
-
-                    @Suppress("UNCHECKED_CAST")
-                    val cMap = pMap["childrenInfo"] as? Map<String, Any>
-                    val childList = mutableListOf<PAGChildInfo>()
-                    @Suppress("UNCHECKED_CAST")
-                    val cArr = cMap?.get("children") as? List<Map<String, Any>>
-                    cArr?.forEach { cItem ->
-                        childList.add(
-                            PAGChildInfo(
-                                gender = cItem["gender"] as? String ?: "MALE",
-                                birthDate = cItem["birthDate"] as? String ?: "2020-01-01"
-                            )
+                    if (bMap != null) {
+                        birthDetails = PAGBirthDetails(
+                            birthDate = bMap["birthDate"] as? String ?: "",
+                            cityId = bMap["cityId"] as? String ?: "",
+                            cityName = bMap["cityName"] as? String ?: "",
+                            districtId = bMap["districtId"] as? String ?: "",
+                            districtName = bMap["districtName"] as? String ?: ""
                         )
                     }
 
-                    val childrenInfo = PAGChildrenInfo(
-                        hasChildren = cMap?.get("hasChildren") as? Boolean ?: false,
-                        childrenCount = (cMap?.get("childrenCount") as? Number)?.toInt() ?: 0,
-                        children = childList
-                    )
+                    @Suppress("UNCHECKED_CAST")
+                    val cMap = pMap["childrenInfo"] as? Map<String, Any>
+                    if (cMap != null) {
+                        val childList = mutableListOf<PAGChildInfo>()
+                        @Suppress("UNCHECKED_CAST")
+                        val cArr = cMap["children"] as? List<Map<String, Any>>
+                        cArr?.forEach { cItem ->
+                            childList.add(
+                                PAGChildInfo(
+                                    gender = cItem["gender"] as? String ?: "MALE",
+                                    birthDate = cItem["birthDate"] as? String ?: "2020-01-01"
+                                )
+                            )
+                        }
+
+                        childrenInfo = PAGChildrenInfo(
+                            hasChildren = cMap["hasChildren"] as? Boolean ?: false,
+                            childrenCount = (cMap["childrenCount"] as? Number)?.toInt() ?: 0,
+                            children = childList
+                        )
+                    }
 
                     @Suppress("UNCHECKED_CAST")
                     val rMap = pMap["residenceAddress"] as? Map<String, Any>
-                    val residenceAddress = PAGLocationPair(
-                        cityId = rMap?.get("cityId") as? String ?: "",
-                        cityName = rMap?.get("cityName") as? String ?: "",
-                        districtId = rMap?.get("districtId") as? String ?: "",
-                        districtName = rMap?.get("districtName") as? String ?: "",
-                        neighborhoodId = rMap?.get("neighborhoodId") as? String,
-                        neighborhoodName = rMap?.get("neighborhoodName") as? String
-                    )
+                    if (rMap != null) {
+                        residenceAddress = PAGLocationPair(
+                            cityId = rMap["cityId"] as? String ?: "",
+                            cityName = rMap["cityName"] as? String ?: "",
+                            districtId = rMap["districtId"] as? String ?: "",
+                            districtName = rMap["districtName"] as? String ?: "",
+                            neighborhoodId = rMap["neighborhoodId"] as? String,
+                            neighborhoodName = rMap["neighborhoodName"] as? String
+                        )
+                    }
 
                     @Suppress("UNCHECKED_CAST")
                     val hMap = pMap["hometown"] as? Map<String, Any>
-                    val hometown = PAGLocationPair(
-                        cityId = hMap?.get("cityId") as? String ?: "",
-                        cityName = hMap?.get("cityName") as? String ?: "",
-                        districtId = hMap?.get("districtId") as? String ?: "",
-                        districtName = hMap?.get("districtName") as? String ?: ""
-                    )
-
-                    _basicProfile.value = PAGBasicProfile(
-                        birthDetails = birthDetails,
-                        maritalStatus = marital,
-                        childrenInfo = childrenInfo,
-                        residenceAddress = residenceAddress,
-                        hometown = hometown,
-                        completionPercentage = completion,
-                        scoreAwarded = scoreAwarded
-                    )
+                    if (hMap != null) {
+                        hometown = PAGLocationPair(
+                            cityId = hMap["cityId"] as? String ?: "",
+                            cityName = hMap["cityName"] as? String ?: "",
+                            districtId = hMap["districtId"] as? String ?: "",
+                            districtName = hMap["districtName"] as? String ?: ""
+                        )
+                    }
                 }
+
+                _basicProfile.value = PAGBasicProfile(
+                    birthDetails = birthDetails,
+                    maritalStatus = marital,
+                    childrenInfo = childrenInfo,
+                    residenceAddress = residenceAddress,
+                    hometown = hometown,
+                    completionPercentage = completion,
+                    scoreAwarded = scoreAwarded
+                )
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            _errorMessage.value = "Temel profil yüklenemedi: ${e.localizedMessage}"
         } finally {
             _isLoading.value = false
         }
     }
 
-    suspend fun saveBasicProfile(profile: PAGBasicProfile): Boolean {
+    suspend fun saveBasicProfile(profile: PAGBasicProfile, userService: UserService? = null): Boolean {
         _isSaving.value = true
         _errorMessage.value = null
         _saveSuccessMessage.value = null
@@ -256,12 +271,16 @@ class BasicProfileService(private val context: Context) {
                     scoreAwarded = scoreAwarded
                 )
 
-                if (scoreAwarded) {
+                if (scoreAwarded && scoreAmount > 0) {
                     _saveSuccessMessage.value = "Profil kaydedildi! +$scoreAmount Profil Puanı Kazandınız! 🎉"
+                    val currentScore = userService?.currentUser?.value?.profileScore ?: 0
+                    userService?.updateUserProfileScore(currentScore + scoreAmount)
                 } else {
                     _saveSuccessMessage.value = "Profil başarıyla kaydedildi."
                 }
                 return true
+            } else {
+                _errorMessage.value = "Profil kaydedilemedi. Lütfen girdiğiniz bilgileri kontrol edin."
             }
         } catch (e: Exception) {
             e.printStackTrace()

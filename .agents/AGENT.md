@@ -1,5 +1,22 @@
 # AGENTS.md — PAG
 
+## RULE 0 — UNRESOLVED QUESTIONS BLOCK EXECUTION
+
+If there are any unanswered questions, unresolved decisions, missing requirements, or pending clarifications in the current plan or task, DO NOT begin implementation under any circumstances.
+
+Even if the user says "Proceed", "Continue", "Start", or gives any similar execution command, you MUST NOT proceed while unanswered questions remain.
+
+Instead, stop and respond:
+
+**"I am waiting for answers to the pending questions before proceeding."**
+
+Do not guess, assume, invent product rules, choose defaults, or make decisions on the user's behalf.
+
+Implementation may begin ONLY after all pending questions have been explicitly answered or resolved by the user.
+
+This rule has higher priority than all subsequent execution rules.
+
+
 ## 1. DOCUMENT PURPOSE
 
 This file defines the mandatory development, architecture, security, testing, and product rules for the PAG project.
