@@ -40,7 +40,7 @@ export default function FirmalarPage() {
               Zengin Profil Kriterleri İle Tam İsabet
             </h2>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
               {[
                 { title: '🎂 Yaş & Demografi', desc: 'Belirli yaş aralıkları (Örn: 25–35 yaş grubu) veya özel yaş filtreleri.' },
                 { title: '💍 Medeni Durum', desc: 'Bekar, evli veya hedeflenen medeni durum segmentleri.' },
