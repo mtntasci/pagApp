@@ -595,7 +595,25 @@ export default function SurveysPage() {
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Uçtan Uca Kampanya Konfigürasyonu</p>
               </div>
-              <button onClick={() => setIsWizardOpen(false)} style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', minHeight: 'auto' }}>✕</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setIsWizardOpen(false); setIsJsonModalOpen(true); }}
+                  style={{
+                    padding: '6px 14px',
+                    backgroundColor: '#0F172A',
+                    color: '#CCFF00',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    border: '1px solid #CCFF00',
+                    cursor: 'pointer'
+                  }}
+                >
+                  📥 JSON İle İçeri Aktar
+                </button>
+                <button onClick={() => setIsWizardOpen(false)} style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', minHeight: 'auto', border: 'none', cursor: 'pointer' }}>✕</button>
+              </div>
             </div>
 
             {/* 10-Step Touch-Scrollable Indicator */}
