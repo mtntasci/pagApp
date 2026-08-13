@@ -15,8 +15,12 @@ data class PAGUserRanking(
     val totalEligibleUsers: Int,
     val percentileText: String,
     val percentile: Double = run {
-        val parsed = percentileText.substringAfter("%", "").trim().toDoubleOrNull()
-        parsed ?: if (totalEligibleUsers > 0) (rank.toDouble() / totalEligibleUsers.toDouble() * 100.0) else 100.0
+        if (rank == 1) {
+            1.0
+        } else {
+            val parsed = percentileText.substringAfter("%", "").trim().toDoubleOrNull()
+            parsed ?: if (totalEligibleUsers > 0) (rank.toDouble() / totalEligibleUsers.toDouble() * 100.0) else 100.0
+        }
     }
 )
 

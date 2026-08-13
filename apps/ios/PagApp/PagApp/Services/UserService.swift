@@ -10,6 +10,9 @@ public struct PAGUserRanking: Codable {
     public let percentileText: String
     
     public var percentile: Double {
+        if rank == 1 {
+            return 1.0
+        }
         if let match = percentileText.range(of: "%") {
             let numStr = percentileText[match.upperBound...].trimmingCharacters(in: .whitespaces)
             if let p = Double(numStr) {

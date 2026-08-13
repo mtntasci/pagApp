@@ -20,8 +20,9 @@ public struct ProfileScoreCard: View {
     }
     
     private var tierInfo: (title: String, subtitle: String, badgeColor: Color, textColor: Color) {
+        let rank = userService.currentRanking?.rank
         let percentile = userService.currentRanking?.percentile ?? 100.0
-        if percentile <= 10.0 {
+        if rank == 1 || percentile <= 10.0 {
             return ("En Güçlü", "Avantajlı konumunu koru", Color(hex: "#FFD700"), Color(hex: "#0F172A"))
         } else if percentile <= 50.0 {
             return ("Güçlü", "Yeni puan fırsatlarını kaçırma", PAGTheme.brandLime, Color(hex: "#0F172A"))
@@ -63,7 +64,7 @@ public struct ProfileScoreCard: View {
                 .clipShape(Capsule())
             }
             
-            // Detailed ranking pill row if ranking is available
+            // Detailed ranking pill row (Balloon Badge)
             let rankingDetailText: String = {
                 if let r = userService.currentRanking {
                     return "Sıralaman: #\(r.rank) • \(r.percentileText)"
@@ -71,9 +72,22 @@ public struct ProfileScoreCard: View {
                 return user.rankingPercentileText
             }()
             
-            Text(rankingDetailText)
-                .font(PAGTypography.caption.weight(.medium))
-                .foregroundColor(Color(hex: "#98A2B3"))
+            HStack(spacing: PAGSpacing.xxs) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(PAGTheme.brandLime)
+                Text(rankingDetailText)
+                    .font(PAGTypography.caption.weight(.semibold))
+                    .foregroundColor(Color(hex: "#F8FAFC"))
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color(hex: "#1E293B"))
+            .clipShape(Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(Color(hex: "#334155"), lineWidth: 1)
+            )
             
             Divider()
                 .background(Color(hex: "#263244"))

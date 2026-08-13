@@ -247,10 +247,11 @@ private data class RankingTier(
     val badgeTextColor: Color
 )
 
-private fun getRankingTier(percentile: Double?): RankingTier {
+private fun getRankingTier(rank: Int?, percentile: Double?): RankingTier {
+    val r = rank ?: 100
     val p = percentile ?: 100.0
     return when {
-        p <= 10.0 -> RankingTier(
+        r == 1 || p <= 10.0 -> RankingTier(
             title = "En Güçlü",
             subtitle = "Avantajlı konumunu koru",
             badgeBgColor = Color(0xFFFFD700), // Standout Gold
@@ -289,7 +290,7 @@ private fun UserProfileCard(
         "Merhaba 👋"
     }
     val score = pagUser?.profileScore ?: 0
-    val tier = getRankingTier(currentRanking?.percentile)
+    val tier = getRankingTier(currentRanking?.rank, currentRanking?.percentile)
 
     PAGCard(
         modifier = Modifier.fillMaxWidth(),
@@ -353,10 +354,19 @@ private fun UserProfileCard(
                     userProfile.rankingPercentileText
                 }
 
-                PAGBadge(
-                    title = rankingDetailText,
-                    style = PAGBadgeStyle.Tag
-                )
+                Box(
+                    modifier = Modifier
+                        .background(Color(0xFF1E293B), RoundedCornerShape(50))
+                        .border(1.dp, Color(0xFF334155), RoundedCornerShape(50))
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = rankingDetailText,
+                        color = Color(0xFFF8FAFC),
+                        style = PAGTheme.typography.caption,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
 
             Text(
