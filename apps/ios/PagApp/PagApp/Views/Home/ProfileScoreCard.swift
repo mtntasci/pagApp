@@ -19,10 +19,23 @@ public struct ProfileScoreCard: View {
         return userService.currentUser?.profileScore ?? 0
     }
     
+    private var tierInfo: (title: String, subtitle: String?, badgeColor: Color, textColor: Color) {
+        let percentile = userService.currentRanking?.percentile ?? 100.0
+        if percentile <= 10.0 {
+            return ("En Güçlü", nil, Color(hex: "#FFD700"), Color(hex: "#0F172A"))
+        } else if percentile <= 50.0 {
+            return ("Güçlü", "sizi bekleyen puanları kaçırmayın", PAGTheme.brandLime, Color(hex: "#0F172A"))
+        } else if percentile <= 70.0 {
+            return ("Umut Vaadeden", "Hadi nakit ödüller sizi bekliyor", Color(hex: "#F97316"), .white)
+        } else {
+            return ("Gelişim Sürecinde", "Ödüller birkaç tık uzağınızda", Color(hex: "#38BDF8"), Color(hex: "#0F172A"))
+        }
+    }
+    
     public var body: some View {
         VStack(alignment: .leading, spacing: PAGSpacing.sm) {
             // Greeting row
-            HStack {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(greetingText)
                         .font(PAGTypography.heading)
@@ -35,27 +48,32 @@ public struct ProfileScoreCard: View {
                 
                 Spacer()
                 
-                // Ranking advantage pill
-                let pillText: String = {
-                    if let r = userService.currentRanking {
-                        return "Sıralaman: #\(r.rank) • \(r.percentileText)"
-                    }
-                    return "Öncelikli Sıra"
-                }()
-                
+                // Tier Badge
                 HStack(spacing: PAGSpacing.xxxs) {
                     Image(systemName: "bolt.fill")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(PAGTheme.brandMidnight)
-                    Text(pillText)
+                        .foregroundColor(tierInfo.textColor)
+                    Text(tierInfo.title)
                         .font(PAGTypography.caption.weight(.bold))
-                        .foregroundColor(PAGTheme.brandMidnight)
+                        .foregroundColor(tierInfo.textColor)
                 }
                 .padding(.horizontal, PAGSpacing.xs)
                 .padding(.vertical, PAGSpacing.xxs)
-                .background(PAGTheme.brandLime)
+                .background(tierInfo.badgeColor)
                 .clipShape(Capsule())
             }
+            
+            // Detailed ranking pill row if ranking is available
+            let rankingDetailText: String = {
+                if let r = userService.currentRanking {
+                    return "Sıralaman: #\(r.rank) • \(r.percentileText)"
+                }
+                return user.rankingPercentileText
+            }()
+            
+            Text(rankingDetailText)
+                .font(PAGTypography.caption.weight(.medium))
+                .foregroundColor(Color(hex: "#98A2B3"))
             
             Divider()
                 .background(Color(hex: "#263244"))
@@ -72,11 +90,18 @@ public struct ProfileScoreCard: View {
                     .foregroundColor(Color(hex: "#F8FAFC"))
             }
             
-            // Descriptive info
-            Text("Yüksek Profil Puanın sayesinde yayınlanan anketlere öncelikli erişim hakkına sahipsin.")
-                .font(PAGTypography.bodySmall)
-                .foregroundColor(Color(hex: "#B8C0CC"))
-                .lineLimit(2)
+            // Descriptive info / Subtitle
+            if let subtitle = tierInfo.subtitle {
+                Text(subtitle)
+                    .font(PAGTypography.bodySmall)
+                    .foregroundColor(Color(hex: "#B8C0CC"))
+                    .lineLimit(2)
+            } else {
+                Text("Yüksek Profil Puanın sayesinde yayınlanan anketlere öncelikli erişim hakkına sahipsin.")
+                    .font(PAGTypography.bodySmall)
+                    .foregroundColor(Color(hex: "#B8C0CC"))
+                    .lineLimit(2)
+            }
         }
         .padding(PAGSpacing.md)
         .background(PAGTheme.brandMidnight)

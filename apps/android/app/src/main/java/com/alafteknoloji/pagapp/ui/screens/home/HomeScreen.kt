@@ -188,7 +188,8 @@ fun HomeScreen(
 
             item {
                 Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                    UserProfileCard(userProfile = userProfile, pagUser = pagUser)
+                    val currentRanking by (userService?.currentRanking ?: MutableStateFlow(null)).collectAsState()
+                    UserProfileCard(userProfile = userProfile, pagUser = pagUser, currentRanking = currentRanking)
                 }
             }
 
@@ -239,14 +240,56 @@ fun HomeScreen(
     }
 }
 
+private data class RankingTier(
+    val title: String,
+    val subtitle: String?,
+    val badgeBgColor: Color,
+    val badgeTextColor: Color
+)
+
+private fun getRankingTier(percentile: Double?): RankingTier {
+    val p = percentile ?: 100.0
+    return when {
+        p <= 10.0 -> RankingTier(
+            title = "En Güçlü",
+            subtitle = null,
+            badgeBgColor = Color(0xFFFFD700), // Standout Gold
+            badgeTextColor = Color(0xFF0F172A)
+        )
+        p <= 50.0 -> RankingTier(
+            title = "Güçlü",
+            subtitle = "sizi bekleyen puanları kaçırmayın",
+            badgeBgColor = Color(0xFFCCFF00), // Green (Brand Lime)
+            badgeTextColor = Color(0xFF0F172A)
+        )
+        p <= 70.0 -> RankingTier(
+            title = "Umut Vaadeden",
+            subtitle = "Hadi nakit ödüller sizi bekliyor",
+            badgeBgColor = Color(0xFFF97316), // Warm Amber / Orange
+            badgeTextColor = Color.White
+        )
+        else -> RankingTier(
+            title = "Gelişim Sürecinde",
+            subtitle = "Ödüller birkaç tık uzağınızda",
+            badgeBgColor = Color(0xFF38BDF8), // Sky Blue / Cyan
+            badgeTextColor = Color(0xFF0F172A)
+        )
+    }
+}
+
 @Composable
-private fun UserProfileCard(userProfile: UserProfileMock, pagUser: com.alafteknoloji.pagapp.models.PAGUser? = null) {
+private fun UserProfileCard(
+    userProfile: UserProfileMock,
+    pagUser: com.alafteknoloji.pagapp.models.PAGUser? = null,
+    currentRanking: com.alafteknoloji.pagapp.services.PAGUserRanking? = null
+) {
     val greetingText = if (!pagUser?.displayName.isNullOrBlank()) {
         "Merhaba, ${pagUser?.displayName} 👋"
     } else {
         "Merhaba 👋"
     }
     val score = pagUser?.profileScore ?: 0
+    val tier = getRankingTier(currentRanking?.percentile)
 
     PAGCard(
         modifier = Modifier.fillMaxWidth(),
@@ -287,15 +330,40 @@ private fun UserProfileCard(userProfile: UserProfileMock, pagUser: com.alaftekno
             }
 
             Row(
+                verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
             ) {
+                // Tier Badge
+                Box(
+                    modifier = Modifier
+                        .background(tier.badgeBgColor, RoundedCornerShape(50))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = tier.title,
+                        color = tier.badgeTextColor,
+                        style = PAGTheme.typography.caption,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                val rankingDetailText = if (currentRanking != null) {
+                    "Sıralaman: #${currentRanking.rank} • ${currentRanking.percentileText}"
+                } else {
+                    userProfile.rankingPercentileText
+                }
+
                 PAGBadge(
-                    title = userProfile.rankingAdvantageText,
-                    style = PAGBadgeStyle.ProfileScore
-                )
-                PAGBadge(
-                    title = userProfile.rankingPercentileText,
+                    title = rankingDetailText,
                     style = PAGBadgeStyle.Tag
+                )
+            }
+
+            tier.subtitle?.let { sub ->
+                Text(
+                    text = sub,
+                    style = PAGTheme.typography.caption,
+                    color = PAGTheme.colors.textMuted
                 )
             }
         }

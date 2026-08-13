@@ -13,7 +13,8 @@ data class PAGUserRanking(
     val profileScore: Int,
     val rank: Int,
     val totalEligibleUsers: Int,
-    val percentileText: String
+    val percentileText: String,
+    val percentile: Double = if (totalEligibleUsers > 0) (rank.toDouble() / totalEligibleUsers.toDouble() * 100.0) else 100.0
 )
 
 class UserService(private val context: Context) {

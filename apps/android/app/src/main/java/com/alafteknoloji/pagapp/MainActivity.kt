@@ -60,6 +60,7 @@ class MainActivity : ComponentActivity() {
                 val appState = remember { AppState() }
                 val userService = remember { UserService(applicationContext) }
                 val isAuthenticated by AuthService.isAuthenticated.collectAsState()
+                val currentUser by userService.currentUser.collectAsState()
                 val isBootstrapping by userService.isBootstrapping.collectAsState()
                 val bootstrapError by userService.bootstrapError.collectAsState()
                 var showSplash by remember { mutableStateOf(true) }
@@ -73,11 +74,11 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                if (showSplash || (isAuthenticated && isBootstrapping)) {
+                if (showSplash || (isAuthenticated && currentUser == null && isBootstrapping)) {
                     SplashScreen(onSplashFinished = { showSplash = false })
                 } else if (!isAuthenticated) {
                     LoginScreen(activity = this)
-                } else if (bootstrapError != null) {
+                } else if (bootstrapError != null && currentUser == null) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()

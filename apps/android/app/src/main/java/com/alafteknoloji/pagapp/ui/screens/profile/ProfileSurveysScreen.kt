@@ -151,7 +151,7 @@ fun ProfileSurveysScreen(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "Tebrikler! Tüm yeni profil sorularını tamamladınız.",
+                                text = "Tebrikler! Tüm Profil Sorularını Tamamladınız.",
                                 color = Color.White,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp,

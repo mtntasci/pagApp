@@ -9,7 +9,7 @@ public struct RootControllerView: View {
 
     public var body: some View {
         Group {
-            if showSplash || (authService.isAuthenticated && userService.isBootstrapping) {
+            if showSplash || (authService.isAuthenticated && userService.currentUser == nil && userService.isBootstrapping) {
                 SplashView()
                     .onAppear {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
@@ -20,7 +20,7 @@ public struct RootControllerView: View {
                     }
             } else if !authService.isAuthenticated {
                 LoginView()
-            } else if let error = userService.bootstrapError {
+            } else if let error = userService.bootstrapError, userService.currentUser == nil {
                 VStack(spacing: 20) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.system(size: 44))

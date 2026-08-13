@@ -52,7 +52,7 @@ public struct ProfileSurveysView: View {
                                 Image(systemName: "checkmark.seal.fill")
                                     .font(.system(size: 40))
                                     .foregroundColor(PAGTheme.brandLime)
-                                Text("Tebrikler! Tüm yeni profil sorularını tamamladınız.")
+                                Text("Tebrikler! Tüm Profil Sorularını Tamamladınız.")
                                     .font(PAGTypography.heading)
                                     .foregroundColor(PAGTheme.textPrimary)
                                     .multilineTextAlignment(.center)
