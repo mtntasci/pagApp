@@ -2,8 +2,23 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, doc, getDocs, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
+
+function removeUndefinedFields<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) return obj.map(item => removeUndefinedFields(item)) as unknown as T;
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(obj)) {
+      const val = (obj as any)[key];
+      if (val !== undefined) {
+        cleaned[key] = removeUndefinedFields(val);
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
+}
 
 export default function SurveysPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PENDING' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'ARCHIVED'>('ALL');
@@ -49,32 +64,17 @@ export default function SurveysPage() {
 
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
-    let surveysFetched = false;
     try {
       const listFn = httpsCallable(functions, 'listSurveysAdmin');
       const res: any = await listFn({});
       if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
         setSurveys(res.data.data.surveys);
-        surveysFetched = true;
       }
     } catch (err: any) {
-      console.warn('Fetch Surveys Callable fallback:', err);
+      console.error('Fetch Surveys Admin SDK error:', err);
+    } finally {
+      setIsLoading(false);
     }
-
-    if (!surveysFetched) {
-      try {
-        const snap = await getDocs(collection(db, 'surveys'));
-        const list: any[] = [];
-        snap.forEach(docSnap => {
-          list.push({ id: docSnap.id, ...docSnap.data() });
-        });
-        setSurveys(list);
-      } catch (fsErr) {
-        console.error('Fetch Surveys Firestore fallback error:', fsErr);
-      }
-    }
-
-    setIsLoading(false);
   }, []);
 
   useEffect(() => {
@@ -232,33 +232,33 @@ export default function SurveysPage() {
           ];
         }
       } else if (formFinancialReward === 'VOUCHER') {
-        rewardDef.voucherPoolName = formVoucherName;
+        if (formVoucherName) rewardDef.voucherPoolName = formVoucherName;
       }
 
       const inlineVoucherCodes = formFinancialReward === 'VOUCHER' && formVoucherCodesText
         ? formVoucherCodesText.split('\n').map(s => s.trim()).filter(Boolean)
-        : [];
+        : undefined;
 
-      const payload = {
+      const rawPayload = {
         surveyId: editingSurveyId || undefined,
         ownerType: formOwnerType,
-        organizationId: formOwnerType === 'ORGANIZATION' ? formOrgId : null,
+        organizationId: formOwnerType === 'ORGANIZATION' ? (formOrgId || undefined) : undefined,
         surveyType: formSurveyType,
         category: formCategory,
         title: formTitle,
-        description: formDesc,
+        description: formDesc || undefined,
         status: targetStatus,
         startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
-        endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
+        endAt: formEndAt ? new Date(formEndAt).toISOString() : undefined,
         questions: formattedQuestions,
         targeting: {
           type: formTargeting,
           profileFilters: formTargeting === 'PROFILE' ? {
             minAge: formProfileMinAge ? Number(formProfileMinAge) : undefined,
             maxAge: formProfileMaxAge ? Number(formProfileMaxAge) : undefined,
-            maritalStatus: formProfileMaritalStatus,
-            childrenStatus: formProfileChildrenStatus,
-            hometown: formProfileHometown
+            maritalStatus: formProfileMaritalStatus !== 'ALL' ? formProfileMaritalStatus : undefined,
+            childrenStatus: formProfileChildrenStatus !== 'ALL' ? formProfileChildrenStatus : undefined,
+            hometown: formProfileHometown ? formProfileHometown.trim() : undefined
           } : undefined
         },
         profileScoreReward: Number(formScoreReward) || 50,
@@ -266,51 +266,27 @@ export default function SurveysPage() {
         inlineVoucherCodes: inlineVoucherCodes,
         storyConfig: {
           showInStory: formShowStory,
-          storyLabel: formStoryLabel,
-          imageCategory: formStoryImageCategory
+          storyLabel: formShowStory ? formStoryLabel : undefined,
+          imageCategory: formShowStory ? formStoryImageCategory : undefined
         }
       };
 
-      const targetId = editingSurveyId || `srv_${Date.now()}`;
-      const docRef = doc(db, 'surveys', targetId);
-      const surveyDocData: any = {
-        id: targetId,
-        surveyId: targetId,
-        ownerType: payload.ownerType,
-        organizationId: payload.organizationId || null,
-        surveyType: payload.surveyType,
-        category: payload.category,
-        title: payload.title,
-        description: payload.description,
-        status: payload.status,
-        startAt: payload.startAt,
-        endAt: payload.endAt,
-        questions: payload.questions,
-        targeting: payload.targeting,
-        profileScoreReward: payload.profileScoreReward,
-        rewardDefinition: payload.rewardDefinition,
-        storyConfig: payload.storyConfig,
-        isArchived: false,
-        updatedAt: serverTimestamp()
-      };
-      if (!editingSurveyId) {
-        surveyDocData.createdAt = serverTimestamp();
+      // Sanitize payload: guaranteed recursive removal of any undefined properties
+      const cleanedPayload = removeUndefinedFields(rawPayload);
+
+      // Authoritative Firebase Admin SDK backend execution via Cloud Function callable
+      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
+      const res: any = await createOrUpdateFn(cleanedPayload);
+
+      if (res.data?.success) {
+        setIsWizardOpen(false);
+        resetWizardForm();
+        await fetchSurveys();
+      } else {
+        throw new Error(res.data?.error || 'Sunucu yazma hatası');
       }
-
-      await setDoc(docRef, surveyDocData, { merge: true });
-
-      try {
-        const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-        await createOrUpdateFn(payload);
-      } catch (callErr) {
-        console.warn('createOrUpdateSurveyAdmin Callable background warning:', callErr);
-      }
-
-      setIsWizardOpen(false);
-      resetWizardForm();
-      await fetchSurveys();
     } catch (err: any) {
-      console.error('Save Survey Error:', err);
+      console.error('Save Survey Admin SDK Error:', err);
       setErrorMsg('Kayıt Hatası: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setIsSaving(false);
@@ -320,46 +296,30 @@ export default function SurveysPage() {
   const handleArchiveSurvey = async (surveyId: string, archive: boolean) => {
     try {
       const archiveFn = httpsCallable(functions, 'archiveSurveyAdmin');
-      await archiveFn({ surveyId, archive });
-      await fetchSurveys();
-      return;
+      const res: any = await archiveFn({ surveyId, archive });
+      if (res.data?.success) {
+        await fetchSurveys();
+      } else {
+        alert('Arşivleme hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
-      console.warn('Archive Survey Callable fallback:', err);
-    }
-
-    try {
-      const docRef = doc(db, 'surveys', surveyId);
-      await updateDoc(docRef, {
-        isArchived: archive,
-        updatedAt: serverTimestamp()
-      });
-      await fetchSurveys();
-    } catch (fsErr: any) {
-      console.error('Archive Survey Error:', fsErr);
-      alert('Arşivleme hatası: ' + (fsErr.message || 'Bilinmeyen hata'));
+      console.error('Archive Survey Error:', err);
+      alert('Arşivleme hatası: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 
   const handleApproveSurvey = async (surveyId: string) => {
     try {
       const approveFn = httpsCallable(functions, 'approveSurveyAdmin');
-      await approveFn({ surveyId });
-      await fetchSurveys();
-      return;
+      const res: any = await approveFn({ surveyId });
+      if (res.data?.success) {
+        await fetchSurveys();
+      } else {
+        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
-      console.warn('Approve Survey Callable fallback:', err);
-    }
-
-    try {
-      const docRef = doc(db, 'surveys', surveyId);
-      await updateDoc(docRef, {
-        status: 'SCHEDULED',
-        updatedAt: serverTimestamp()
-      });
-      await fetchSurveys();
-    } catch (fsErr: any) {
-      console.error('Approve Survey Error:', fsErr);
-      alert('Onaylama hatası: ' + (fsErr.message || 'Bilinmeyen hata'));
+      console.error('Approve Survey Error:', err);
+      alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 

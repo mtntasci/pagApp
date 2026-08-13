@@ -2,9 +2,8 @@
 
 import React, { useState } from 'react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '@/lib/firebase';
+import { auth, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -59,23 +58,9 @@ export default function ChangePasswordPage() {
       // 2. Update Firebase Auth Password
       await updatePassword(user, newPassword);
 
-      // 3. Mark mustChangePassword = false via Cloud Function or direct Firestore fallback
-      try {
-        const completeChangeFn = httpsCallable(functions, 'completePasswordChangePortalUser');
-        await completeChangeFn({});
-      } catch (fnErr) {
-        console.warn('Callable completePasswordChangePortalUser fallback:', fnErr);
-      }
-
-      try {
-        const docRef = doc(db, 'portalUsers', user.uid);
-        await updateDoc(docRef, {
-          mustChangePassword: false,
-          updatedAt: serverTimestamp()
-        });
-      } catch (fsErr) {
-        console.warn('Firestore updateDoc fallback warning:', fsErr);
-      }
+      // 3. Mark mustChangePassword = false via Firebase Admin SDK backend callable
+      const completeChangeFn = httpsCallable(functions, 'completePasswordChangePortalUser');
+      await completeChangeFn({});
 
       // 4. Refresh auth context portalUser state
       await refreshPortalUser();
