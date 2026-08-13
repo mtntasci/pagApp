@@ -163,45 +163,45 @@ public struct ProfileView: View {
                         }
 
                         // ==================================================
-                        // 2. DYNAMIC PROFILE BOX — NEW SCORE OPPORTUNITY
+                        // 2. DYNAMIC PROFILE BOX — PROFİLİNİ GÜÇLENDİR (Shown ONLY when Basic Profile is Complete)
                         // ==================================================
-                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
-                            HStack {
-                                Text("Profilini Güçlendir")
-                                    .font(PAGTypography.heading)
-                                    .foregroundColor(PAGTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "sparkles")
-                                    .foregroundColor(PAGTheme.brandLime)
-                            }
-
-                            if profileSurveyService.availableScoreX > 0 {
-                                // Dynamic Dynamic Title: "[X] Yeni Puan Avantajını Kaçırma"
+                        if isBasicProfileComplete {
+                            VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                                 HStack {
-                                    Text("[\(profileSurveyService.availableScoreX)] Yeni Puan Avantajını Kaçırma")
+                                    Text("Profilini Güçlendir")
                                         .font(PAGTypography.heading)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(PAGTheme.brandMidnight)
+                                        .foregroundColor(PAGTheme.textPrimary)
                                     Spacer()
-                                    Image(systemName: "arrow.up.right.circle.fill")
-                                        .foregroundColor(PAGTheme.brandMidnight)
+                                    Image(systemName: "sparkles")
+                                        .foregroundColor(PAGTheme.brandLime)
                                 }
-                                .padding(12)
-                                .background(PAGTheme.brandLime)
-                                .cornerRadius(PAGRadius.small)
-                                .scaleEffect(isPulsing ? 1.02 : 1.0)
-                                .animation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
-                            } else {
-                                Text("Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?")
-                                    .font(PAGTypography.body)
-                                    .foregroundColor(PAGTheme.textPrimary)
-                            }
 
-                            Text("Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.")
-                                .font(PAGTypography.caption)
-                                .foregroundColor(PAGTheme.textMuted)
+                                if profileSurveyService.availableScoreX > 0 {
+                                    // Dynamic Dynamic Title: "[X] Yeni Puan Avantajını Kaçırma"
+                                    HStack {
+                                        Text("[\(profileSurveyService.availableScoreX)] Yeni Puan Avantajını Kaçırma")
+                                            .font(PAGTypography.heading)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                        Spacer()
+                                        Image(systemName: "arrow.up.right.circle.fill")
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    }
+                                    .padding(12)
+                                    .background(PAGTheme.brandLime)
+                                    .cornerRadius(PAGRadius.small)
+                                    .scaleEffect(isPulsing ? 1.02 : 1.0)
+                                    .animation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
+                                } else {
+                                    Text("Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?")
+                                        .font(PAGTypography.body)
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                }
 
-                            if isBasicProfileComplete {
+                                Text("Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(PAGTheme.textMuted)
+
                                 NavigationLink(destination: ProfileSurveysView()) {
                                     HStack {
                                         Text("Profil Sorularını Gör")
@@ -217,34 +217,16 @@ public struct ProfileView: View {
                                     .cornerRadius(PAGRadius.medium)
                                 }
                                 .padding(.top, 4)
-                            } else {
-                                HStack {
-                                    Text("Temel profili %100 tamamladıktan sonra erişilebilir")
-                                        .font(PAGTypography.caption)
-                                        .foregroundColor(PAGTheme.textMuted)
-                                    Spacer()
-                                    Image(systemName: "lock.fill")
-                                        .foregroundColor(PAGTheme.textMuted)
-                                }
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 14)
-                                .background(PAGTheme.surfacePrimary.opacity(0.6))
-                                .cornerRadius(PAGRadius.medium)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                        .stroke(PAGTheme.borderDefault, lineWidth: 1)
-                                )
-                                .padding(.top, 4)
                             }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(profileSurveyService.availableScoreX > 0 ? PAGTheme.brandLime : PAGTheme.borderDefault, lineWidth: profileSurveyService.availableScoreX > 0 ? 2 : 1)
+                            )
+                            .padding(.horizontal, PAGSpacing.md)
                         }
-                        .padding()
-                        .background(PAGTheme.surfacePrimary)
-                        .cornerRadius(PAGRadius.medium)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                .stroke(profileSurveyService.availableScoreX > 0 ? PAGTheme.brandLime : PAGTheme.borderDefault, lineWidth: profileSurveyService.availableScoreX > 0 ? 2 : 1)
-                        )
-                        .padding(.horizontal, PAGSpacing.md)
 
                         // ==================================================
                         // DOĞRULA & KAZAN (VERIFICATIONS)

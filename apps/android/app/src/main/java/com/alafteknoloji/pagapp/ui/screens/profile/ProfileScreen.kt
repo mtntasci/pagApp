@@ -228,78 +228,78 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
                     }
 
-                    // 2. Dynamic Profile Box — New Score Opportunity
-                    Column(
-                        modifier = Modifier
-                            .padding(horizontal = PAGTheme.spacing.md)
-                            .fillMaxWidth()
-                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                            .border(
-                                width = if (availableScoreX > 0) 2.dp else 1.dp,
-                                color = if (availableScoreX > 0) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
-                                shape = PAGTheme.radius.md
-                            )
-                            .padding(PAGTheme.spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    // 2. Dynamic Profile Box — Profilini Güçlendir (Shown ONLY when Basic Profile is Complete)
+                    if (isBasicProfileComplete) {
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = PAGTheme.spacing.md)
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .border(
+                                    width = if (availableScoreX > 0) 2.dp else 1.dp,
+                                    color = if (availableScoreX > 0) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
+                                    shape = PAGTheme.radius.md
+                                )
+                                .padding(PAGTheme.spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text(
-                                text = "Profilini Güçlendir",
-                                style = PAGTheme.typography.heading,
-                                color = PAGTheme.colors.textPrimary
-                            )
-                            Icon(
-                                imageVector = Icons.Filled.Star,
-                                contentDescription = null,
-                                tint = PAGTheme.colors.brandLime,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        if (availableScoreX > 0) {
-                            // Dynamic Title: "[$availableScoreX] Yeni Puan Avantajını Kaçırma"
-                            Surface(
-                                color = PAGTheme.colors.brandLime,
-                                shape = RoundedCornerShape(8.dp),
-                                modifier = Modifier.fillMaxWidth()
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "[$availableScoreX] Yeni Puan Avantajını Kaçırma",
-                                        color = PAGTheme.colors.brandMidnight,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        fontSize = 14.sp
-                                    )
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                        contentDescription = null,
-                                        tint = PAGTheme.colors.brandMidnight
-                                    )
-                                }
+                                Text(
+                                    text = "Profilini Güçlendir",
+                                    style = PAGTheme.typography.heading,
+                                    color = PAGTheme.colors.textPrimary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = PAGTheme.colors.brandLime,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                        } else {
+
+                            if (availableScoreX > 0) {
+                                // Dynamic Title: "[$availableScoreX] Yeni Puan Avantajını Kaçırma"
+                                Surface(
+                                    color = PAGTheme.colors.brandLime,
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(10.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "[$availableScoreX] Yeni Puan Avantajını Kaçırma",
+                                            color = PAGTheme.colors.brandMidnight,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 14.sp
+                                        )
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = null,
+                                            tint = PAGTheme.colors.brandMidnight
+                                        )
+                                    }
+                                }
+                            } else {
+                                Text(
+                                    text = "Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?",
+                                    style = PAGTheme.typography.body,
+                                    color = PAGTheme.colors.textPrimary
+                                )
+                            }
+
                             Text(
-                                text = "Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?",
-                                style = PAGTheme.typography.body,
-                                color = PAGTheme.colors.textPrimary
+                                text = "Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textMuted
                             )
-                        }
 
-                        Text(
-                            text = "Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.",
-                            style = PAGTheme.typography.caption,
-                            color = PAGTheme.colors.textMuted
-                        )
-
-                        if (isBasicProfileComplete) {
                             Button(
                                 onClick = { currentSubRoute = ProfileSubRoute.PROFILE_SURVEYS },
                                 modifier = Modifier
@@ -325,32 +325,10 @@ fun ProfileScreen(
                                     )
                                 }
                             }
-                        } else {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(PAGTheme.colors.surfacePrimary.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
-                                    .border(1.dp, PAGTheme.colors.borderDefault, RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Temel profili %100 tamamladıktan sonra erişilebilir",
-                                    style = PAGTheme.typography.caption,
-                                    color = PAGTheme.colors.textMuted
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.Lock,
-                                    contentDescription = null,
-                                    tint = PAGTheme.colors.textMuted,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                        Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                    }
 
                     // Verification Badges — DOĞRULA & KAZAN
                     var showPhoneDialog by remember { mutableStateOf(false) }
