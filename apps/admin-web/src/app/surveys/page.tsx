@@ -1,64 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/lib/firebase';
 
 export default function SurveysPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PENDING' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'ARCHIVED'>('ALL');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null);
 
-  const [surveys, setSurveys] = useState([
-    {
-      surveyId: 'srv_pag_01',
-      title: 'Mobil Uygulama Kullanım Alışkanlıkları',
-      ownerType: 'PAG',
-      surveyType: 'PAG',
-      category: 'Teknoloji',
-      status: 'ACTIVE',
-      isArchived: false,
-      questionCount: 3,
-      profileScoreReward: 50,
-      rewardType: 'MONEY',
-      showInStory: true,
-      questions: [
-        { questionId: 'q1', text: 'En sık kullandığınız mobil işletim sistemi nedir?', type: 'SINGLE_SELECT', options: [{ label: 'iOS' }, { label: 'Android' }] }
-      ]
-    },
-    {
-      surveyId: 'srv_ford_01',
-      title: 'Otomotiv Tercihleri & Mobilite',
-      ownerType: 'ORGANIZATION',
-      organizationId: 'org_ford',
-      surveyType: 'ORGANIZATION',
-      category: 'Otomotiv',
-      status: 'PENDING_APPROVAL',
-      isArchived: false,
-      questionCount: 3,
-      profileScoreReward: 75,
-      rewardType: 'MONEY',
-      showInStory: true,
-      questions: [
-        { questionId: 'q1', text: 'Elektrikli araç satın almayı düşünür müsünüz?', type: 'SINGLE_SELECT', options: [{ label: 'Evet' }, { label: 'Hayır' }] }
-      ]
-    },
-    {
-      surveyId: 'srv_mcd_01',
-      title: "McDonald's Menü Değerlendirme",
-      ownerType: 'ORGANIZATION',
-      organizationId: 'org_mcdonalds',
-      surveyType: 'ORGANIZATION',
-      category: 'Yeme / İçme',
-      status: 'DRAFT',
-      isArchived: false,
-      questionCount: 2,
-      profileScoreReward: 40,
-      rewardType: 'VOUCHER',
-      showInStory: false,
-      questions: [
-        { questionId: 'q1', text: 'Yeni ürünü denediniz mi?', type: 'SINGLE_SELECT', options: [{ label: 'Evet' }, { label: 'Hayır' }] }
-      ]
-    }
-  ]);
+  const [surveys, setSurveys] = useState<any[]>([]);
 
   // Wizard Form State
   const [formOwnerType, setFormOwnerType] = useState<'PAG' | 'ORGANIZATION'>('PAG');
@@ -67,7 +21,12 @@ export default function SurveysPage() {
   const [formDesc, setFormDesc] = useState('');
   const [formSurveyType, setFormSurveyType] = useState<'PAG' | 'ORGANIZATION' | 'PROFILE'>('PAG');
   const [formCategory, setFormCategory] = useState('Genel');
-  const [formTargeting, setFormTargeting] = useState('ALL');
+  const [formTargeting, setFormTargeting] = useState<'ALL' | 'PROFILE' | 'LOCATION'>('ALL');
+  const [formProfileMinAge, setFormProfileMinAge] = useState<string>('');
+  const [formProfileMaxAge, setFormProfileMaxAge] = useState<string>('');
+  const [formProfileMaritalStatus, setFormProfileMaritalStatus] = useState<string>('ALL');
+  const [formProfileChildrenStatus, setFormProfileChildrenStatus] = useState<string>('ALL');
+  const [formProfileHometown, setFormProfileHometown] = useState<string>('');
   const [formScoreReward, setFormScoreReward] = useState(50);
   const [formFinancialReward, setFormFinancialReward] = useState<'NONE' | 'MONEY' | 'VOUCHER'>('NONE');
   const [formMoneyModel, setFormMoneyModel] = useState<'RANKED' | 'EQUAL'>('RANKED');
@@ -87,6 +46,127 @@ export default function SurveysPage() {
   const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const fetchSurveys = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const listFn = httpsCallable(functions, 'listSurveysAdmin');
+      const res: any = await listFn({});
+      if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
+        setSurveys(res.data.data.surveys);
+      }
+    } catch (err: any) {
+      console.error('Fetch Surveys Error:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSurveys();
+  }, [fetchSurveys]);
+
+  const resetWizardForm = () => {
+    setEditingSurveyId(null);
+    setFormOwnerType('PAG');
+    setFormOrgId('');
+    setFormTitle('');
+    setFormDesc('');
+    setFormSurveyType('PAG');
+    setFormCategory('Genel');
+    setFormTargeting('ALL');
+    setFormProfileMinAge('');
+    setFormProfileMaxAge('');
+    setFormProfileMaritalStatus('ALL');
+    setFormProfileChildrenStatus('ALL');
+    setFormProfileHometown('');
+    setFormScoreReward(50);
+    setFormFinancialReward('NONE');
+    setFormMoneyModel('RANKED');
+    setFormMoneyBudget(1000);
+    setFormRank1(300);
+    setFormRank2(200);
+    setFormRank3(100);
+    setFormVoucherName('');
+    setFormVoucherCodesText('');
+    setFormShowStory(false);
+    setFormStoryLabel('');
+    setFormStoryImageCategory('Otomotiv');
+    setFormQuestions([
+      { id: 'q1', text: '1. Soru Metni', options: ['Seçenek 1', 'Seçenek 2'] }
+    ]);
+    setFormStartAt('2026-08-15T10:00');
+    setFormEndAt('2026-08-30T23:59');
+    setErrorMsg(null);
+  };
+
+  const handleOpenNewWizard = () => {
+    resetWizardForm();
+    setWizardStep(1);
+    setIsWizardOpen(true);
+  };
+
+  const handleOpenEditWizard = (survey: any) => {
+    setEditingSurveyId(survey.surveyId);
+    setFormOwnerType(survey.ownerType || 'PAG');
+    setFormOrgId(survey.organizationId || '');
+    setFormTitle(survey.title || '');
+    setFormDesc(survey.description || '');
+    setFormSurveyType(survey.surveyType || 'PAG');
+    setFormCategory(survey.category || 'Genel');
+    setFormTargeting(survey.targeting?.type || 'ALL');
+    if (survey.targeting?.profileFilters) {
+      setFormProfileMinAge(survey.targeting.profileFilters.minAge ? String(survey.targeting.profileFilters.minAge) : '');
+      setFormProfileMaxAge(survey.targeting.profileFilters.maxAge ? String(survey.targeting.profileFilters.maxAge) : '');
+      setFormProfileMaritalStatus(survey.targeting.profileFilters.maritalStatus || 'ALL');
+      setFormProfileChildrenStatus(survey.targeting.profileFilters.childrenStatus || 'ALL');
+      setFormProfileHometown(survey.targeting.profileFilters.hometown || '');
+    }
+    setFormScoreReward(survey.profileScoreReward || 50);
+    if (survey.rewardDefinition) {
+      setFormFinancialReward(survey.rewardDefinition.rewardType || 'NONE');
+      setFormMoneyModel(survey.rewardDefinition.distributionModel || 'RANKED');
+      setFormMoneyBudget(survey.rewardDefinition.totalBudget || 1000);
+      if (Array.isArray(survey.rewardDefinition.rankedRules)) {
+        setFormRank1(survey.rewardDefinition.rankedRules[0]?.amount || 300);
+        setFormRank2(survey.rewardDefinition.rankedRules[1]?.amount || 200);
+        setFormRank3(survey.rewardDefinition.rankedRules[2]?.amount || 100);
+      }
+      setFormVoucherName(survey.rewardDefinition.voucherPoolName || '');
+    } else {
+      setFormFinancialReward('NONE');
+    }
+    setFormShowStory(survey.storyConfig?.showInStory || false);
+    setFormStoryLabel(survey.storyConfig?.storyLabel || '');
+    setFormStoryImageCategory(survey.storyConfig?.imageCategory || 'Otomotiv');
+
+    if (Array.isArray(survey.questions) && survey.questions.length > 0) {
+      setFormQuestions(survey.questions.map((q: any, idx: number) => ({
+        id: q.questionId || `q${idx + 1}`,
+        text: q.text || '',
+        options: Array.isArray(q.options)
+          ? q.options.map((opt: any) => typeof opt === 'string' ? opt : (opt.label || ''))
+          : ['Seçenek 1', 'Seçenek 2']
+      })));
+    }
+
+    if (survey.startAt) {
+      const d = new Date(survey.startAt);
+      if (!isNaN(d.getTime())) {
+        setFormStartAt(d.toISOString().slice(0, 16));
+      }
+    }
+    if (survey.endAt) {
+      const d = new Date(survey.endAt);
+      if (!isNaN(d.getTime())) {
+        setFormEndAt(d.toISOString().slice(0, 16));
+      }
+    }
+
+    setErrorMsg(null);
+    setWizardStep(1);
+    setIsWizardOpen(true);
+  };
+
   const handleAddQuestion = () => {
     if (formQuestions.length >= 3) {
       setErrorMsg('PAG V1 Kampanya Anketleri maksimum 3 soru içerebilir. 4. soru engellendi.');
@@ -99,29 +179,120 @@ export default function SurveysPage() {
     ]);
   };
 
-  const handleArchiveSurvey = (surveyId: string, archive: boolean) => {
-    setSurveys(surveys.map(s => {
-      if (s.surveyId === surveyId) {
-        return {
-          ...s,
-          isArchived: archive,
-          status: archive ? 'ARCHIVED' : 'DRAFT'
-        };
+  const handleSaveSurvey = async (targetStatus: 'DRAFT' | 'PENDING_APPROVAL' = 'DRAFT') => {
+    if (!formTitle.trim()) {
+      setErrorMsg('Lütfen 2. Adımda anket başlığı giriniz.');
+      setWizardStep(2);
+      return;
+    }
+
+    setIsSaving(true);
+    setErrorMsg(null);
+    try {
+      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
+
+      const formattedQuestions = formQuestions.map((q, idx) => ({
+        questionId: q.id || `q${idx + 1}`,
+        order: idx + 1,
+        type: 'SINGLE_SELECT',
+        text: q.text,
+        options: q.options.map((optText, oIdx) => ({
+          optionId: `opt_${oIdx + 1}`,
+          label: typeof optText === 'string' ? optText : (optText as any).label || `Seçenek ${oIdx + 1}`,
+          order: oIdx + 1
+        }))
+      }));
+
+      const rewardDef: any = {
+        rewardType: formFinancialReward
+      };
+
+      if (formFinancialReward === 'MONEY') {
+        rewardDef.totalBudget = Number(formMoneyBudget) || 0;
+        rewardDef.distributionModel = formMoneyModel;
+        if (formMoneyModel === 'RANKED') {
+          rewardDef.rankedRules = [
+            { rank: 1, amount: Number(formRank1) || 0 },
+            { rank: 2, amount: Number(formRank2) || 0 },
+            { rank: 3, amount: Number(formRank3) || 0 }
+          ];
+        }
+      } else if (formFinancialReward === 'VOUCHER') {
+        rewardDef.voucherPoolName = formVoucherName;
       }
-      return s;
-    }));
+
+      const inlineVoucherCodes = formFinancialReward === 'VOUCHER' && formVoucherCodesText
+        ? formVoucherCodesText.split('\n').map(s => s.trim()).filter(Boolean)
+        : [];
+
+      const payload = {
+        surveyId: editingSurveyId || undefined,
+        ownerType: formOwnerType,
+        organizationId: formOwnerType === 'ORGANIZATION' ? formOrgId : null,
+        surveyType: formSurveyType,
+        category: formCategory,
+        title: formTitle,
+        description: formDesc,
+        status: targetStatus,
+        startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
+        endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
+        questions: formattedQuestions,
+        targeting: {
+          type: formTargeting,
+          profileFilters: formTargeting === 'PROFILE' ? {
+            minAge: formProfileMinAge ? Number(formProfileMinAge) : undefined,
+            maxAge: formProfileMaxAge ? Number(formProfileMaxAge) : undefined,
+            maritalStatus: formProfileMaritalStatus,
+            childrenStatus: formProfileChildrenStatus,
+            hometown: formProfileHometown
+          } : undefined
+        },
+        profileScoreReward: Number(formScoreReward) || 50,
+        rewardDefinition: rewardDef,
+        inlineVoucherCodes: inlineVoucherCodes,
+        storyConfig: {
+          showInStory: formShowStory,
+          storyLabel: formStoryLabel,
+          imageCategory: formStoryImageCategory
+        }
+      };
+
+      const res: any = await createOrUpdateFn(payload);
+      if (res.data?.success) {
+        setIsWizardOpen(false);
+        resetWizardForm();
+        await fetchSurveys();
+      } else {
+        setErrorMsg('Anket kaydedilirken bir hata oluştu.');
+      }
+    } catch (err: any) {
+      console.error('Save Survey Error:', err);
+      setErrorMsg('Kayıt Hatası: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleApproveSurvey = (surveyId: string) => {
-    setSurveys(surveys.map(s => {
-      if (s.surveyId === surveyId) {
-        return {
-          ...s,
-          status: 'APPROVED'
-        };
-      }
-      return s;
-    }));
+  const handleArchiveSurvey = async (surveyId: string, archive: boolean) => {
+    try {
+      const archiveFn = httpsCallable(functions, 'archiveSurveyAdmin');
+      await archiveFn({ surveyId, archive });
+      await fetchSurveys();
+    } catch (err: any) {
+      console.error('Archive Survey Error:', err);
+      alert('Arşivleme hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleApproveSurvey = async (surveyId: string) => {
+    try {
+      const approveFn = httpsCallable(functions, 'approveSurveyAdmin');
+      await approveFn({ surveyId });
+      await fetchSurveys();
+    } catch (err: any) {
+      console.error('Approve Survey Error:', err);
+      alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
   };
 
   const filteredSurveys = surveys.filter(s => {
@@ -145,7 +316,7 @@ export default function SurveysPage() {
         </div>
 
         <button
-          onClick={() => { setIsWizardOpen(true); setWizardStep(1); }}
+          onClick={handleOpenNewWizard}
           style={{
             padding: '12px 20px',
             backgroundColor: 'var(--brand-lime)',
@@ -211,7 +382,7 @@ export default function SurveysPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
               <div>
                 <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>
-                  Kampanya Hazırlama Sihirbazı (Adım {wizardStep} / 10)
+                  {editingSurveyId ? 'Anket Düzenle' : 'Kampanya Hazırlama Sihirbazı'} (Adım {wizardStep} / 10)
                 </h3>
                 <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Uçtan Uca Kampanya & Anket Konfigürasyonu</p>
               </div>
@@ -303,7 +474,7 @@ export default function SurveysPage() {
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Hedefleme Tipi</label>
                   <select
-                    value={formTargeting} onChange={(e) => setFormTargeting(e.target.value)}
+                    value={formTargeting} onChange={(e) => setFormTargeting(e.target.value as any)}
                     style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
                   >
                     <option value="ALL">Herkese Açık (Tüm PAG Kullanıcıları)</option>
@@ -320,13 +491,13 @@ export default function SurveysPage() {
                       <div>
                         <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Yaş Aralığı (Min - Max)</label>
                         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                          <input type="number" placeholder="Min Yaş (Örn: 18)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
-                          <input type="number" placeholder="Max Yaş (Örn: 45)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                          <input type="number" value={formProfileMinAge} onChange={(e) => setFormProfileMinAge(e.target.value)} placeholder="Min Yaş (Örn: 18)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                          <input type="number" value={formProfileMaxAge} onChange={(e) => setFormProfileMaxAge(e.target.value)} placeholder="Max Yaş (Örn: 45)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
                         </div>
                       </div>
                       <div>
                         <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Medeni Durum</label>
-                        <select style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                        <select value={formProfileMaritalStatus} onChange={(e) => setFormProfileMaritalStatus(e.target.value)} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
                           <option value="ALL">Fark Etmez</option>
                           <option value="SINGLE">Bekar</option>
                           <option value="MARRIED">Evli</option>
@@ -338,7 +509,7 @@ export default function SurveysPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div>
                         <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Çocuk Durumu</label>
-                        <select style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                        <select value={formProfileChildrenStatus} onChange={(e) => setFormProfileChildrenStatus(e.target.value)} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
                           <option value="ALL">Fark Etmez</option>
                           <option value="HAS_CHILDREN">Çocuğu Var</option>
                           <option value="NO_CHILDREN">Çocuğu Yok</option>
@@ -346,7 +517,7 @@ export default function SurveysPage() {
                       </div>
                       <div>
                         <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Memleket (İl)</label>
-                        <input type="text" placeholder="Örn: Ankara" style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                        <input type="text" value={formProfileHometown} onChange={(e) => setFormProfileHometown(e.target.value)} placeholder="Örn: Ankara" style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
                       </div>
                     </div>
                   </div>
@@ -462,8 +633,33 @@ export default function SurveysPage() {
                   <button onClick={handleAddQuestion} disabled={formQuestions.length >= 3} style={{ padding: '6px 14px', backgroundColor: formQuestions.length >= 3 ? '#475569' : 'var(--brand-lime)', color: formQuestions.length >= 3 ? '#94A3B8' : '#011033', fontWeight: 'bold', borderRadius: '6px', fontSize: '12px' }}>+ Soru Ekle</button>
                 </div>
                 {formQuestions.map((q, idx) => (
-                  <div key={q.id} style={{ padding: '12px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', marginBottom: '8px', border: '1px solid var(--border-color)' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 500 }}>{idx + 1}. Soru (SINGLE_SELECT)</p>
+                  <div key={q.id || idx} style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', marginBottom: '12px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ marginBottom: '8px' }}>
+                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{idx + 1}. Soru Metni</label>
+                      <input
+                        type="text"
+                        value={q.text}
+                        onChange={(e) => {
+                          const updated = [...formQuestions];
+                          updated[idx].text = e.target.value;
+                          setFormQuestions(updated);
+                        }}
+                        style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Seçenekler (Virgülle ayırın)</label>
+                      <input
+                        type="text"
+                        value={q.options.join(', ')}
+                        onChange={(e) => {
+                          const updated = [...formQuestions];
+                          updated[idx].options = e.target.value.split(',').map(s => s.trim());
+                          setFormQuestions(updated);
+                        }}
+                        style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -509,8 +705,20 @@ export default function SurveysPage() {
                   Süper Admin onayı alındıktan sonra anket verileri kilitlenecek ve soru snapshot'ı oluşturulacaktır.
                 </p>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <button onClick={() => { setIsWizardOpen(false); alert('Taslak kaydedildi!'); }} style={{ padding: '12px 20px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px' }}>Taslak Kaydet</button>
-                  <button onClick={() => { setIsWizardOpen(false); alert('Onay Bekliyor durumuna alındı!'); }} style={{ padding: '12px 20px', backgroundColor: 'var(--brand-lime)', color: '#011033', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px' }}>Super Admin Onayına Gönder</button>
+                  <button
+                    onClick={() => handleSaveSurvey('DRAFT')}
+                    disabled={isSaving}
+                    style={{ padding: '12px 20px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', opacity: isSaving ? 0.6 : 1 }}
+                  >
+                    {isSaving ? 'Kaydediliyor...' : 'Taslak Kaydet'}
+                  </button>
+                  <button
+                    onClick={() => handleSaveSurvey('PENDING_APPROVAL')}
+                    disabled={isSaving}
+                    style={{ padding: '12px 20px', backgroundColor: 'var(--brand-lime)', color: '#011033', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', opacity: isSaving ? 0.6 : 1 }}
+                  >
+                    {isSaving ? 'Gönderiliyor...' : 'Super Admin Onayına Gönder'}
+                  </button>
                 </div>
               </div>
             )}
@@ -526,49 +734,70 @@ export default function SurveysPage() {
 
       {/* Survey List Table */}
       <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>Kampanya Anketleri</h3>
-      <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-surface)', borderRadius: '8px', overflow: 'hidden' }}>
-        <thead>
-          <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '13px' }}>
-            <th style={{ padding: '16px' }}>ID</th>
-            <th style={{ padding: '16px' }}>Başlık</th>
-            <th style={{ padding: '16px' }}>Sahip</th>
-            <th style={{ padding: '16px' }}>Durum</th>
-            <th style={{ padding: '16px' }}>Sorular</th>
-            <th style={{ padding: '16px' }}>Ödül</th>
-            <th style={{ padding: '16px' }}>Aksiyonlar</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSurveys.map((s) => (
-            <tr key={s.surveyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
-              <td style={{ padding: '16px', fontFamily: 'monospace' }}>{s.surveyId}</td>
-              <td style={{ padding: '16px', fontWeight: 500 }}>{s.title}</td>
-              <td style={{ padding: '16px' }}>{s.ownerType}</td>
-              <td style={{ padding: '16px' }}>
-                <span style={{
-                  padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
-                  backgroundColor: s.status === 'ACTIVE' ? 'rgba(183, 243, 74, 0.15)' : s.status === 'PENDING_APPROVAL' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.05)',
-                  color: s.status === 'ACTIVE' ? 'var(--brand-lime)' : s.status === 'PENDING_APPROVAL' ? '#F59E0B' : 'white'
-                }}>
-                  {s.status}
-                </span>
-              </td>
-              <td style={{ padding: '16px' }}>{s.questionCount} / 3</td>
-              <td style={{ padding: '16px' }}>+{s.profileScoreReward} Puan</td>
-              <td style={{ padding: '16px', display: 'flex', gap: '8px' }}>
-                {s.status === 'PENDING_APPROVAL' && (
-                  <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '4px 10px', backgroundColor: 'var(--brand-lime)', color: '#011033', fontWeight: 'bold', borderRadius: '4px', fontSize: '12px' }}>Onayla</button>
-                )}
-                {!s.isArchived ? (
-                  <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '4px 10px', backgroundColor: 'rgba(240, 68, 56, 0.15)', color: 'var(--error-color)', borderRadius: '4px', fontSize: '12px' }}>Arşivle</button>
-                ) : (
-                  <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '4px 10px', backgroundColor: 'rgba(183, 243, 74, 0.15)', color: 'var(--brand-lime)', borderRadius: '4px', fontSize: '12px' }}>Geri Al</button>
-                )}
-              </td>
+
+      {isLoading ? (
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+          Anketler Yükleniyor...
+        </div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-surface)', borderRadius: '8px', overflow: 'hidden' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              <th style={{ padding: '16px' }}>ID</th>
+              <th style={{ padding: '16px' }}>Başlık</th>
+              <th style={{ padding: '16px' }}>Sahip</th>
+              <th style={{ padding: '16px' }}>Durum</th>
+              <th style={{ padding: '16px' }}>Sorular</th>
+              <th style={{ padding: '16px' }}>Ödül</th>
+              <th style={{ padding: '16px' }}>Aksiyonlar</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {filteredSurveys.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Bu filtreye uygun anket bulunamadı.
+                </td>
+              </tr>
+            ) : (
+              filteredSurveys.map((s) => (
+                <tr key={s.surveyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
+                  <td style={{ padding: '16px', fontFamily: 'monospace' }}>{s.surveyId}</td>
+                  <td style={{ padding: '16px', fontWeight: 500 }}>{s.title}</td>
+                  <td style={{ padding: '16px' }}>{s.ownerType}</td>
+                  <td style={{ padding: '16px' }}>
+                    <span style={{
+                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
+                      backgroundColor: s.status === 'ACTIVE' ? 'rgba(183, 243, 74, 0.15)' : s.status === 'PENDING_APPROVAL' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.05)',
+                      color: s.status === 'ACTIVE' ? 'var(--brand-lime)' : s.status === 'PENDING_APPROVAL' ? '#F59E0B' : 'white'
+                    }}>
+                      {s.status}
+                    </span>
+                  </td>
+                  <td style={{ padding: '16px' }}>{s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</td>
+                  <td style={{ padding: '16px' }}>+{s.profileScoreReward || 0} Puan</td>
+                  <td style={{ padding: '16px', display: 'flex', gap: '8px' }}>
+                    <button
+                      onClick={() => handleOpenEditWizard(s)}
+                      style={{ padding: '4px 10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '4px', fontSize: '12px' }}
+                    >
+                      Düzenle
+                    </button>
+                    {s.status === 'PENDING_APPROVAL' && (
+                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '4px 10px', backgroundColor: 'var(--brand-lime)', color: '#011033', fontWeight: 'bold', borderRadius: '4px', fontSize: '12px' }}>Onayla</button>
+                    )}
+                    {!s.isArchived ? (
+                      <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '4px 10px', backgroundColor: 'rgba(240, 68, 56, 0.15)', color: 'var(--error-color)', borderRadius: '4px', fontSize: '12px' }}>Arşivle</button>
+                    ) : (
+                      <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '4px 10px', backgroundColor: 'rgba(183, 243, 74, 0.15)', color: 'var(--brand-lime)', borderRadius: '4px', fontSize: '12px' }}>Geri Al</button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
+import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBNTV8DGRFKNXMne_q4TTH2-HmMNijmlaE",
@@ -12,5 +13,6 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
+export const functions = getFunctions(app);
 export const googleProvider = new GoogleAuthProvider();
 export const appleProvider = new OAuthProvider('apple.com');

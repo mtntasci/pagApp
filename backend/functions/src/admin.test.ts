@@ -1,6 +1,8 @@
 import {
   verifyAdminUser,
-  createOrUpdateSurveyAdminHandler
+  createOrUpdateSurveyAdminHandler,
+  listSurveysAdminHandler,
+  getSurveyAdminHandler
 } from './admin';
 
 describe('Phase Survey Creation & Approval System Unit Tests', () => {
@@ -27,20 +29,50 @@ describe('Phase Survey Creation & Approval System Unit Tests', () => {
     ).rejects.toThrow('Admin privileges are required to perform this action.');
   });
 
-  test('PAG survey draft creation validation', async () => {
+  test('PAG survey draft creation validation and full payload returned', async () => {
     const questions1 = [
-      { questionId: 'q1', order: 1, type: 'SINGLE_SELECT', text: 'Q1', options: [] }
+      {
+        questionId: 'q1',
+        order: 1,
+        type: 'SINGLE_SELECT',
+        text: 'Q1 Text',
+        options: [{ optionId: 'opt_1', label: 'Opt 1', order: 1 }, { optionId: 'opt_2', label: 'Opt 2', order: 2 }]
+      }
     ];
 
-    const res = await createOrUpdateSurveyAdminHandler({
+    const res: any = await createOrUpdateSurveyAdminHandler({
+      surveyId: 'srv_test_draft_verification_01',
       title: 'PAG Test Draft Survey',
+      description: 'End-to-End Verification Survey Description',
       ownerType: 'PAG',
       surveyType: 'PAG',
-      questions: questions1
+      category: 'Teknoloji',
+      targeting: { type: 'ALL' },
+      profileScoreReward: 100,
+      rewardDefinition: { rewardType: 'NONE' },
+      storyConfig: { showInStory: true, storyLabel: 'Test Label', imageCategory: 'Teknoloji' },
+      questions: questions1,
+      status: 'DRAFT'
     }, fakeAdminContext);
 
     expect(res.success).toBe(true);
     expect(res.data.status).toBe('DRAFT');
+    expect(res.data.surveyId).toBe('srv_test_draft_verification_01');
+    expect(res.data.survey.title).toBe('PAG Test Draft Survey');
+    expect(res.data.survey.category).toBe('Teknoloji');
+    expect(res.data.survey.profileScoreReward).toBe(100);
+    expect(res.data.survey.storyConfig.showInStory).toBe(true);
+    expect(res.data.survey.questions.length).toBe(1);
+  });
+
+  test('listSurveysAdminHandler and getSurveyAdminHandler reject non-admin users', async () => {
+    await expect(
+      listSurveysAdminHandler({}, fakeNonAdminContext)
+    ).rejects.toThrow('Admin privileges are required to perform this action.');
+
+    await expect(
+      getSurveyAdminHandler({ surveyId: 'srv_test_draft_verification_01' }, fakeNonAdminContext)
+    ).rejects.toThrow('Admin privileges are required to perform this action.');
   });
 
   test('Organization survey draft creation requires organizationId', async () => {
