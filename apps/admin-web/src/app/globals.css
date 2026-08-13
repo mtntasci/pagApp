@@ -139,6 +139,8 @@ input::placeholder, textarea::placeholder {
     bottom: 0 !important;
     height: 100vh !important;
     z-index: 2000 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease-in-out !important;
   }
 
   .admin-main-content {

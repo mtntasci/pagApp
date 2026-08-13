@@ -114,7 +114,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
             flexDirection: 'column',
             gap: '24px',
             boxShadow: 'var(--shadow-sm)',
-            transform: isMobileMenuOpen ? 'translateX(0)' : undefined,
+            transform: isMobileMenuOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s ease-in-out'
           }}
         >
