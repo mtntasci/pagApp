@@ -14,7 +14,9 @@ public struct MainTabView: View {
     
     public var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            HomeView(onNavigateToSurveys: {
+                selectedTab = .surveys
+            })
                 .tabItem {
                     Label("Ana Sayfa", systemImage: "house.fill")
                 }

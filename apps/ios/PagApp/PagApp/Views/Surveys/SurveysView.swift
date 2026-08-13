@@ -214,11 +214,20 @@ public struct PAGSurveyCardView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: PAGSpacing.sm) {
             HStack {
-                PAGBadge(
-                    title: survey.ownerDisplayName,
-                    iconName: survey.surveyType == "PROFILE" ? "person.crop.circle" : "building.2",
-                    style: .tag
-                )
+                HStack(spacing: 6) {
+                    PAGBadge(
+                        title: survey.ownerDisplayName,
+                        iconName: survey.surveyType == "PROFILE" ? "person.crop.circle" : "building.2",
+                        style: .tag
+                    )
+                    if survey.isHighlighted {
+                        PAGBadge(
+                            title: "⭐ Öne Çıkan",
+                            iconName: "star.fill",
+                            style: .rewardPool
+                        )
+                    }
+                }
                 Spacer()
                 PAGBadge(
                     title: "+\(survey.profileScoreReward) Puan",
@@ -231,15 +240,18 @@ public struct PAGSurveyCardView: View {
                 .font(PAGTypography.heading)
                 .foregroundColor(PAGTheme.textPrimary)
                 .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
             
-            Text(survey.description)
-                .font(PAGTypography.bodySmall)
-                .foregroundColor(PAGTheme.textSecondary)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
+            if !survey.description.isEmpty {
+                Text(survey.description)
+                    .font(PAGTypography.bodySmall)
+                    .foregroundColor(PAGTheme.textSecondary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             
             HStack {
-                Label("3 Soru", systemImage: "questionmark.circle")
+                Label("\(survey.questionCount > 0 ? survey.questionCount : 3) Soru", systemImage: "questionmark.circle")
                     .font(PAGTypography.caption)
                     .foregroundColor(PAGTheme.textMuted)
                 Spacer()
@@ -255,7 +267,7 @@ public struct PAGSurveyCardView: View {
         .cornerRadius(PAGRadius.medium)
         .overlay(
             RoundedRectangle(cornerRadius: PAGRadius.medium)
-                .stroke(PAGTheme.borderDefault, lineWidth: 1)
+                .stroke(survey.isHighlighted ? PAGTheme.brandLime : PAGTheme.borderDefault, lineWidth: survey.isHighlighted ? 1.5 : 1)
         )
     }
 }

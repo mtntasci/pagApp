@@ -220,7 +220,8 @@ export const createOrUpdateSurveyAdminHandler = async (
     profileScoreReward,
     rewardDefinition,
     storyConfig,
-    inlineVoucherCodes
+    inlineVoucherCodes,
+    isHighlighted
   } = normalizedData;
 
   if (!title || typeof title !== 'string') {
@@ -410,6 +411,7 @@ export const createOrUpdateSurveyAdminHandler = async (
     rewardDefinition: normalizedReward,
     boundVoucherPoolId: boundVoucherPoolId || normalizedReward?.voucherPoolId || null,
     storyConfig: storyConfig ? removeUndefinedFields(storyConfig) : { showInStory: false },
+    isHighlighted: Boolean(isHighlighted),
     updatedAt: serverNow
   };
 

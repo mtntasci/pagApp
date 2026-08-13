@@ -136,8 +136,15 @@ export const getEligibleSurveysHandler = async (
       endAt: survey.endAt,
       questionCount: survey.questions ? survey.questions.length : 0,
       profileScoreReward: survey.profileScoreReward || 0,
-      isCompleted: isCompleted
+      isCompleted: isCompleted,
+      isHighlighted: Boolean((survey as any).isHighlighted)
     });
+  });
+
+  // Sort highlighted surveys to the top
+  eligibleSurveys.sort((a, b) => {
+    if (a.isHighlighted === b.isHighlighted) return 0;
+    return a.isHighlighted ? -1 : 1;
   });
 
   return {

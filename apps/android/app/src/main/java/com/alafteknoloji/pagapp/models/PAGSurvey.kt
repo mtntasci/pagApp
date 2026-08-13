@@ -27,7 +27,8 @@ data class PAGSurvey(
     val questionCount: Int = 3,
     val questions: List<PAGQuestion>? = null,
     val profileScoreReward: Int = 50,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val isHighlighted: Boolean = false
 ) {
     val ownerDisplayName: String
         get() {

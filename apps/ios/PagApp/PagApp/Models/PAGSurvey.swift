@@ -46,6 +46,7 @@ public struct PAGSurvey: Codable, Identifiable, Equatable {
     public let questions: [PAGQuestion]?
     public let profileScoreReward: Int
     public let isCompleted: Bool
+    public let isHighlighted: Bool
     
     public init(
         surveyId: String,
@@ -60,7 +61,8 @@ public struct PAGSurvey: Codable, Identifiable, Equatable {
         questionCount: Int = 3,
         questions: [PAGQuestion]? = nil,
         profileScoreReward: Int = 50,
-        isCompleted: Bool = false
+        isCompleted: Bool = false,
+        isHighlighted: Bool = false
     ) {
         self.surveyId = surveyId
         self.ownerType = ownerType
@@ -75,6 +77,7 @@ public struct PAGSurvey: Codable, Identifiable, Equatable {
         self.questions = questions
         self.profileScoreReward = profileScoreReward
         self.isCompleted = isCompleted
+        self.isHighlighted = isHighlighted
     }
     
     public var ownerDisplayName: String {

@@ -52,6 +52,8 @@ public struct SurveyFlowView: View {
                     Text(question.text)
                         .font(PAGTypography.display)
                         .foregroundColor(PAGTheme.textPrimary)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                     
                     VStack(spacing: PAGSpacing.sm) {
                         ForEach(question.options) { option in
@@ -60,12 +62,15 @@ public struct SurveyFlowView: View {
                                 selectedOptionId = option.optionId
                                 answersMap[question.questionId] = option.optionId
                             }) {
-                                HStack {
+                                HStack(alignment: .top, spacing: PAGSpacing.sm) {
                                     Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                                         .foregroundColor(isSelected ? PAGTheme.brandLime : PAGTheme.textMuted)
+                                        .padding(.top, 2)
                                     Text(option.label)
                                         .font(PAGTypography.bodyLarge)
                                         .foregroundColor(isSelected ? PAGTheme.textPrimary : PAGTheme.textSecondary)
+                                        .multilineTextAlignment(.leading)
+                                        .fixedSize(horizontal: false, vertical: true)
                                     Spacer()
                                 }
                                 .padding(PAGSpacing.md)

@@ -41,7 +41,8 @@ public class SurveyService: ObservableObject {
                         status: item["status"] as? String ?? "ACTIVE",
                         questionCount: item["questionCount"] as? Int ?? 3,
                         profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
-                        isCompleted: item["isCompleted"] as? Bool ?? false
+                        isCompleted: item["isCompleted"] as? Bool ?? false,
+                        isHighlighted: item["isHighlighted"] as? Bool ?? false
                     )
                     parsedList.append(survey)
                 }

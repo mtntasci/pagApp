@@ -6,8 +6,11 @@ public struct HomeView: View {
     @StateObject private var profileSurveyService = ProfileSurveyService.shared
     @State private var navPath = NavigationPath()
     @State private var targetFlowSurvey: PAGSurvey? = nil
+    public var onNavigateToSurveys: (() -> Void)? = nil
     
-    public init() {}
+    public init(onNavigateToSurveys: (() -> Void)? = nil) {
+        self.onNavigateToSurveys = onNavigateToSurveys
+    }
     
     private var storyItems: [StoryItemType] {
         var items: [StoryItemType] = [.home]
@@ -114,6 +117,30 @@ public struct HomeView: View {
                                             navPath.append(HomeRoute.surveyDetail(survey.surveyId))
                                         }) {
                                             PAGSurveyCardView(survey: survey)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                    
+                                    if !surveyService.eligibleSurveys.isEmpty {
+                                        Button(action: {
+                                            onNavigateToSurveys?()
+                                        }) {
+                                            HStack {
+                                                Text("Tüm Bekleyen Anketleri Gör (\(surveyService.eligibleSurveys.count))")
+                                                    .font(PAGTypography.heading)
+                                                    .foregroundColor(PAGTheme.brandLime)
+                                                Spacer()
+                                                Image(systemName: "arrow.right")
+                                                    .foregroundColor(PAGTheme.brandLime)
+                                            }
+                                            .padding(.vertical, 14)
+                                            .padding(.horizontal, 16)
+                                            .background(PAGTheme.surfaceSecondary)
+                                            .cornerRadius(PAGRadius.medium)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                                    .stroke(PAGTheme.borderDefault, lineWidth: 1)
+                                            )
                                         }
                                         .buttonStyle(PlainButtonStyle())
                                     }

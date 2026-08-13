@@ -197,10 +197,21 @@ fun PAGSurveyCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PAGBadge(
-                    title = survey.ownerDisplayName,
-                    style = PAGBadgeStyle.Tag
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    PAGBadge(
+                        title = survey.ownerDisplayName,
+                        style = PAGBadgeStyle.Tag
+                    )
+                    if (survey.isHighlighted) {
+                        PAGBadge(
+                            title = "⭐ Öne Çıkan",
+                            style = PAGBadgeStyle.RewardPool
+                        )
+                    }
+                }
                 PAGBadge(
                     title = "+${survey.profileScoreReward} Puan",
                     icon = Icons.Filled.Star,

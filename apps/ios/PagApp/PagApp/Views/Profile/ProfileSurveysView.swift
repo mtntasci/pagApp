@@ -227,6 +227,8 @@ public struct ProfileSurveysView: View {
             Text(question.questionText)
                 .font(PAGTypography.heading)
                 .foregroundColor(PAGTheme.textPrimary)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
             
             VStack(spacing: 8) {
                 ForEach(question.options) { opt in
@@ -234,12 +236,15 @@ public struct ProfileSurveysView: View {
                     Button(action: {
                         selectedAnswers[question.id] = opt.optionId
                     }) {
-                        HStack {
+                        HStack(alignment: .top, spacing: 8) {
                             Image(systemName: isSelected ? "largecircle.fill.circle" : "circle")
                                 .foregroundColor(isSelected ? PAGTheme.brandLime : PAGTheme.textMuted)
+                                .padding(.top, 2)
                             Text(opt.label)
                                 .font(PAGTypography.body)
                                 .foregroundColor(PAGTheme.textPrimary)
+                                .multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
                             Spacer()
                         }
                         .padding(12)

@@ -57,7 +57,8 @@ class SurveyService {
                         status = item["status"] as? String ?: "ACTIVE",
                         questionCount = (item["questionCount"] as? Number)?.toInt() ?: 3,
                         profileScoreReward = (item["profileScoreReward"] as? Number)?.toInt() ?: 50,
-                        isCompleted = item["isCompleted"] as? Boolean ?: false
+                        isCompleted = item["isCompleted"] as? Boolean ?: false,
+                        isHighlighted = item["isHighlighted"] as? Boolean ?: false
                     )
                 }
 

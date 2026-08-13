@@ -232,6 +232,35 @@ fun HomeScreen(
                                     onTakeSurvey = { appState.navigateToSurvey(survey.surveyId) }
                                 )
                             }
+
+                            if (eligibleSurveys.isNotEmpty()) {
+                                Button(
+                                    onClick = { appState.selectedTab = 1 },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(48.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.surfaceSecondary),
+                                    shape = RoundedCornerShape(10.dp),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, PAGTheme.colors.borderDefault)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "Tüm Bekleyen Anketleri Gör (${eligibleSurveys.size})",
+                                            color = PAGTheme.colors.brandLime,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                            contentDescription = null,
+                                            tint = PAGTheme.colors.brandLime
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

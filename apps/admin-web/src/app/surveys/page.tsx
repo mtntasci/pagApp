@@ -61,6 +61,7 @@ export default function SurveysPage() {
   ]);
   const [formStartAt, setFormStartAt] = useState('2026-08-15T10:00');
   const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
+  const [formIsHighlighted, setFormIsHighlighted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [isJsonModalOpen, setIsJsonModalOpen] = useState(false);
@@ -260,6 +261,7 @@ export default function SurveysPage() {
     ]);
     setFormStartAt('2026-08-15T10:00');
     setFormEndAt('2026-08-30T23:59');
+    setFormIsHighlighted(false);
     setErrorMsg(null);
   };
 
@@ -277,6 +279,7 @@ export default function SurveysPage() {
     setFormDesc(survey.description || '');
     setFormSurveyType(survey.surveyType || 'PAG');
     setFormCategory(survey.category || 'Genel');
+    setFormIsHighlighted(survey.isHighlighted || false);
     setFormTargeting(survey.targeting?.type || 'ALL');
     if (survey.targeting?.profileFilters) {
       setFormProfileMinAge(survey.targeting.profileFilters.minAge ? String(survey.targeting.profileFilters.minAge) : '');
@@ -416,7 +419,8 @@ export default function SurveysPage() {
           showInStory: formShowStory,
           storyLabel: formShowStory ? formStoryLabel : undefined,
           imageCategory: formShowStory ? formStoryImageCategory : undefined
-        }
+        },
+        isHighlighted: formIsHighlighted
       };
 
       // Sanitize payload: guaranteed recursive removal of any undefined properties
@@ -468,6 +472,25 @@ export default function SurveysPage() {
     } catch (err: any) {
       console.error('Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleToggleHighlight = async (survey: any) => {
+    try {
+      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
+      const payload = removeUndefinedFields({
+        ...survey,
+        isHighlighted: !survey.isHighlighted
+      });
+      const res: any = await createOrUpdateFn(payload);
+      if (res.data?.success) {
+        await fetchSurveys();
+      } else {
+        alert('Öne çıkarma güncelleme hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
+      }
+    } catch (err: any) {
+      console.error('Toggle Highlight Error:', err);
+      alert('Öne çıkarma hatası: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 
@@ -682,6 +705,21 @@ export default function SurveysPage() {
                     </select>
                   </div>
                 )}
+
+                <div style={{ marginTop: '16px', padding: '12px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={formIsHighlighted}
+                      onChange={(e) => setFormIsHighlighted(e.target.checked)}
+                      style={{ width: '18px', height: '18px', accentColor: '#FFD700', cursor: 'pointer' }}
+                    />
+                    ⭐ Öne Çıkarılan Anket (Highlight / Pin to Top)
+                  </label>
+                  <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 28px' }}>
+                    İşaretlenirse bu anket mobil ana sayfada en üst sırada altın rozet ile gösterilir.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -1040,6 +1078,22 @@ export default function SurveysPage() {
                       <td style={{ padding: '14px 16px' }}>+{s.profileScoreReward || 0} Puan</td>
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleToggleHighlight(s)}
+                            title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
+                            style={{
+                              padding: '6px 12px',
+                              backgroundColor: s.isHighlighted ? '#FEF3C7' : 'var(--bg-surface-secondary)',
+                              color: s.isHighlighted ? '#D97706' : 'var(--text-secondary)',
+                              border: s.isHighlighted ? '1px solid #F59E0B' : '1px solid var(--border-color)',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {s.isHighlighted ? '⭐ Öne Çıkarıldı' : '☆ Öne Çıkar'}
+                          </button>
                           <button
                             onClick={() => handleOpenEditWizard(s)}
                             style={{ padding: '6px 12px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}
