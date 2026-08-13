@@ -176,62 +176,57 @@ fun ProfileScreen(
                         PAGBadge(title = "$score Profil Puanı", icon = Icons.Filled.Star, style = PAGBadgeStyle.ProfileScore)
                     }
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-
-                    // 1. Temel Profil Card
-                    Column(
-                        modifier = Modifier
-                            .padding(horizontal = PAGTheme.spacing.md)
-                            .fillMaxWidth()
-                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                            .border(1.dp, PAGTheme.colors.brandLime.copy(alpha = 0.3f), PAGTheme.radius.md)
-                            .clickable {
-                                if (onNavigateToBasicProfile != null) {
-                                    onNavigateToBasicProfile()
-                                } else {
-                                    currentSubRoute = ProfileSubRoute.BASIC_PROFILE
-                                }
-                            }
-                            .padding(PAGTheme.spacing.md),
-                        verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xs)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Temel Profil",
-                                style = PAGTheme.typography.heading,
-                                color = PAGTheme.colors.textPrimary
-                            )
-                            Text(
-                                text = "%${basicProfileState.completionPercentage} Tamamlandı",
-                                style = PAGTheme.typography.caption,
-                                fontWeight = FontWeight.Bold,
-                                color = PAGTheme.colors.brandLime
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Cinsiyet, doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.",
-                                style = PAGTheme.typography.caption,
-                                color = PAGTheme.colors.textMuted,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                contentDescription = "Düzenle",
-                                tint = PAGTheme.colors.textMuted
-                            )
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                    // 1. Basic Profile Box — Shown here right above sign out button when completed
+                    if (isBasicProfileComplete) {
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = PAGTheme.spacing.md)
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .border(1.dp, PAGTheme.colors.borderDefault, PAGTheme.radius.md)
+                                .clickable { currentSubRoute = ProfileSubRoute.BASIC_PROFILE }
+                                .padding(PAGTheme.spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Temel Profil",
+                                    style = PAGTheme.typography.heading,
+                                    color = PAGTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "%${basicProfileState.completionPercentage} Tamamlandı",
+                                    style = PAGTheme.typography.caption,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PAGTheme.colors.brandLime
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Demografik ve iletişim bilgilerinizi güncel tutabilirsiniz.",
+                                    style = PAGTheme.typography.caption,
+                                    color = PAGTheme.colors.textMuted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "Düzenle",
+                                    tint = PAGTheme.colors.textMuted
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                    }
 
                     // 2. Dynamic Profile Box — New Score Opportunity
                     Column(

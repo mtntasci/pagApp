@@ -299,42 +299,44 @@ public struct ProfileView: View {
                         }
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // Basic Profile Box
-                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
-                            HStack {
-                                Text("Temel Profil")
-                                    .font(PAGTypography.heading)
-                                    .foregroundColor(PAGTheme.textPrimary)
-                                Spacer()
-                                Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
-                                    .font(PAGTypography.caption)
-                                    .foregroundColor(isBasicProfileComplete ? PAGTheme.success : PAGTheme.warning)
-                            }
-
-                            Text("Demografik bilgilerinizi eksiksiz doldurarak Profil Puanı kazanın.")
-                                .font(PAGTypography.caption)
-                                .foregroundColor(PAGTheme.textMuted)
-
-                            NavigationLink(destination: BasicProfileView()) {
+                        // Basic Profile Box (Moves here right above sign out button after completion)
+                        if isBasicProfileComplete {
+                            VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                                 HStack {
-                                    Text(isBasicProfileComplete ? "Temel Profili Düzenle" : "Temel Profili Tamamla")
+                                    Text("Temel Profil")
                                         .font(PAGTypography.heading)
-                                        .foregroundColor(PAGTheme.brandMidnight)
+                                        .foregroundColor(PAGTheme.textPrimary)
                                     Spacer()
-                                    Image(systemName: "arrow.right")
-                                        .foregroundColor(PAGTheme.brandMidnight)
+                                    Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.success)
                                 }
-                                .padding(.vertical, 12)
-                                .padding(.horizontal, 16)
-                                .background(PAGTheme.brandLime)
-                                .cornerRadius(PAGRadius.medium)
+
+                                Text("Demografik ve iletişim bilgilerinizi güncel tutabilirsiniz.")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(PAGTheme.textMuted)
+
+                                NavigationLink(destination: BasicProfileView()) {
+                                    HStack {
+                                        Text("Temel Profili Düzenle")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                        Spacer()
+                                        Image(systemName: "arrow.right")
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    }
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 16)
+                                    .background(PAGTheme.brandLime)
+                                    .cornerRadius(PAGRadius.medium)
+                                }
+                                .padding(.top, 4)
                             }
-                            .padding(.top, 4)
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .padding(.horizontal, PAGSpacing.md)
                         }
-                        .padding()
-                        .background(PAGTheme.surfacePrimary)
-                        .cornerRadius(PAGRadius.medium)
-                        .padding(.horizontal, PAGSpacing.md)
 
                         // Sign Out Button
                         PAGButton(
