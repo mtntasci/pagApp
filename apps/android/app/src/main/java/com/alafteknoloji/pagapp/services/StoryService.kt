@@ -35,7 +35,8 @@ class StoryService {
                     val sid = (item["storyId"] as? String) ?: (item["id"] as? String) ?: return@mapNotNull null
                     val surveyId = item["surveyId"] as? String
                     val label = (item["shortLabel"] as? String) ?: (item["label"] as? String) ?: "Anket"
-                    val image = (item["imageCategory"] as? String) ?: (item["imageUrl"] as? String) ?: "story_tech"
+                    val imageUrl = item["imageUrl"] as? String
+                    val imageCategory = (item["imageCategory"] as? String) ?: "story_tech"
                     val pos = (item["position"] as? Number)?.toInt() ?: 1
                     val isActive = item["isActive"] as? Boolean ?: true
 
@@ -43,7 +44,8 @@ class StoryService {
                         id = sid,
                         type = StoryType.SURVEY,
                         surveyId = surveyId,
-                        image = image,
+                        image = imageCategory,
+                        imageUrl = imageUrl,
                         shortLabel = label,
                         position = pos,
                         isActive = isActive

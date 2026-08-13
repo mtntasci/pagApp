@@ -10,17 +10,19 @@ public struct StoryMock: Identifiable, Hashable, Equatable {
     public let type: StoryType
     public let surveyId: String?
     public let image: String
+    public let imageUrl: String?
     public let shortLabel: String
     public let position: Int
     public let isActive: Bool
     public let startAt: Date?
     public let endAt: Date?
     
-    public init(id: String, type: StoryType, surveyId: String? = nil, image: String, shortLabel: String, position: Int, isActive: Bool = true, startAt: Date? = nil, endAt: Date? = nil) {
+    public init(id: String, type: StoryType, surveyId: String? = nil, image: String, imageUrl: String? = nil, shortLabel: String, position: Int, isActive: Bool = true, startAt: Date? = nil, endAt: Date? = nil) {
         self.id = id
         self.type = type
         self.surveyId = surveyId
         self.image = image
+        self.imageUrl = imageUrl
         self.shortLabel = shortLabel
         self.position = position
         self.isActive = isActive

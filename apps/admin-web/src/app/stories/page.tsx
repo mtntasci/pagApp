@@ -393,6 +393,7 @@ export default function StoriesPage() {
               <thead>
                 <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   <th style={{ padding: '14px 16px' }}>Sıra (Sort Order)</th>
+                  <th style={{ padding: '14px 16px' }}>Görsel</th>
                   <th style={{ padding: '14px 16px' }}>Kısa Etiket</th>
                   <th style={{ padding: '14px 16px' }}>Bağlı Anket ID</th>
                   <th style={{ padding: '14px 16px' }}>Durum</th>
@@ -404,6 +405,19 @@ export default function StoriesPage() {
                   <tr key={st.storyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px', color: 'var(--text-primary)' }}>
                     <td style={{ padding: '14px 16px', fontWeight: 800, color: st.sortOrder < 999 ? '#D97706' : 'var(--text-primary)' }}>
                       {st.sortOrder < 999 ? `⭐ #${st.sortOrder}` : `#${st.sortOrder}`}
+                    </td>
+                    <td style={{ padding: '14px 16px' }}>
+                      {st.imageUrl ? (
+                        <img
+                          src={st.imageUrl}
+                          alt={st.label}
+                          style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'cover', border: '1px solid var(--border-color)' }}
+                        />
+                      ) : (
+                        <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #3B82F6, #1D4ED8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', color: '#FFF' }}>
+                          ⭐
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '14px 16px', fontWeight: 700 }}>{st.label}</td>
                     <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{st.surveyId || '-'}</td>

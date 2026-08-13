@@ -29,7 +29,8 @@ public class StoryService: ObservableObject {
                 let sid = (item["storyId"] as? String) ?? (item["id"] as? String) ?? UUID().uuidString
                 let surveyId = item["surveyId"] as? String
                 let label = (item["shortLabel"] as? String) ?? (item["label"] as? String) ?? "Anket"
-                let image = (item["imageCategory"] as? String) ?? (item["imageUrl"] as? String) ?? "story_tech"
+                let imageUrl = item["imageUrl"] as? String
+                let imageCategory = (item["imageCategory"] as? String) ?? "story_tech"
                 let pos = item["position"] as? Int ?? 1
                 let isActive = item["isActive"] as? Bool ?? true
                 
@@ -37,7 +38,8 @@ public class StoryService: ObservableObject {
                     id: sid,
                     type: .survey,
                     surveyId: surveyId,
-                    image: image,
+                    image: imageCategory,
+                    imageUrl: imageUrl,
                     shortLabel: label,
                     position: pos,
                     isActive: isActive

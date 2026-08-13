@@ -12,6 +12,7 @@ data class StoryMock(
     val type: StoryType,
     val surveyId: String? = null,
     val image: String,
+    val imageUrl: String? = null,
     val shortLabel: String,
     val position: Int,
     val isActive: Boolean = true,
