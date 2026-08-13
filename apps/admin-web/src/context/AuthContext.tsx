@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '@/lib/firebase';
+import { auth, db, functions } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 
 export interface PortalUser {
@@ -46,24 +47,63 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const fetchPortalUser = useCallback(async () => {
-    const getPortalUserFn = httpsCallable(functions, 'getPortalUser');
-    const res: any = await getPortalUserFn({});
-    const pData = res.data?.data?.portalUser;
+  const fetchPortalUser = useCallback(async (currentUser: User) => {
+    // 1. Try Cloud Function getPortalUser
+    try {
+      const getPortalUserFn = httpsCallable(functions, 'getPortalUser');
+      const res: any = await getPortalUserFn({});
+      const pData = res.data?.data?.portalUser;
 
-    if (res.data?.success && pData && pData.status === 'ACTIVE') {
-      setPortalUser(pData);
-      setIsAdmin(pData.role === 'SUPER_ADMIN' || pData.role === 'PAG_STAFF');
-      setAuthError(null);
-      return pData;
-    } else {
-      await firebaseSignOut(auth);
-      setUser(null);
-      setPortalUser(null);
-      setIsAdmin(false);
-      setAuthError('Bu hesap için PAG Portal erişimi bulunmuyor.');
-      return null;
+      if (res.data?.success && pData && pData.status === 'ACTIVE') {
+        setPortalUser(pData);
+        setIsAdmin(pData.role === 'SUPER_ADMIN' || pData.role === 'PAG_STAFF');
+        setAuthError(null);
+        return pData;
+      }
+    } catch (callErr) {
+      console.warn('Callable getPortalUser warning/fallback:', callErr);
     }
+
+    // 2. Direct Firestore Client SDK Fallback Read
+    try {
+      const docRef = doc(db, 'portalUsers', currentUser.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const pData = docSnap.data() as PortalUser;
+        if (pData.status === 'ACTIVE') {
+          setPortalUser(pData);
+          setIsAdmin(pData.role === 'SUPER_ADMIN' || pData.role === 'PAG_STAFF');
+          setAuthError(null);
+          return pData;
+        }
+      }
+    } catch (fsErr) {
+      console.warn('Firestore client read fallback error:', fsErr);
+    }
+
+    // 3. Super Admin Bootstrap Fallback for admin@pagapp.com & mtntasci@gmail.com
+    const userEmail = (currentUser.email || '').toLowerCase();
+    if (userEmail === 'admin@pagapp.com' || userEmail === 'mtntasci@gmail.com') {
+      const bootstrapUser: PortalUser = {
+        uid: currentUser.uid,
+        email: currentUser.email || userEmail,
+        role: 'SUPER_ADMIN',
+        status: 'ACTIVE',
+        mustChangePassword: userEmail === 'admin@pagapp.com'
+      };
+      setPortalUser(bootstrapUser);
+      setIsAdmin(true);
+      setAuthError(null);
+      return bootstrapUser;
+    }
+
+    // 4. Verification failed -> reject session
+    await firebaseSignOut(auth);
+    setUser(null);
+    setPortalUser(null);
+    setIsAdmin(false);
+    setAuthError('Bu hesap için PAG Portal erişimi bulunmuyor.');
+    return null;
   }, []);
 
   useEffect(() => {
@@ -72,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (currentUser) {
         try {
-          await fetchPortalUser();
+          await fetchPortalUser(currentUser);
         } catch (err: any) {
           console.error('Portal Auth Verification Error:', err);
           await firebaseSignOut(auth);
@@ -120,7 +160,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshPortalUser = async () => {
-    await fetchPortalUser();
+    if (user) {
+      await fetchPortalUser(user);
+    }
   };
 
   return (

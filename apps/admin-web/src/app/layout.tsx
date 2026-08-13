@@ -149,6 +149,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="tr">
+      <head>
+        <title>PAG Portal — Kurumsal Yönetim</title>
+        <meta name="description" content="PAG Kurumsal Yönetim Portalı" />
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/icon.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" sizes="180x180" />
+      </head>
       <body>
         <AuthProvider>
           <NavigationWrapper>{children}</NavigationWrapper>
