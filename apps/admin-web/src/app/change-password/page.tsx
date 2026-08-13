@@ -100,8 +100,7 @@ export default function ChangePasswordPage() {
 
   return (
     <div style={{
-      minHeight: '100vh',
-      backgroundColor: 'var(--bg-primary)',
+      minHeight: '80vh',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -109,28 +108,20 @@ export default function ChangePasswordPage() {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '440px',
+        maxWidth: '460px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
-        padding: '40px 32px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.4)'
+        padding: '40px 36px',
+        boxShadow: 'var(--shadow-md)'
       }}>
         <div style={{ textAlign: 'center', marginBottom: '24px' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '56px',
-            height: '56px',
-            backgroundColor: 'rgba(183, 243, 74, 0.1)',
-            borderRadius: '16px',
-            border: '1px solid var(--brand-lime)',
-            marginBottom: '16px'
-          }}>
-            <span style={{ fontSize: '24px' }}>🔒</span>
-          </div>
-          <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: 'white' }}>
+          <img
+            src="/logo.png"
+            alt="PAG Logo"
+            style={{ height: '44px', width: 'auto', marginBottom: '16px', borderRadius: '8px' }}
+          />
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)' }}>
             {isForced ? 'Şifrenizi Değiştirin' : 'Hesap Şifresini Değiştir'}
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>
@@ -143,12 +134,13 @@ export default function ChangePasswordPage() {
         {isForced && (
           <div style={{
             padding: '12px 16px',
-            backgroundColor: 'rgba(245, 158, 11, 0.15)',
-            border: '1px solid #F59E0B',
-            color: '#F59E0B',
+            backgroundColor: 'var(--warning-bg)',
+            border: '1px solid var(--warning-border)',
+            color: 'var(--warning-color)',
             borderRadius: '8px',
             marginBottom: '20px',
-            fontSize: '13px'
+            fontSize: '13px',
+            fontWeight: 500
           }}>
             ⚠️ İlk girişiniz için şifrenizi değiştirmeniz zorunludur.
           </div>
@@ -157,12 +149,13 @@ export default function ChangePasswordPage() {
         {errorMsg && (
           <div style={{
             padding: '12px 16px',
-            backgroundColor: 'rgba(240, 68, 56, 0.15)',
-            border: '1px solid var(--error-color)',
+            backgroundColor: 'var(--error-bg)',
+            border: '1px solid var(--error-border)',
             color: 'var(--error-color)',
             borderRadius: '8px',
             marginBottom: '20px',
-            fontSize: '13px'
+            fontSize: '13px',
+            fontWeight: 500
           }}>
             ⚠️ {errorMsg}
           </div>
@@ -182,10 +175,10 @@ export default function ChangePasswordPage() {
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-highlight)',
                 borderRadius: '8px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '14px'
               }}
             />
@@ -205,10 +198,10 @@ export default function ChangePasswordPage() {
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-highlight)',
                 borderRadius: '8px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '14px'
               }}
             />
@@ -228,10 +221,10 @@ export default function ChangePasswordPage() {
               style={{
                 width: '100%',
                 padding: '12px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-highlight)',
                 borderRadius: '8px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '14px'
               }}
             />
@@ -243,15 +236,16 @@ export default function ChangePasswordPage() {
             style={{
               width: '100%',
               padding: '14px',
-              backgroundColor: 'var(--brand-lime)',
-              color: '#011033',
-              fontWeight: 'bold',
+              backgroundColor: 'var(--brand-navy)',
+              color: '#FFFFFF',
+              fontWeight: 700,
               fontSize: '14px',
-              borderRadius: '10px',
+              borderRadius: '8px',
               border: 'none',
               cursor: isSubmitting ? 'not-allowed' : 'pointer',
               opacity: isSubmitting ? 0.7 : 1,
-              marginTop: '8px'
+              marginTop: '8px',
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             {isSubmitting ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}

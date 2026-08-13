@@ -79,43 +79,40 @@ function LoginContent() {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '420px',
+        maxWidth: '440px',
         backgroundColor: 'var(--bg-surface)',
         border: '1px solid var(--border-color)',
         borderRadius: '16px',
-        padding: '40px 32px',
-        boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
+        padding: '40px 36px',
+        boxShadow: 'var(--shadow-lg)',
         textAlign: 'center'
       }}>
         {/* Brand Logo & Title */}
         <div style={{ marginBottom: '32px' }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '64px',
-            height: '64px',
-            backgroundColor: 'rgba(183, 243, 74, 0.1)',
-            borderRadius: '16px',
-            border: '1px solid var(--brand-lime)',
-            marginBottom: '16px'
-          }}>
-            <span style={{ fontSize: '28px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>PAG</span>
-          </div>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: 'var(--text-primary)' }}>PAG Portal</h1>
-          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>Kurumsal Portal Girişi</p>
+          <img
+            src="/logo.png"
+            alt="PAG Logo"
+            style={{ height: '52px', width: 'auto', marginBottom: '16px', borderRadius: '10px' }}
+          />
+          <h1 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+            PAG Portal
+          </h1>
+          <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '6px', fontWeight: 500 }}>
+            Kurumsal Yönetim Portalı Girişi
+          </p>
         </div>
 
         {displayError && (
           <div style={{
             padding: '12px 16px',
-            backgroundColor: 'rgba(240, 68, 56, 0.15)',
-            border: '1px solid var(--error-color)',
+            backgroundColor: 'var(--error-bg)',
+            border: '1px solid var(--error-border)',
             color: 'var(--error-color)',
             borderRadius: '8px',
             marginBottom: '24px',
             fontSize: '13px',
-            textAlign: 'left'
+            textAlign: 'left',
+            fontWeight: 500
           }}>
             ⚠️ {displayError}
           </div>
@@ -124,22 +121,25 @@ function LoginContent() {
         {infoMsg && (
           <div style={{
             padding: '12px 16px',
-            backgroundColor: 'rgba(183, 243, 74, 0.15)',
-            border: '1px solid var(--brand-lime)',
-            color: 'var(--brand-lime)',
+            backgroundColor: 'var(--success-bg)',
+            border: '1px solid var(--success-border)',
+            color: 'var(--success-color)',
             borderRadius: '8px',
             marginBottom: '24px',
             fontSize: '13px',
-            textAlign: 'left'
+            textAlign: 'left',
+            fontWeight: 500
           }}>
             ℹ️ {infoMsg}
           </div>
         )}
 
         {/* Email & Password Form */}
-        <form onSubmit={handleEmailPasswordLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'left' }}>
+        <form onSubmit={handleEmailPasswordLogin} style={{ display: 'flex', flexDirection: 'column', gap: '18px', textAlign: 'left' }}>
           <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>E-posta Adresi</label>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              E-posta Adresi
+            </label>
             <input
               type="email"
               value={email}
@@ -150,17 +150,19 @@ function LoginContent() {
                 width: '100%',
                 padding: '12px',
                 marginTop: '6px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-highlight)',
                 borderRadius: '8px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '14px'
               }}
             />
           </div>
 
           <div>
-            <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Şifre</label>
+            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Şifre
+            </label>
             <input
               type="password"
               value={password}
@@ -171,10 +173,10 @@ function LoginContent() {
                 width: '100%',
                 padding: '12px',
                 marginTop: '6px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                border: '1px solid var(--border-highlight)',
                 borderRadius: '8px',
-                color: 'white',
+                color: 'var(--text-primary)',
                 fontSize: '14px'
               }}
             />
@@ -186,22 +188,22 @@ function LoginContent() {
             style={{
               width: '100%',
               padding: '14px 20px',
-              backgroundColor: 'var(--brand-lime)',
-              color: '#011033',
-              fontWeight: 'bold',
+              backgroundColor: 'var(--brand-navy)',
+              color: '#FFFFFF',
+              fontWeight: 700,
               fontSize: '14px',
-              borderRadius: '10px',
-              marginTop: '8px',
+              borderRadius: '8px',
+              marginTop: '6px',
               cursor: loading ? 'not-allowed' : 'pointer',
               opacity: loading ? 0.7 : 1,
-              transition: 'all 0.2s ease'
+              boxShadow: 'var(--shadow-sm)'
             }}
           >
             {loading ? 'Giriş Yapılıyor...' : 'Giriş Yap'}
           </button>
         </form>
 
-        <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <button
             type="button"
             onClick={handleForgotPassword}
@@ -211,6 +213,7 @@ function LoginContent() {
               border: 'none',
               color: 'var(--text-secondary)',
               fontSize: '13px',
+              fontWeight: 500,
               cursor: 'pointer',
               textDecoration: 'underline'
             }}
@@ -231,8 +234,8 @@ function LoginContent() {
                 alignItems: 'center',
                 gap: '4px',
                 fontSize: '13px',
-                fontWeight: 600,
-                color: 'var(--brand-lime)',
+                fontWeight: 700,
+                color: 'var(--brand-navy)',
                 textDecoration: 'none'
               }}
             >
@@ -247,7 +250,7 @@ function LoginContent() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div style={{ color: 'white', padding: '40px', textAlign: 'center' }}>Yükleniyor...</div>}>
+    <Suspense fallback={<div style={{ color: 'var(--text-primary)', padding: '40px', textAlign: 'center' }}>Yükleniyor...</div>}>
       <LoginContent />
     </Suspense>
   );

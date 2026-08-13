@@ -1,27 +1,63 @@
 :root {
-  --bg-primary: #011033;
-  --bg-surface: #0a1b44;
-  --bg-surface-secondary: #122456;
-  --brand-lime: #B7F34A;
-  --text-primary: #FFFFFF;
-  --text-secondary: #98A2B3;
-  --text-muted: #667085;
-  --border-color: #1E3163;
-  --error-color: #F04438;
-  --success-color: #12B76A;
+  /* Admin Light Corporate Color Palette */
+  --bg-primary: #F8FAFC;          /* Page background: soft light slate */
+  --bg-surface: #FFFFFF;          /* Pure white card / panel background */
+  --bg-surface-secondary: #F1F5F9;/* Secondary surface / subtle gray */
+  --bg-surface-hover: #E2E8F0;    /* Interactive hover state */
+  
+  --brand-navy: #0F172A;          /* Corporate dark navy for titles & primary buttons */
+  --brand-navy-hover: #1E293B;    /* Hover navy */
+  --brand-lime: #B7F34A;          /* Controlled PAG Lime accent */
+  --brand-lime-subtle: rgba(183, 243, 74, 0.15); /* Accent highlight tint */
+
+  --text-primary: #0F172A;        /* Dark charcoal primary text */
+  --text-secondary: #475569;      /* Slate secondary text */
+  --text-muted: #64748B;          /* Muted slate caption text */
+  
+  --border-color: #E2E8F0;        /* Subtle border */
+  --border-highlight: #CBD5E1;    /* Focused / active border */
+  
+  /* Semantic Status Colors */
+  --error-color: #DC2626;         /* Red */
+  --error-bg: #FEF2F2;
+  --error-border: #FCA5A5;
+  
+  --success-color: #166534;       /* Green */
+  --success-bg: #F0FDF4;
+  --success-border: #86EFAC;
+  
+  --warning-color: #B45309;       /* Amber */
+  --warning-bg: #FFFBEB;
+  --warning-border: #FDE68A;
+  
+  --info-color: #1D4ED8;          /* Blue */
+  --info-bg: #EFF6FF;
+  --info-border: #BFDBFE;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.06), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+}
+
+html, body {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
 }
 
 * {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 a {
@@ -33,8 +69,116 @@ button {
   cursor: pointer;
   border: none;
   font-family: inherit;
+  transition: all 0.2s ease;
+  min-height: 40px;
 }
 
 input, select, textarea {
   font-family: inherit;
+  color: var(--text-primary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-highlight);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  min-height: 42px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  border-color: var(--brand-navy);
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.08);
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Custom Scrollbar for Light Theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Mobile Responsive Utility Classes */
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: flex !important;
+}
+
+@media (max-width: 768px) {
+  .mobile-only {
+    display: flex !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .admin-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    height: 100vh !important;
+    z-index: 2000 !important;
+  }
+
+  .admin-main-content {
+    padding: 20px 16px !important;
+  }
+
+  .admin-header-title {
+    font-size: 22px !important;
+  }
+
+  .admin-grid-2col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-grid-3col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .table-desktop-view {
+    display: none !important;
+  }
+
+  .card-mobile-view {
+    display: flex !important;
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+@media (min-width: 769px) {
+  .card-mobile-view {
+    display: none !important;
+  }
+
+  .table-desktop-view {
+    display: block !important;
+  }
+
+  .admin-sidebar {
+    position: relative !important;
+    transform: none !important;
+  }
 }

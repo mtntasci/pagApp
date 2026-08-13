@@ -205,8 +205,6 @@ export default function SurveysPage() {
     setIsSaving(true);
     setErrorMsg(null);
     try {
-      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-
       const formattedQuestions = formQuestions.map((q, idx) => ({
         questionId: q.id || `q${idx + 1}`,
         order: idx + 1,
@@ -299,10 +297,8 @@ export default function SurveysPage() {
         surveyDocData.createdAt = serverTimestamp();
       }
 
-      // 1. Direct Firestore Write (Fast, reliable, bypasses un-deployed Cloud Functions CORS issues)
       await setDoc(docRef, surveyDocData, { merge: true });
 
-      // 2. Best-effort Callable trigger (swallows background CORS/network error silently)
       try {
         const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
         await createOrUpdateFn(payload);
@@ -381,29 +377,37 @@ export default function SurveysPage() {
 
   return (
     <div>
-      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <h2 style={{ fontSize: '28px', fontWeight: 'bold' }}>Anket & Kampanya Yönetimi</h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>Uçtan Uca Kampanya Sihirbazı & Onay Döngüsü</p>
-        </div>
+      <header style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h2 className="admin-header-title" style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+              Anket & Kampanya Yönetimi
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
+              Uçtan Uca Kampanya Sihirbazı & Onay Döngüsü
+            </p>
+          </div>
 
-        <button
-          onClick={handleOpenNewWizard}
-          style={{
-            padding: '12px 20px',
-            backgroundColor: 'var(--brand-lime)',
-            color: '#011033',
-            fontWeight: 'bold',
-            borderRadius: '10px',
-            fontSize: '14px'
-          }}
-        >
-          + Yeni Kampanya / Anket Oluştur
-        </button>
+          <button
+            onClick={handleOpenNewWizard}
+            style={{
+              padding: '12px 20px',
+              backgroundColor: 'var(--brand-navy)',
+              color: '#FFFFFF',
+              fontWeight: 700,
+              borderRadius: '8px',
+              fontSize: '14px',
+              boxShadow: 'var(--shadow-sm)',
+              width: 'auto'
+            }}
+          >
+            + Yeni Kampanya / Anket Oluştur
+          </button>
+        </div>
       </header>
 
       {/* Status Filter Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
         {[
           { key: 'ALL', label: 'Tüm Aktifler' },
           { key: 'DRAFT', label: 'Taslaklar' },
@@ -417,13 +421,15 @@ export default function SurveysPage() {
             key={t.key}
             onClick={() => setActiveTab(t.key as any)}
             style={{
-              padding: '8px 16px',
+              padding: '8px 14px',
               borderRadius: '6px',
               fontSize: '13px',
               fontWeight: 600,
-              backgroundColor: activeTab === t.key ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-              color: activeTab === t.key ? 'var(--brand-lime)' : 'var(--text-secondary)',
-              border: activeTab === t.key ? '1px solid var(--brand-lime)' : '1px solid transparent'
+              whiteSpace: 'nowrap',
+              backgroundColor: activeTab === t.key ? 'var(--brand-navy)' : 'transparent',
+              color: activeTab === t.key ? '#FFFFFF' : 'var(--text-secondary)',
+              border: activeTab === t.key ? '1px solid var(--brand-navy)' : '1px solid transparent',
+              flexShrink: 0
             }}
           >
             {t.label}
@@ -436,33 +442,66 @@ export default function SurveysPage() {
         <div style={{
           position: 'fixed',
           top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.75)',
+          backgroundColor: 'rgba(15, 23, 42, 0.5)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 2000,
+          padding: '12px'
         }}>
           <div style={{
-            width: '900px',
-            maxHeight: '90vh',
+            width: '100%',
+            maxWidth: '900px',
+            maxHeight: '92vh',
             backgroundColor: 'var(--bg-surface)',
             border: '1px solid var(--border-color)',
             borderRadius: '16px',
-            padding: '32px',
-            overflowY: 'auto'
+            padding: '24px 20px',
+            overflowY: 'auto',
+            boxShadow: 'var(--shadow-lg)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)' }}>
                   {editingSurveyId ? 'Anket Düzenle' : 'Kampanya Hazırlama Sihirbazı'} (Adım {wizardStep} / 10)
                 </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Uçtan Uca Kampanya & Anket Konfigürasyonu</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Uçtan Uca Kampanya Konfigürasyonu</p>
               </div>
-              <button onClick={() => setIsWizardOpen(false)} style={{ color: 'var(--text-secondary)', fontSize: '20px' }}>✕</button>
+              <button onClick={() => setIsWizardOpen(false)} style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', minHeight: 'auto' }}>✕</button>
+            </div>
+
+            {/* 10-Step Touch-Scrollable Indicator */}
+            <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '20px', paddingBottom: '4px' }}>
+              {Array.from({ length: 10 }).map((_, i) => {
+                const stepNum = i + 1;
+                const isCurrent = wizardStep === stepNum;
+                const isPast = wizardStep > stepNum;
+                return (
+                  <button
+                    key={stepNum}
+                    onClick={() => setWizardStep(stepNum)}
+                    style={{
+                      flexShrink: 0,
+                      minWidth: '34px',
+                      height: '34px',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      backgroundColor: isCurrent ? 'var(--brand-navy)' : isPast ? 'var(--bg-surface-secondary)' : 'var(--bg-primary)',
+                      color: isCurrent ? '#FFFFFF' : isPast ? 'var(--brand-navy)' : 'var(--text-muted)',
+                      border: isCurrent ? '1px solid var(--brand-navy)' : '1px solid var(--border-color)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {stepNum}
+                  </button>
+                );
+              })}
             </div>
 
             {errorMsg && (
-              <div style={{ padding: '12px', backgroundColor: 'rgba(240,68,56,0.15)', border: '1px solid var(--error-color)', color: 'var(--error-color)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+              <div style={{ padding: '12px 16px', backgroundColor: 'var(--error-bg)', border: '1px solid var(--error-border)', color: 'var(--error-color)', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: 500 }}>
                 ⚠️ {errorMsg}
               </div>
             )}
@@ -470,13 +509,13 @@ export default function SurveysPage() {
             {/* Step 1: Owner */}
             {wizardStep === 1 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>1. Adım: Anket Sahibi (Owner)</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>1. Adım: Anket Sahibi (Owner)</h4>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Sahip Tipi (Owner Type)</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Sahip Tipi (Owner Type)</label>
                   <select
                     value={formOwnerType}
                     onChange={(e) => setFormOwnerType(e.target.value as any)}
-                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                    style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   >
                     <option value="PAG">PAG (Resmi Genel)</option>
                     <option value="ORGANIZATION">Kurumsal Müşteri (Organization)</option>
@@ -485,11 +524,11 @@ export default function SurveysPage() {
 
                 {formOwnerType === 'ORGANIZATION' && (
                   <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Kurum Seçin (Organization)</label>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kurum Seçin (Organization)</label>
                     <select
                       value={formOrgId}
                       onChange={(e) => setFormOrgId(e.target.value)}
-                      style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                      style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     >
                       <option value="">Kurum Seçin</option>
                       <option value="org_ford">Ford Otosan</option>
@@ -504,21 +543,21 @@ export default function SurveysPage() {
             {/* Step 2: Info */}
             {wizardStep === 2 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>2. Adım: Anket Bilgileri</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>2. Adım: Anket Bilgileri</h4>
+                <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Başlık</label>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Başlık</label>
                     <input
                       type="text" value={formTitle} onChange={(e) => setFormTitle(e.target.value)}
                       placeholder="Kampanya Anket Başlığı"
-                      style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                      style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Kategori</label>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kategori</label>
                     <select
                       value={formCategory} onChange={(e) => setFormCategory(e.target.value)}
-                      style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                      style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     >
                       <option value="Otomotiv">Otomotiv</option>
                       <option value="Yeme / İçme">Yeme / İçme</option>
@@ -529,11 +568,11 @@ export default function SurveysPage() {
                   </div>
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Açıklama</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Açıklama</label>
                   <textarea
                     rows={3} value={formDesc} onChange={(e) => setFormDesc(e.target.value)}
                     placeholder="Kampanya hakkında kısa açıklama..."
-                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                    style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   />
                 </div>
               </div>
@@ -542,12 +581,12 @@ export default function SurveysPage() {
             {/* Step 3: Targeting */}
             {wizardStep === 3 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>3. Adım: Hedef Kitle (Targeting - Temel Profil Bağlantısı)</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>3. Adım: Hedef Kitle (Targeting)</h4>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Hedefleme Tipi</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Hedefleme Tipi</label>
                   <select
                     value={formTargeting} onChange={(e) => setFormTargeting(e.target.value as any)}
-                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                    style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   >
                     <option value="ALL">Herkese Açık (Tüm PAG Kullanıcıları)</option>
                     <option value="PROFILE">Temel Profil Hedefli (Yaş / Medeni Durum / Çocuk / Adres)</option>
@@ -556,20 +595,20 @@ export default function SurveysPage() {
                 </div>
 
                 {formTargeting === 'PROFILE' && (
-                  <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Desteklenen Temel Profil Filtreleri</p>
+                  <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-navy)' }}>Desteklenen Temel Profil Filtreleri</p>
                     
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Yaş Aralığı (Min - Max)</label>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Yaş Aralığı (Min - Max)</label>
                         <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                          <input type="number" value={formProfileMinAge} onChange={(e) => setFormProfileMinAge(e.target.value)} placeholder="Min Yaş (Örn: 18)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
-                          <input type="number" value={formProfileMaxAge} onChange={(e) => setFormProfileMaxAge(e.target.value)} placeholder="Max Yaş (Örn: 45)" style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                          <input type="number" value={formProfileMinAge} onChange={(e) => setFormProfileMinAge(e.target.value)} placeholder="Min (18)" style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} />
+                          <input type="number" value={formProfileMaxAge} onChange={(e) => setFormProfileMaxAge(e.target.value)} placeholder="Max (45)" style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} />
                         </div>
                       </div>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Medeni Durum</label>
-                        <select value={formProfileMaritalStatus} onChange={(e) => setFormProfileMaritalStatus(e.target.value)} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Medeni Durum</label>
+                        <select value={formProfileMaritalStatus} onChange={(e) => setFormProfileMaritalStatus(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}>
                           <option value="ALL">Fark Etmez</option>
                           <option value="SINGLE">Bekar</option>
                           <option value="MARRIED">Evli</option>
@@ -578,18 +617,18 @@ export default function SurveysPage() {
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Çocuk Durumu</label>
-                        <select value={formProfileChildrenStatus} onChange={(e) => setFormProfileChildrenStatus(e.target.value)} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Çocuk Durumu</label>
+                        <select value={formProfileChildrenStatus} onChange={(e) => setFormProfileChildrenStatus(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}>
                           <option value="ALL">Fark Etmez</option>
                           <option value="HAS_CHILDREN">Çocuğu Var</option>
                           <option value="NO_CHILDREN">Çocuğu Yok</option>
                         </select>
                       </div>
                       <div>
-                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Memleket (İl)</label>
-                        <input type="text" value={formProfileHometown} onChange={(e) => setFormProfileHometown(e.target.value)} placeholder="Örn: Ankara" style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                        <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Memleket (İl)</label>
+                        <input type="text" value={formProfileHometown} onChange={(e) => setFormProfileHometown(e.target.value)} placeholder="Örn: Ankara" style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} />
                       </div>
                     </div>
                   </div>
@@ -600,19 +639,19 @@ export default function SurveysPage() {
             {/* Step 4: Rewards */}
             {wizardStep === 4 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>4. Adım: Profil Puanı & Ödül</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>4. Adım: Profil Puanı & Ödül</h4>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Profil Puanı Ödülü (Profil Score)</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Profil Puanı Ödülü (Profile Score)</label>
                   <input
                     type="number" value={formScoreReward} onChange={(e) => setFormScoreReward(Number(e.target.value))}
-                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                    style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Finansal Ödül Tipi</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Finansal Ödül Tipi</label>
                   <select
                     value={formFinancialReward} onChange={(e) => setFormFinancialReward(e.target.value as any)}
-                    style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                    style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                   >
                     <option value="NONE">Ödül Yok (Sadece Puan)</option>
                     <option value="MONEY">Nakit TL Ödülü</option>
@@ -625,29 +664,29 @@ export default function SurveysPage() {
             {/* Step 5: Money / Voucher */}
             {wizardStep === 5 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>5. Adım: Ödül Detay Konfigürasyonu</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>5. Adım: Ödül Detay Konfigürasyonu</h4>
                 {formFinancialReward === 'MONEY' && (
                   <div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+                    <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Toplam Ödül Bütçesi (TL)</label>
-                        <input type="number" value={formMoneyBudget} onChange={(e) => setFormMoneyBudget(Number(e.target.value))} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Toplam Ödül Bütçesi (TL)</label>
+                        <input type="number" value={formMoneyBudget} onChange={(e) => setFormMoneyBudget(Number(e.target.value))} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                       </div>
                       <div>
-                        <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Dağıtım Modeli</label>
-                        <select value={formMoneyModel} onChange={(e) => setFormMoneyModel(e.target.value as any)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Dağıtım Modeli</label>
+                        <select value={formMoneyModel} onChange={(e) => setFormMoneyModel(e.target.value as any)} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}>
                           <option value="RANKED">Kademeli Sıralama (1., 2., 3. + Havuz)</option>
                           <option value="EQUAL">Eşit Dağıtım (Kişi Başı Sabit)</option>
                         </select>
                       </div>
                     </div>
                     {formMoneyModel === 'RANKED' && (
-                      <div style={{ padding: '12px', backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}>
-                        <p style={{ fontSize: '12px', color: 'var(--brand-lime)', marginBottom: '8px' }}>Derece Ödülleri (TL)</p>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
-                          <div><label style={{ fontSize: '11px' }}>1. Sıra</label><input type="number" value={formRank1} onChange={(e) => setFormRank1(Number(e.target.value))} style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} /></div>
-                          <div><label style={{ fontSize: '11px' }}>2. Sıra</label><input type="number" value={formRank2} onChange={(e) => setFormRank2(Number(e.target.value))} style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} /></div>
-                          <div><label style={{ fontSize: '11px' }}>3. Sıra</label><input type="number" value={formRank3} onChange={(e) => setFormRank3(Number(e.target.value))} style={{ width: '100%', padding: '8px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} /></div>
+                      <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-navy)', marginBottom: '12px' }}>Derece Ödülleri (TL)</p>
+                        <div className="admin-grid-3col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                          <div><label style={{ fontSize: '12px', fontWeight: 600 }}>1. Sıra</label><input type="number" value={formRank1} onChange={(e) => setFormRank1(Number(e.target.value))} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} /></div>
+                          <div><label style={{ fontSize: '12px', fontWeight: 600 }}>2. Sıra</label><input type="number" value={formRank2} onChange={(e) => setFormRank2(Number(e.target.value))} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} /></div>
+                          <div><label style={{ fontSize: '12px', fontWeight: 600 }}>3. Sıra</label><input type="number" value={formRank3} onChange={(e) => setFormRank3(Number(e.target.value))} style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }} /></div>
                         </div>
                       </div>
                     )}
@@ -656,12 +695,12 @@ export default function SurveysPage() {
                 {formFinancialReward === 'VOUCHER' && (
                   <div>
                     <div style={{ marginBottom: '16px' }}>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Kupon Havuzu Adı</label>
-                      <input type="text" value={formVoucherName} onChange={(e) => setFormVoucherName(e.target.value)} placeholder="Örn: Ford 200 TL Bakım Çeki" style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kupon Havuzu Adı</label>
+                      <input type="text" value={formVoucherName} onChange={(e) => setFormVoucherName(e.target.value)} placeholder="Örn: Ford 200 TL Bakım Çeki" style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Toplu Kupon Kodları (Her satırda 1 kod)</label>
-                      <textarea rows={4} value={formVoucherCodesText} onChange={(e) => setFormVoucherCodesText(e.target.value)} placeholder={"CODE-1001-PAG\nCODE-1002-PAG"} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Toplu Kupon Kodları (Her satırda 1 kod)</label>
+                      <textarea rows={4} value={formVoucherCodesText} onChange={(e) => setFormVoucherCodesText(e.target.value)} placeholder={"CODE-1001-PAG\nCODE-1002-PAG"} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                     </div>
                   </div>
                 )}
@@ -672,20 +711,20 @@ export default function SurveysPage() {
             {/* Step 6: Story */}
             {wizardStep === 6 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>6. Adım: Story / Görsel Konfigürasyonu (Opsiyonel)</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>6. Adım: Story / Görsel Konfigürasyonu</h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                  <input type="checkbox" checked={formShowStory} onChange={(e) => setFormShowStory(e.target.checked)} id="storyCheck" />
-                  <label htmlFor="storyCheck" style={{ fontSize: '14px', fontWeight: 600 }}>Story Bar'da Göster</label>
+                  <input type="checkbox" checked={formShowStory} onChange={(e) => setFormShowStory(e.target.checked)} id="storyCheck" style={{ width: '18px', height: '18px' }} />
+                  <label htmlFor="storyCheck" style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)' }}>Story Bar'da Göster</label>
                 </div>
                 {formShowStory && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Kısa Story Etiketi (Label)</label>
-                      <input type="text" value={formStoryLabel} onChange={(e) => setFormStoryLabel(e.target.value)} placeholder="Örn: Ford Özel" style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kısa Story Etiketi (Label)</label>
+                      <input type="text" value={formStoryLabel} onChange={(e) => setFormStoryLabel(e.target.value)} placeholder="Örn: Ford Özel" style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Kategori Görseli (Preset Asset)</label>
-                      <select value={formStoryImageCategory} onChange={(e) => setFormStoryImageCategory(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}>
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kategori Görseli (Preset Asset)</label>
+                      <select value={formStoryImageCategory} onChange={(e) => setFormStoryImageCategory(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}>
                         <option value="Otomotiv">Otomotiv Görseli</option>
                         <option value="Yeme / İçme">Yeme / İçme Görseli</option>
                         <option value="Teknoloji">Teknoloji Görseli</option>
@@ -700,14 +739,14 @@ export default function SurveysPage() {
             {/* Step 7: Questions */}
             {wizardStep === 7 && (
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>7. Adım: Sorular (Max 3 / Mevcut: {formQuestions.length})</h4>
-                  <button onClick={handleAddQuestion} disabled={formQuestions.length >= 3} style={{ padding: '6px 14px', backgroundColor: formQuestions.length >= 3 ? '#475569' : 'var(--brand-lime)', color: formQuestions.length >= 3 ? '#94A3B8' : '#011033', fontWeight: 'bold', borderRadius: '6px', fontSize: '12px' }}>+ Soru Ekle</button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>7. Adım: Sorular (Max 3 / Mevcut: {formQuestions.length})</h4>
+                  <button onClick={handleAddQuestion} disabled={formQuestions.length >= 3} style={{ padding: '8px 14px', backgroundColor: formQuestions.length >= 3 ? 'var(--bg-surface-secondary)' : 'var(--brand-navy)', color: formQuestions.length >= 3 ? 'var(--text-muted)' : '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '12px' }}>+ Soru Ekle</button>
                 </div>
                 {formQuestions.map((q, idx) => (
-                  <div key={q.id || idx} style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', marginBottom: '12px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ marginBottom: '8px' }}>
-                      <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{idx + 1}. Soru Metni</label>
+                  <div key={q.id || idx} style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ marginBottom: '10px' }}>
+                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{idx + 1}. Soru Metni</label>
                       <input
                         type="text"
                         value={q.text}
@@ -716,11 +755,11 @@ export default function SurveysPage() {
                           updated[idx].text = e.target.value;
                           setFormQuestions(updated);
                         }}
-                        style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                        style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}
                       />
                     </div>
                     <div>
-                      <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Seçenekler (Virgülle ayırın)</label>
+                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Seçenekler (Virgülle ayırın)</label>
                       <input
                         type="text"
                         value={q.options.join(', ')}
@@ -729,7 +768,7 @@ export default function SurveysPage() {
                           updated[idx].options = e.target.value.split(',').map(s => s.trim());
                           setFormQuestions(updated);
                         }}
-                        style={{ width: '100%', padding: '8px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }}
+                        style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}
                       />
                     </div>
                   </div>
@@ -740,15 +779,15 @@ export default function SurveysPage() {
             {/* Step 8: Schedule */}
             {wizardStep === 8 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>8. Adım: Yayın Tarihi & Saat</h4>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>8. Adım: Yayın Tarihi & Saat</h4>
+                <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Başlangıç Tarihi</label>
-                    <input type="datetime-local" value={formStartAt} onChange={(e) => setFormStartAt(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Başlangıç Tarihi</label>
+                    <input type="datetime-local" value={formStartAt} onChange={(e) => setFormStartAt(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                   </div>
                   <div>
-                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Bitiş Tarihi</label>
-                    <input type="datetime-local" value={formEndAt} onChange={(e) => setFormEndAt(e.target.value)} style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'white' }} />
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Bitiş Tarihi</label>
+                    <input type="datetime-local" value={formEndAt} onChange={(e) => setFormEndAt(e.target.value)} style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                   </div>
                 </div>
               </div>
@@ -757,8 +796,8 @@ export default function SurveysPage() {
             {/* Step 9: Preview */}
             {wizardStep === 9 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>9. Adım: Önizleme & Konfigürasyon Özeti</h4>
-                <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>9. Adım: Önizleme & Konfigürasyon Özeti</h4>
+                <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
                   <p><strong>Sahip:</strong> {formOwnerType} {formOrgId && `(${formOrgId})`}</p>
                   <p><strong>Başlık:</strong> {formTitle || 'Başlık Girilmedi'}</p>
                   <p><strong>Hedef Kitle:</strong> {formTargeting}</p>
@@ -772,22 +811,22 @@ export default function SurveysPage() {
             {/* Step 10: Submit & Approve */}
             {wizardStep === 10 && (
               <div>
-                <h4 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '12px' }}>10. Adım: Onaya Gönder & Yayınla</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>10. Adım: Onaya Gönder & Yayınla</h4>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                   Süper Admin onayı alındıktan sonra anket verileri kilitlenecek ve soru snapshot'ı oluşturulacaktır.
                 </p>
-                <div style={{ display: 'flex', gap: '12px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
                   <button
                     onClick={() => handleSaveSurvey('DRAFT')}
                     disabled={isSaving}
-                    style={{ padding: '12px 20px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', opacity: isSaving ? 0.6 : 1 }}
+                    style={{ flex: 1, minWidth: '130px', padding: '12px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, fontSize: '13px', opacity: isSaving ? 0.6 : 1 }}
                   >
                     {isSaving ? 'Kaydediliyor...' : 'Taslak Kaydet'}
                   </button>
                   <button
                     onClick={() => handleSaveSurvey('PENDING_APPROVAL')}
                     disabled={isSaving}
-                    style={{ padding: '12px 20px', backgroundColor: 'var(--brand-lime)', color: '#011033', borderRadius: '8px', fontWeight: 'bold', fontSize: '14px', opacity: isSaving ? 0.6 : 1 }}
+                    style={{ flex: 1, minWidth: '180px', padding: '12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '8px', fontWeight: 700, fontSize: '13px', opacity: isSaving ? 0.6 : 1, boxShadow: 'var(--shadow-sm)' }}
                   >
                     {isSaving ? 'Gönderiliyor...' : 'Super Admin Onayına Gönder'}
                   </button>
@@ -796,79 +835,147 @@ export default function SurveysPage() {
             )}
 
             {/* Modal Controls */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-              <button onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1} style={{ padding: '8px 16px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '6px', opacity: wizardStep === 1 ? 0.5 : 1 }}>Önceki</button>
-              <button onClick={() => setWizardStep(Math.min(10, wizardStep + 1))} disabled={wizardStep === 10} style={{ padding: '8px 16px', backgroundColor: 'var(--brand-lime)', color: '#011033', fontWeight: 'bold', borderRadius: '6px', opacity: wizardStep === 10 ? 0.5 : 1 }}>Sonraki</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+              <button onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, opacity: wizardStep === 1 ? 0.5 : 1 }}>Önceki</button>
+              <button onClick={() => setWizardStep(Math.min(10, wizardStep + 1))} disabled={wizardStep === 10} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', opacity: wizardStep === 10 ? 0.5 : 1 }}>Sonraki</button>
             </div>
           </div>
         </div>
       )}
 
       {/* Survey List Table */}
-      <h3 style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '16px' }}>Kampanya Anketleri</h3>
+      <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '16px' }}>
+        Kampanya Anketleri
+      </h3>
 
       {isLoading ? (
-        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 500 }}>
           Anketler Yükleniyor...
         </div>
       ) : (
-        <table style={{ width: '100%', borderCollapse: 'collapse', backgroundColor: 'var(--bg-surface)', borderRadius: '8px', overflow: 'hidden' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '13px' }}>
-              <th style={{ padding: '16px' }}>ID</th>
-              <th style={{ padding: '16px' }}>Başlık</th>
-              <th style={{ padding: '16px' }}>Sahip</th>
-              <th style={{ padding: '16px' }}>Durum</th>
-              <th style={{ padding: '16px' }}>Sorular</th>
-              <th style={{ padding: '16px' }}>Ödül</th>
-              <th style={{ padding: '16px' }}>Aksiyonlar</th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          {/* Desktop Table View */}
+          <div className="table-desktop-view" style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-secondary)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  <th style={{ padding: '14px 16px' }}>ID</th>
+                  <th style={{ padding: '14px 16px' }}>Başlık</th>
+                  <th style={{ padding: '14px 16px' }}>Sahip</th>
+                  <th style={{ padding: '14px 16px' }}>Durum</th>
+                  <th style={{ padding: '14px 16px' }}>Sorular</th>
+                  <th style={{ padding: '14px 16px' }}>Ödül</th>
+                  <th style={{ padding: '14px 16px' }}>Aksiyonlar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSurveys.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                      Bu filtreye uygun anket bulunamadı.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredSurveys.map((s) => (
+                    <tr key={s.surveyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px', color: 'var(--text-primary)' }}>
+                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{s.surveyId}</td>
+                      <td style={{ padding: '14px 16px', fontWeight: 700 }}>{s.title}</td>
+                      <td style={{ padding: '14px 16px' }}>{s.ownerType}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
+                          backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
+                          color: s.status === 'ACTIVE' ? 'var(--success-color)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
+                          border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : s.status === 'PENDING_APPROVAL' ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
+                        }}>
+                          {s.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>{s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</td>
+                      <td style={{ padding: '14px 16px' }}>+{s.profileScoreReward || 0} Puan</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleOpenEditWizard(s)}
+                            style={{ padding: '6px 12px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}
+                          >
+                            Düzenle
+                          </button>
+                          {s.status === 'PENDING_APPROVAL' && (
+                            <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '12px' }}>Onayla</button>
+                          )}
+                          {!s.isArchived ? (
+                            <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '6px 12px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>Arşivle</button>
+                          ) : (
+                            <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '6px 12px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>Geri Al</button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Card Presentation */}
+          <div className="card-mobile-view">
             {filteredSurveys.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                  Bu filtreye uygun anket bulunamadı.
-                </td>
-              </tr>
+              <div style={{ padding: '32px 16px', textAlign: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                Bu filtreye uygun anket bulunamadı.
+              </div>
             ) : (
               filteredSurveys.map((s) => (
-                <tr key={s.surveyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px' }}>
-                  <td style={{ padding: '16px', fontFamily: 'monospace' }}>{s.surveyId}</td>
-                  <td style={{ padding: '16px', fontWeight: 500 }}>{s.title}</td>
-                  <td style={{ padding: '16px' }}>{s.ownerType}</td>
-                  <td style={{ padding: '16px' }}>
+                <div key={s.surveyId} style={{
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  padding: '16px',
+                  boxShadow: 'var(--shadow-sm)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{s.title}</h4>
                     <span style={{
-                      padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold',
-                      backgroundColor: s.status === 'ACTIVE' ? 'rgba(183, 243, 74, 0.15)' : s.status === 'PENDING_APPROVAL' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(255,255,255,0.05)',
-                      color: s.status === 'ACTIVE' ? 'var(--brand-lime)' : s.status === 'PENDING_APPROVAL' ? '#F59E0B' : 'white'
+                      padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
+                      backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
+                      color: s.status === 'ACTIVE' ? 'var(--success-color)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
+                      border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : s.status === 'PENDING_APPROVAL' ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
                     }}>
                       {s.status}
                     </span>
-                  </td>
-                  <td style={{ padding: '16px' }}>{s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</td>
-                  <td style={{ padding: '16px' }}>+{s.profileScoreReward || 0} Puan</td>
-                  <td style={{ padding: '16px', display: 'flex', gap: '8px' }}>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                    <div><strong>Sahip:</strong> {s.ownerType}</div>
+                    <div><strong>Soru Sayısı:</strong> {s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</div>
+                    <div><strong>Profil Puanı:</strong> +{s.profileScoreReward || 0} Puan</div>
+                    <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>ID: {s.surveyId}</div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
                     <button
                       onClick={() => handleOpenEditWizard(s)}
-                      style={{ padding: '4px 10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'white', borderRadius: '4px', fontSize: '12px' }}
+                      style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
                     >
                       Düzenle
                     </button>
                     {s.status === 'PENDING_APPROVAL' && (
-                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '4px 10px', backgroundColor: 'var(--brand-lime)', color: '#011033', fontWeight: 'bold', borderRadius: '4px', fontSize: '12px' }}>Onayla</button>
+                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', fontSize: '13px' }}>Onayla</button>
                     )}
                     {!s.isArchived ? (
-                      <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '4px 10px', backgroundColor: 'rgba(240, 68, 56, 0.15)', color: 'var(--error-color)', borderRadius: '4px', fontSize: '12px' }}>Arşivle</button>
+                      <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>Arşivle</button>
                     ) : (
-                      <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '4px 10px', backgroundColor: 'rgba(183, 243, 74, 0.15)', color: 'var(--brand-lime)', borderRadius: '4px', fontSize: '12px' }}>Geri Al</button>
+                      <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>Geri Al</button>
                     )}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               ))
             )}
-          </tbody>
-        </table>
+          </div>
+        </>
       )}
     </div>
   );

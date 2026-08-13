@@ -2,142 +2,247 @@
 
 import './globals.css';
 import Link from 'next/link';
-import React from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import { usePathname } from 'next/navigation';
 
 function NavigationWrapper({ children }: { children: React.ReactNode }) {
   const { user, isAdmin, signOut } = useAuth();
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
+  const navItems = [
+    { href: '/', label: 'Dashboard', icon: '📊' },
+    { href: '/surveys', label: 'Anket Yönetimi', icon: '📝' },
+    { href: '/vouchers', label: 'Hediye Çekleri', icon: '🎟️' },
+    { href: '/stories', label: 'Story Bar', icon: '⭐' },
+    { href: '/applications', label: 'Firma Başvuruları', icon: '🏢' },
+  ];
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
-      {/* Sidebar */}
-      <aside style={{
-        width: '260px',
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: 'var(--bg-primary)' }}>
+      {/* Mobile Header Bar */}
+      <header className="mobile-only" style={{
+        height: '60px',
         backgroundColor: 'var(--bg-surface)',
-        borderRight: '1px solid var(--border-color)',
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '24px'
+        borderBottom: '1px solid var(--border-color)',
+        padding: '0 16px',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100,
+        boxShadow: 'var(--shadow-sm)'
       }}>
-        <div style={{ padding: '0 12px' }}>
-          <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>PAG ADMIN</h1>
-          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>Yönetim Portalı V1</p>
-        </div>
-
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <Link href="/" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 500,
-            backgroundColor: pathname === '/' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-            borderLeft: pathname === '/' ? '4px solid var(--brand-lime)' : 'none'
-          }}>
-            📊 Dashboard
-          </Link>
-          <Link href="/surveys" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 500,
-            backgroundColor: pathname === '/surveys' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-            borderLeft: pathname === '/surveys' ? '4px solid var(--brand-lime)' : 'none'
-          }}>
-            📝 Anket Yönetimi
-          </Link>
-          <Link href="/vouchers" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 500,
-            backgroundColor: pathname === '/vouchers' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-            borderLeft: pathname === '/vouchers' ? '4px solid var(--brand-lime)' : 'none'
-          }}>
-            🎟️ Hediye Çekleri
-          </Link>
-          <Link href="/stories" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 500,
-            backgroundColor: pathname === '/stories' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-            borderLeft: pathname === '/stories' ? '4px solid var(--brand-lime)' : 'none'
-          }}>
-            ⭐ Story Bar
-          </Link>
-          <Link href="/applications" style={{
-            padding: '12px 16px',
-            borderRadius: '8px',
-            color: 'var(--text-primary)',
-            fontSize: '14px',
-            fontWeight: 500,
-            backgroundColor: pathname === '/applications' ? 'rgba(183, 243, 74, 0.15)' : 'transparent',
-            borderLeft: pathname === '/applications' ? '4px solid var(--brand-lime)' : 'none'
-          }}>
-            🏢 Firma Başvuruları
-          </Link>
-        </nav>
-
-        <div style={{ marginTop: 'auto', padding: '16px 12px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {user && isAdmin && (
-            <div style={{ marginBottom: '4px' }}>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Yönetici Hesabı</p>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
-                {user.email}
-              </p>
-            </div>
-          )}
-          <Link
-            href="/change-password"
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label="Menü"
             style={{
-              width: '100%',
               padding: '8px 12px',
               backgroundColor: 'var(--bg-surface-secondary)',
+              border: '1px solid var(--border-highlight)',
+              borderRadius: '8px',
               color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              textAlign: 'center',
-              display: 'block'
+              fontSize: '18px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
           >
-            🔒 Şifre Değiştir
-          </Link>
+            ☰
+          </button>
+          <img
+            src="/logo.png"
+            alt="PAG Logo"
+            style={{ height: '32px', width: 'auto', borderRadius: '6px' }}
+          />
+          <span style={{ fontSize: '15px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+            PAG PORTAL
+          </span>
+        </div>
+
+        {user && (
           <button
             onClick={() => signOut()}
             style={{
-              width: '100%',
-              padding: '8px 12px',
-              backgroundColor: 'rgba(240, 68, 56, 0.1)',
+              padding: '6px 10px',
+              backgroundColor: 'var(--error-bg)',
               color: 'var(--error-color)',
-              border: '1px solid var(--error-color)',
+              border: '1px solid var(--error-border)',
               borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              cursor: 'pointer'
+              fontSize: '11px',
+              fontWeight: 700
             }}
           >
-            🚪 Çıkış Yap
+            🚪 Çıkış
           </button>
-        </div>
-      </aside>
+        )}
+      </header>
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '32px 40px', overflowY: 'auto' }}>
-        {children}
-      </main>
+      {/* Mobile Menu Backdrop */}
+      {isMobileMenuOpen && (
+        <div
+          className="mobile-only"
+          onClick={() => setIsMobileMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(2px)',
+            zIndex: 1500
+          }}
+        />
+      )}
+
+      <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+        {/* Sidebar (Desktop Static & Mobile Overlay Drawer) */}
+        <aside
+          className="admin-sidebar"
+          style={{
+            width: '260px',
+            backgroundColor: 'var(--bg-surface)',
+            borderRight: '1px solid var(--border-color)',
+            padding: '24px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+            boxShadow: 'var(--shadow-sm)',
+            transform: isMobileMenuOpen ? 'translateX(0)' : undefined,
+            transition: 'transform 0.3s ease-in-out'
+          }}
+        >
+          {/* Brand Logo & Header (Sidebar top) */}
+          <div style={{ padding: '4px 12px 12px 12px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <img
+                src="/logo.png"
+                alt="PAG Logo"
+                style={{ height: '36px', width: 'auto', borderRadius: '8px', objectFit: 'contain' }}
+              />
+              <div>
+                <h1 style={{ fontSize: '15px', fontWeight: 800, color: 'var(--brand-navy)', letterSpacing: '-0.3px', margin: 0 }}>
+                  PAG PORTAL
+                </h1>
+                <p style={{ fontSize: '11px', fontWeight: 500, color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Kurumsal Yönetim
+                </p>
+              </div>
+            </div>
+
+            <button
+              className="mobile-only"
+              onClick={() => setIsMobileMenuOpen(false)}
+              style={{ background: 'none', fontSize: '18px', color: 'var(--text-muted)', minHeight: 'auto', padding: '4px' }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Navigation Menu */}
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px 14px',
+                    borderRadius: '8px',
+                    color: isActive ? 'var(--brand-navy)' : 'var(--text-secondary)',
+                    fontSize: '14px',
+                    fontWeight: isActive ? 700 : 500,
+                    backgroundColor: isActive ? 'var(--bg-surface-secondary)' : 'transparent',
+                    borderLeft: isActive ? '4px solid var(--brand-navy)' : '4px solid transparent',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>{item.icon}</span>
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Bottom User Controls */}
+          <div style={{
+            marginTop: 'auto',
+            padding: '16px 12px',
+            borderTop: '1px solid var(--border-color)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '12px',
+            backgroundColor: 'var(--bg-primary)',
+            borderRadius: '12px'
+          }}>
+            {user && isAdmin && (
+              <div>
+                <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Yönetici Hesabı
+                </p>
+                <p style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', wordBreak: 'break-all', marginTop: '2px' }}>
+                  {user.email}
+                </p>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <Link
+                href="/change-password"
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  backgroundColor: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
+                  border: '1px solid var(--border-highlight)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  textAlign: 'center',
+                  display: 'inline-block'
+                }}
+              >
+                🔒 Şifre
+              </Link>
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  signOut();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '8px 10px',
+                  backgroundColor: 'var(--error-bg)',
+                  color: 'var(--error-color)',
+                  border: '1px solid var(--error-border)',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                🚪 Çıkış
+              </button>
+            </div>
+          </div>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="admin-main-content" style={{ flex: 1, padding: '32px 40px', overflowY: 'auto', width: '100%', minWidth: 0 }}>
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
@@ -151,6 +256,7 @@ export default function RootLayout({
     <html lang="tr">
       <head>
         <title>PAG Portal — Kurumsal Yönetim</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
         <meta name="description" content="PAG Kurumsal Yönetim Portalı" />
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <link rel="icon" href="/icon.png" type="image/png" sizes="32x32" />
