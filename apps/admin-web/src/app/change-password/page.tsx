@@ -23,7 +23,6 @@ export default function ChangePasswordPage() {
     e.preventDefault();
     setErrorMsg(null);
 
-
     if (!user || !user.email) {
       setErrorMsg('Oturum açmış bir kullanıcı bulunamadı.');
       return;
