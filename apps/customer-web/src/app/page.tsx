@@ -8,17 +8,18 @@ import DeviceMockups from '@/components/DeviceMockups';
 
 export default function HomePage() {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', width: '100%', overflowX: 'hidden' }}>
       <Header />
 
-      <main style={{ flex: 1 }}>
+      <main style={{ flex: 1, width: '100%' }}>
         {/* HERO SECTION — USER FIRST */}
         <section style={{
-          padding: '100px 0 80px 0',
-          background: 'radial-gradient(circle at 50% 30%, rgba(183, 243, 74, 0.12) 0%, rgba(1, 16, 51, 0) 70%)'
+          padding: '80px 0 60px 0',
+          background: 'radial-gradient(circle at 50% 30%, rgba(183, 243, 74, 0.12) 0%, rgba(1, 16, 51, 0) 70%)',
+          width: '100%'
         }}>
           <div className="container" style={{ textAlign: 'center', maxWidth: '840px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
               <div className="badge-lime">
                 ⚡ Mobil Anket & Profilleme Ekosistemi
               </div>
@@ -28,11 +29,11 @@ export default function HomePage() {
                 <span className="text-gradient">Öne Geç, Ödüllü Anketleri</span> İlk Sen Gör!
               </h1>
 
-              <p style={{ fontSize: '19px', color: 'var(--text-secondary)', lineHeight: '1.6', maxWidth: '720px' }}>
+              <p style={{ fontSize: '18px', color: 'var(--text-secondary)', lineHeight: '1.6', maxWidth: '720px' }}>
                 PAG; ilgi alanlarınıza uygun anketlere katılarak <strong>Profil Puanı</strong> kazandığınız, yüksek puanla gelecek kampanya ve anket bildirimlerinde <strong>öncelik elde ettiğiniz</strong> yeni nesil mobil platformdur.
               </p>
 
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
+              <div className="hero-buttons">
                 <a href="#nasil-calisir" className="btn-lime" style={{ padding: '14px 28px', fontSize: '15px' }}>
                   Nasıl Çalışır? Detayları Gör ↓
                 </a>
@@ -41,7 +42,7 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <div style={{ display: 'flex', gap: '36px', justifyContent: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '28px', marginTop: '16px', width: '100%', maxWidth: '600px' }}>
+              <div className="responsive-hero-stats">
                 <div>
                   <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Maks. 3 Soru</div>
                   <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Hızlı ve yormayan sorular</div>
@@ -62,7 +63,7 @@ export default function HomePage() {
         {/* SECTION 1: NASIL ÇALIŞIR */}
         <section id="nasil-calisir" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
           <div className="container">
-            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 56px auto' }}>
+            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px auto' }}>
               <div className="badge-lime">Akış & Mekanizma</div>
               <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>PAG Nasıl Çalışır?</h2>
               <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '16px' }}>
@@ -70,7 +71,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
               {[
                 {
                   step: '01',
@@ -106,7 +107,7 @@ export default function HomePage() {
         {/* SECTION 2: PROFİL PUANI & YARIŞ / HIZ AVANTAJI */}
         <section id="profil-puani" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)' }}>
           <div className="container">
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+            <div className="responsive-grid-2" style={{ alignItems: 'center' }}>
               <div>
                 <div className="badge-lime">⭐ Öncelik & Sıralama Otoritesi</div>
                 <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white', lineHeight: 1.2 }}>
@@ -120,7 +121,7 @@ export default function HomePage() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>✓</div>
                     <div>
                       <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Erken Erişim & Bildirim Önceliği</h4>
                       <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -130,7 +131,7 @@ export default function HomePage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>✓</div>
                     <div>
                       <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Hız ve Sıralama Avantajı</h4>
                       <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
@@ -140,11 +141,11 @@ export default function HomePage() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>✓</div>
                     <div>
                       <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Şeffaf ve İzlenebilir Defter (Ledger)</h4>
                       <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        Earned score events are logged auditably. Duplicate score allocation is strictly prevented by the backend.
+                        Kazanılan tüm puan hareketleri auditable event ledger kaydı ile tutulur. Çift puan tanımlaması engellenir.
                       </p>
                     </div>
                   </div>
@@ -194,7 +195,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '24px' }}>
               <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
                 <div style={{ fontSize: '40px', marginBottom: '16px' }}>💵</div>
                 <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Para Ödülü (TL)</h3>
@@ -229,7 +230,7 @@ export default function HomePage() {
         {/* SECTION 5: FIRMALAR İÇİN TEASER CARD */}
         <section style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
           <div className="container">
-            <div className="glass-card" style={{ padding: '48px', border: '1px solid var(--border-highlight)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', alignItems: 'center' }}>
+            <div className="glass-card responsive-grid-2" style={{ padding: '40px', border: '1px solid var(--border-highlight)', alignItems: 'center' }}>
               <div>
                 <div className="badge-lime">Kurumsal Çözümler</div>
                 <h2 style={{ fontSize: '32px', fontWeight: '800', marginTop: '12px', color: 'white' }}>
@@ -239,11 +240,11 @@ export default function HomePage() {
                   Yaş, lokasyon (il/ilçe/mahalle), medeni durum ve çocuk durumu gibi mikro-profil filtreleriyle hedef kitlenizi oluşturun, maksimum 3 soruda anında gerçek veri toplayın.
                 </p>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <Link href="/firmalar" className="btn-lime" style={{ textAlign: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                <Link href="/firmalar" className="btn-lime" style={{ textAlign: 'center', width: '100%' }}>
                   Kurumsal Detaylar →
                 </Link>
-                <Link href="/firma-basvuru" className="btn-outline" style={{ textAlign: 'center' }}>
+                <Link href="/firma-basvuru" className="btn-outline" style={{ textAlign: 'center', width: '100%' }}>
                   Kurumsal Başvuru Yap
                 </Link>
               </div>

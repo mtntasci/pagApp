@@ -27,6 +27,7 @@ html, body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  position: relative;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
@@ -81,11 +82,34 @@ img, video, canvas, svg {
   -webkit-text-fill-color: transparent;
 }
 
+/* Hero Section Utilities */
+.hero-buttons {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+  width: 100%;
+}
+
+.responsive-hero-stats {
+  display: flex;
+  gap: 36px;
+  justify-content: center;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-color);
+  padding-top: 28px;
+  margin-top: 16px;
+  width: 100%;
+  max-width: 600px;
+}
+
 /* Responsive Grid Utility */
 .responsive-grid-2 {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 32px;
+  width: 100%;
 }
 
 /* Glassmorphism Card */
@@ -96,6 +120,7 @@ img, video, canvas, svg {
   border-radius: 16px;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  width: 100%;
 }
 
 .glass-card:hover {
@@ -211,11 +236,11 @@ img, video, canvas, svg {
   }
 
   .glass-card {
-    padding: 20px 16px !important;
+    padding: 24px 16px !important;
   }
 
   h1 {
-    font-size: 28px !important;
+    font-size: 26px !important;
     line-height: 1.25 !important;
     letter-spacing: -0.5px !important;
     word-break: break-word;
@@ -231,14 +256,31 @@ img, video, canvas, svg {
     font-size: 18px !important;
   }
 
-  .btn-lime, .btn-outline {
-    width: 100%;
-    justify-content: center;
+  .hero-buttons {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .hero-buttons .btn-lime,
+  .hero-buttons .btn-outline {
+    width: 100% !important;
+    max-width: 280px !important;
+    padding: 12px 20px !important;
+    font-size: 14px !important;
+  }
+
+  .responsive-hero-stats {
+    gap: 20px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    padding-top: 20px !important;
   }
 
   .device-shell {
     width: 100% !important;
-    max-width: 290px !important;
+    max-width: 280px !important;
     height: 540px !important;
   }
 

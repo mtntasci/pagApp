@@ -118,6 +118,70 @@ export default function SurveysPage() {
     ]
   }, null, 2);
 
+  const sampleMultiSurveyJson = JSON.stringify([
+    {
+      "surveyId": "srv_kahve_tercihleri_2026",
+      "title": "Haftalık Kahve Tüketim Alışkanlıkları",
+      "description": "Günlük kahve içme tercihlerinizi paylaşın, Profile Score ve ödül kazanın.",
+      "ownerType": "PAG",
+      "surveyType": "PAG",
+      "category": "Genel",
+      "status": "ACTIVE",
+      "profileScoreReward": 100,
+      "startAt": "2026-08-10T09:00:00.000Z",
+      "endAt": "2026-08-30T23:59:59.000Z",
+      "isHighlighted": true,
+      "targeting": { "type": "ALL" },
+      "questions": [
+        {
+          "id": "q1",
+          "questionText": "Günde ortalama kaç fincan kahve tüketiyorsunuz?",
+          "options": ["Tüketmiyorum", "1 - 2 Fincan", "3+ Fincan"]
+        }
+      ]
+    },
+    {
+      "surveyId": "srv_teknoloji_alısveris_2026",
+      "title": "Dijital Alışveriş Alışkanlıkları Araştırması",
+      "description": "Online alışveriş tercihlerinizi paylaşın, Profile Score kazanın.",
+      "ownerType": "ORGANIZATION",
+      "surveyType": "ORGANIZATION",
+      "category": "Teknoloji",
+      "status": "ACTIVE",
+      "profileScoreReward": 150,
+      "startAt": "2026-08-12T10:00:00.000Z",
+      "endAt": "2026-09-01T23:59:59.000Z",
+      "targeting": { "type": "ALL" },
+      "questions": [
+        {
+          "id": "q1",
+          "questionText": "Online alışveriş yaparken en çok hangi kategoriyi tercih ediyorsunuz?",
+          "options": ["Giyim / Ayakkabı", "Elektronik", "Market / Gıda", "Kozmetik"]
+        }
+      ]
+    },
+    {
+      "surveyId": "srv_otomotiv_tercih_2026",
+      "title": "Elektrikli Araç Tercih ve Eğilimleri",
+      "description": "Geleceğin otomotiv teknolojileri hakkında fikrinizi belirtin.",
+      "ownerType": "ORGANIZATION",
+      "surveyType": "ORGANIZATION",
+      "category": "Otomotiv",
+      "status": "SCHEDULED",
+      "profileScoreReward": 200,
+      "startAt": "2026-08-20T09:00:00.000Z",
+      "endAt": "2026-09-10T23:59:59.000Z",
+      "targeting": { "type": "ALL" },
+      "questions": [
+        {
+          "id": "q1",
+          "questionText": "Önümüzdeki 2 yıl içinde elektrikli araç almayı düşünür müsünüz?",
+          "options": ["Kesinlikle Evet", "Kararsızım", "Hayır Düşünmüyorum"]
+        }
+      ]
+    }
+  ], null, 2);
+
   const handleJsonFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1219,7 +1283,14 @@ export default function SurveysPage() {
                 onClick={() => setJsonInputText(sampleSurveyJson)}
                 style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-card)', cursor: 'pointer' }}
               >
-                📋 Örnek Şablon Yapıştır
+                📋 Tek Anket Şablonu
+              </button>
+              <button
+                type="button"
+                onClick={() => setJsonInputText(sampleMultiSurveyJson)}
+                style={{ padding: '6px 12px', fontSize: '12px', borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'rgba(183,243,74,0.15)', color: '#CCFF00', fontWeight: 700, cursor: 'pointer' }}
+              >
+                📋 3-4 Anketli Liste Şablonu
               </button>
             </div>
 
