@@ -1,427 +1,275 @@
 'use client';
 
-import React, { useState } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import React from 'react';
+import Link from 'next/link';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import DeviceMockups from '@/components/DeviceMockups';
 
-export default function MarketingPage() {
-  const [formData, setFormData] = useState({
-    companyName: '',
-    contactName: '',
-    contactEmail: '',
-    contactPhone: '',
-    website: '',
-    message: ''
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-
-  const handleSubmitApplication = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMsg(null);
-
-    if (!formData.companyName.trim() || !formData.contactName.trim() || !formData.contactEmail.trim() || !formData.contactPhone.trim()) {
-      setErrorMsg('Lütfen zorunlu alanları doldurunuz.');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const submitFn = httpsCallable(functions, 'submitCompanyApplication');
-      const res: any = await submitFn({
-        companyName: formData.companyName,
-        contactName: formData.contactName,
-        contactEmail: formData.contactEmail,
-        contactPhone: formData.contactPhone,
-        website: formData.website,
-        message: formData.message
-      });
-
-      if (res.data?.success) {
-        setSubmitSuccess(true);
-        setFormData({
-          companyName: '',
-          contactName: '',
-          contactEmail: '',
-          contactPhone: '',
-          website: '',
-          message: ''
-        });
-      }
-    } catch (err: any) {
-      console.error('Company Application Error:', err);
-      setErrorMsg('Başvuru gönderilirken bir hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const scrollToForm = () => {
-    const el = document.getElementById('company-apply');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
+export default function HomePage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <header style={{
-        backgroundColor: 'rgba(1, 16, 51, 0.9)',
-        backdropFilter: 'blur(10px)',
-        borderBottom: '1px solid var(--border-color)',
-        padding: '16px 40px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '40px',
-            height: '40px',
-            backgroundColor: 'rgba(183, 243, 74, 0.15)',
-            border: '1px solid var(--brand-lime)',
-            borderRadius: '10px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <span style={{ fontWeight: 'bold', color: 'var(--brand-lime)', fontSize: '18px' }}>PAG</span>
-          </div>
-          <span style={{ fontSize: '20px', fontWeight: 'bold', color: 'white' }}>PAG</span>
-        </div>
+      <Header />
 
-        {/* Business CTAs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <a
-            href="https://app.pagapp.com"
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'white',
-              fontSize: '14px',
-              fontWeight: 600,
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🏢 Firma Girişi
-          </a>
-
-          <button
-            onClick={scrollToForm}
-            style={{
-              padding: '10px 20px',
-              borderRadius: '8px',
-              backgroundColor: 'var(--brand-lime)',
-              color: '#011033',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            🚀 PAG ile Çalışmak İstiyorum
-          </button>
-        </div>
-      </header>
-
-      {/* Hero Section */}
-      <section style={{
-        padding: '80px 40px',
-        maxWidth: '1100px',
-        margin: '0 auto',
-        textAlign: 'center'
-      }}>
-        <div style={{
-          display: 'inline-block',
-          padding: '6px 16px',
-          backgroundColor: 'rgba(183, 243, 74, 0.1)',
-          border: '1px solid var(--brand-lime)',
-          borderRadius: '20px',
-          color: 'var(--brand-lime)',
-          fontSize: '13px',
-          fontWeight: 600,
-          marginBottom: '24px'
+      <main style={{ flex: 1 }}>
+        {/* HERO SECTION — USER FIRST */}
+        <section style={{
+          padding: '80px 0 60px 0',
+          background: 'radial-gradient(circle at 50% 20%, rgba(183, 243, 74, 0.08) 0%, rgba(1, 16, 51, 0) 70%)'
         }}>
-          PAG Kurumsal Anket & Profilleme Ekosistemi
-        </div>
-        <h1 style={{ fontSize: '48px', fontWeight: '800', lineHeight: 1.2, marginBottom: '24px' }}>
-          Doğru Hedef Kitleye, Tam Zamanında Ve <br />
-          <span style={{ color: 'var(--brand-lime)' }}>Yüksek Verimle</span> Ulaşın
-        </h1>
-        <p style={{ fontSize: '18px', color: 'var(--text-secondary)', maxWidth: '750px', margin: '0 auto 40px auto' }}>
-          PAG, markalarınız için gerçek zamanlı, mikro-profilleme odaklı ve yüksek yanıt oranına sahip anket ve pazar araştırması platformudur.
-        </p>
+          <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div className="badge-lime">
+                ⚡ Mobil Anket & Profilleme Ekosistemi
+              </div>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
-          <button
-            onClick={scrollToForm}
-            style={{
-              padding: '16px 32px',
-              backgroundColor: 'var(--brand-lime)',
-              color: '#011033',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              borderRadius: '10px',
-              border: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            Firma Başvurusu Yap
-          </button>
-          <a
-            href="https://app.pagapp.com"
-            style={{
-              padding: '16px 32px',
-              backgroundColor: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: 'white',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              borderRadius: '10px'
-            }}
-          >
-            Kurumsal Portal Girişi
-          </a>
-        </div>
-      </section>
+              <h1 style={{ fontSize: '48px', fontWeight: '900', lineHeight: '1.15', letterSpacing: '-1px' }}>
+                Profil Puanını Yükselt, <br />
+                <span className="text-gradient">Öne Geç, Ödüllü Anketleri</span> İlk Sen Gör!
+              </h1>
 
-      {/* Company Application Form Section */}
-      <section id="company-apply" style={{
-        backgroundColor: 'var(--bg-surface)',
-        borderTop: '1px solid var(--border-color)',
-        padding: '80px 40px'
-      }}>
-        <div style={{ maxWidth: '640px', margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: '40px' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: 'bold', color: 'white' }}>PAG ile Çalışmak İstiyorum</h2>
-            <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '15px' }}>
-              Kurumunuz için özel anket ve pazar araştırması kampanyası başlatmak üzere başvuruda bulunun. Ekibimiz sizinle en kısa sürede iletişime geçecektir.
-            </p>
-          </div>
-
-          {submitSuccess ? (
-            <div style={{
-              padding: '32px',
-              backgroundColor: 'rgba(183, 243, 74, 0.1)',
-              border: '1px solid var(--brand-lime)',
-              borderRadius: '16px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '40px', marginBottom: '16px' }}>✅</div>
-              <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)', marginBottom: '8px' }}>
-                Firma Başvurunuz Başarıyla Alındı
-              </h3>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
-                Talebinizi aldık. İnceleme sonrasında kurumsal e-posta adresiniz üzerinden sizinle iletişime geçeceğiz.
+              <p style={{ fontSize: '18px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                PAG; ilgi alanlarınıza uygun anketlere katılarak <strong>Profil Puanı</strong> kazandığınız, yüksek puanla gelecek kampanya ve anket bildirimlerinde <strong>öncelik elde ettiğiniz</strong> yeni nesil mobil platformdur.
               </p>
-              <button
-                onClick={() => setSubmitSuccess(false)}
-                style={{
-                  marginTop: '24px',
-                  padding: '10px 24px',
-                  backgroundColor: 'var(--bg-surface-secondary)',
-                  color: 'white',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
-              >
-                Yeni Başvuru Yap
-              </button>
+
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
+                <a href="#nasil-calisir" className="btn-lime">
+                  Nasıl Çalışır? Detayları Gör ↓
+                </a>
+                <Link href="/firmalar" className="btn-outline">
+                  🏢 Kurumsal / Firmalar İçin
+                </Link>
+              </div>
+
+              <div style={{ display: 'flex', gap: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '24px', marginTop: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Maks. 3 Soru</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Hızlı ve yormayan sorular</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#FFFFFF' }}>Dinamik Sıralama</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Puanına göre bildirim önceliği</div>
+                </div>
+              </div>
             </div>
-          ) : (
-            <form onSubmit={handleSubmitApplication} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              {errorMsg && (
-                <div style={{
-                  padding: '12px 16px',
-                  backgroundColor: 'rgba(240, 68, 56, 0.15)',
-                  border: '1px solid var(--error-color)',
-                  color: 'var(--error-color)',
-                  borderRadius: '8px',
-                  fontSize: '14px'
-                }}>
-                  ⚠️ {errorMsg}
+
+            {/* Mobile App Visual Showcase */}
+            <div>
+              <DeviceMockups />
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 1: NASIL ÇALIŞIR */}
+        <section id="nasil-calisir" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+          <div className="container">
+            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 56px auto' }}>
+              <div className="badge-lime">Akış & Mekanizma</div>
+              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>PAG Nasıl Çalışır?</h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '16px' }}>
+                Katılım sağladıkça puan kazandıran, puanınız yükseldikçe sonraki kampanyalarda size öncelik kazandıran 4 adımlı döngü.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '24px' }}>
+              {[
+                {
+                  step: '01',
+                  title: 'Profilini Oluştur',
+                  desc: 'Temel profil sorularını yanıtla. İlgi alanlarını, demografik bilgilerini tam ve doğru doldur.'
+                },
+                {
+                  step: '02',
+                  title: 'Profil Puanı Kazan',
+                  desc: 'Tamamladığın her profil anketi ve etkinlik sana Profil Puanı kazandırır. Puanın şeffaf olarak kaydedilir.'
+                },
+                {
+                  step: '03',
+                  title: 'Erken Erişim Bildirimi Al',
+                  desc: 'Yüksek Profil Puanı olan kullanıcılar, yeni anket bildirimlerini ve sınırlı süreli fırsatları daha erken alır.'
+                },
+                {
+                  step: '04',
+                  title: 'Hızlı Yanıtla & Ödül Fırsatı',
+                  desc: 'Ankete katılan kullanıcılar ankete özel tanımlanmış Para Ödülü, Hediye Çeki veya Profil Puanı kazanma fırsatı yakalar.'
+                }
+              ].map((card, idx) => (
+                <div key={idx} className="glass-card" style={{ padding: '32px 24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '32px', fontWeight: '900', color: 'var(--brand-lime)', opacity: 0.8 }}>{card.step}</div>
+                  <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: 'white' }}>{card.title}</h3>
+                  <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>{card.desc}</p>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        </section>
 
+        {/* SECTION 2: PROFİL PUANI & YARIŞ / HIZ AVANTAJI */}
+        <section id="profil-puani" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)' }}>
+          <div className="container">
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Firma / Kurum Adı *
-                </label>
-                <input
-                  type="text"
-                  value={formData.companyName}
-                  onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                  placeholder="Örn: Ford Otosan A.Ş."
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--bg-surface-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
+                <div className="badge-lime">⭐ Öncelik & Sıralama Otoritesi</div>
+                <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white', lineHeight: 1.2 }}>
+                  Profil Puanı Nedir? <br />
+                  <span style={{ color: 'var(--brand-lime)' }}>Para Değildir, Avantajdır!</span>
+                </h2>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Yetkili Ad Soyad *
-                </label>
-                <input
-                  type="text"
-                  value={formData.contactName}
-                  onChange={(e) => setFormData({ ...formData, contactName: e.target.value })}
-                  placeholder="Örn: Ahmet Yılmaz"
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--bg-surface-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px'
-                  }}
-                />
-              </div>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '16px', fontSize: '16px', lineHeight: '1.7' }}>
+                  <strong>Profil Puanı (Profile Score)</strong> nakit para veya harcanabilir bakiye değildir. PAG ekosisteminde kullanıcıların güvenilirliğini, aktifliğini ve profil doluluğunu temsil eden dinamik sıralama puandır.
+                </p>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Kurumsal E-posta *
-                  </label>
-                  <input
-                    type="email"
-                    value={formData.contactEmail}
-                    onChange={(e) => setFormData({ ...formData, contactEmail: e.target.value })}
-                    placeholder="ahmet@kurum.com"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      backgroundColor: 'var(--bg-surface-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '14px'
-                    }}
-                  />
-                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '24px' }}>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Erken Erişim & Bildirim Önceliği</h4>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        PAG push bildirimleri kontrollü ve sıralı gönderilir. Yüksek puanlı kullanıcılar bildirimi ilk alan grupta yer alır.
+                      </p>
+                    </div>
+                  </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                    Telefon Numarası *
-                  </label>
-                  <input
-                    type="tel"
-                    value={formData.contactPhone}
-                    onChange={(e) => setFormData({ ...formData, contactPhone: e.target.value })}
-                    placeholder="+90 5xx xxx xx xx"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px',
-                      backgroundColor: 'var(--bg-surface-secondary)',
-                      border: '1px solid var(--border-color)',
-                      borderRadius: '8px',
-                      color: 'white',
-                      fontSize: '14px'
-                    }}
-                  />
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Hız ve Sıralama Avantajı</h4>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Bildirimi erken alan kullanıcılar anketi daha hızlı tamamlama şansı elde eder. Katılım zamanı derece ödüllerinde belirleyicidir.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>✓</div>
+                    <div>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Şeffaf ve İzlenebilir Defter (Ledger)</h4>
+                      <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        Earned score events are logged auditably. Duplicate score allocation is strictly prevented by the backend.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Web Sitesi (Opsiyonel)
-                </label>
-                <input
-                  type="url"
-                  value={formData.website}
-                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                  placeholder="https://kurum.com"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--bg-surface-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px'
-                  }}
-                />
+              {/* Informative Card */}
+              <div className="glass-card" style={{ padding: '36px', border: '1px solid var(--border-highlight)' }}>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)', marginBottom: '16px' }}>
+                  🎯 Rekabet & Zamanlama Mantığı
+                </h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.7', marginBottom: '20px' }}>
+                  PAG'da her anket sınırlı bütçe veya kontenjana sahip olabilir. Bildirimi erken almak, anket henüz tamamlanmadan katılım sağlama şansınızı artırır.
+                </p>
+                <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)', borderRadius: '10px', border: '1px solid var(--border-color)', fontSize: '13px' }}>
+                  <span style={{ color: 'var(--brand-lime)', fontWeight: 'bold' }}>Formül:</span> <br />
+                  Yüksek Profil Puanı → Erken Bildirim → Hızlı Katılım → Derece Ödülü Şansı!
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 3: ANKETLER */}
+        <section id="anketler" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+          <div className="container">
+            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px auto' }}>
+              <div className="badge-lime">Maksimum 3 Soru</div>
+              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>Hızlı ve Yormayan Anket Deneyimi</h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '16px' }}>
+                Uzun ve sıkıcı anketlere son. PAG anketleri maksimum 3 sorudan oluşur ve dakikalarınızı almaz.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+              <div className="glass-card" style={{ padding: '32px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'rgba(183, 243, 74, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>🌐</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>PAG Genel Anketleri</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  PAG platformu tarafından düzenlenen, genel eğilimleri ve kullanıcı tercihlerini anlamaya yönelik anketlerdir. Katılan kullanıcılara Profil Puanı veya genel ödüller kazandırır.
+                </p>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                  Kısa Mesaj / Talep (Opsiyonel)
-                </label>
-                <textarea
-                  value={formData.message}
-                  onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                  placeholder="Hangi alanda anket / araştırma yapmak istediğinizi belirtebilirsiniz..."
-                  rows={4}
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    backgroundColor: 'var(--bg-surface-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '8px',
-                    color: 'white',
-                    fontSize: '14px',
-                    resize: 'vertical'
-                  }}
-                />
+              <div className="glass-card" style={{ padding: '32px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'rgba(57, 119, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>🏢</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Firma & Marka Anketleri</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  Anlaşmalı markaların (Örn: Ford, McDonald's) belirli hedef kitlelere yönelik düzenlediği anketlerdir. Bu anketlerde Para Ödülü, Hediye Çeki (Voucher) veya yüksek Profil Puanı sunulabilir.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 4: ÖDÜLLER */}
+        <section id="oduller" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)' }}>
+          <div className="container">
+            <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px auto' }}>
+              <div className="badge-lime">Ödül Türleri</div>
+              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>PAG Ödül Ekosistemi</h2>
+              <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '16px' }}>
+                Anketlerin türüne ve kurgusuna göre kazanabileceğiniz ödül kategorileri.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
+              <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px' }}>💵</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Para Ödülü (TL)</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  Belirli firma anketlerinde ilk sıralarda tamamlayan kullanıcılara derece bazlı veya eşit dağıtımlı nakit para ödülleri aktarılır.
+                </p>
               </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  backgroundColor: 'var(--brand-lime)',
-                  color: '#011033',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                  opacity: isSubmitting ? 0.7 : 1,
-                  marginTop: '8px'
-                }}
-              >
-                {isSubmitting ? 'Başvuru Gönderiliyor...' : 'Firma Başvurusunu Gönder'}
-              </button>
-            </form>
-          )}
-        </div>
-      </section>
+              <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px' }}>🎟️</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Hediye Çekleri (Voucher)</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  Markaların hediye kodları (indirim veya ürün çeki) yetkili tamamlama sırasına göre kullanıcının hesabına dijital kod olarak tanımlanır.
+                </p>
+              </div>
 
-      {/* Footer */}
-      <footer style={{
-        marginTop: 'auto',
-        borderTop: '1px solid var(--border-color)',
-        padding: '32px 40px',
-        textAlign: 'center',
-        color: 'var(--text-muted)',
-        fontSize: '13px'
-      }}>
-        © 2026 PAG. Tüm hakları saklıdır.
-      </footer>
+              <div className="glass-card" style={{ padding: '32px', textAlign: 'center' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px' }}>⭐</div>
+                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Profil Puanı</h3>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                  Her başarılı anket katılımı Profil Puanınızı artırarak gelecekteki anket kampanyalarında daha üst sıralara tırmanmanızı sağlar.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '32px', padding: '16px 24px', backgroundColor: 'rgba(255, 255, 255, 0.03)', borderRadius: '12px', border: '1px solid var(--border-color)', textAlign: 'center', fontSize: '13px', color: 'var(--text-muted)' }}>
+              ℹ️ <strong>Önemli Bilgilendirme:</strong> Her ankette parasal ödül bulunması garanti değildir. Ödül miktarı ve kurgusu anket sahibinin tanımlamasına göre belirlenir.
+            </div>
+          </div>
+        </section>
+
+        {/* SECTION 5: FIRMALAR İÇİN TEASER CARD */}
+        <section style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+          <div className="container">
+            <div className="glass-card" style={{ padding: '48px', border: '1px solid var(--border-highlight)', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '32px', alignItems: 'center' }}>
+              <div>
+                <div className="badge-lime">Kurumsal Çözümler</div>
+                <h2 style={{ fontSize: '32px', fontWeight: '800', marginTop: '12px', color: 'white' }}>
+                  Markanız İçin Doğru Hedef Kitleye Doğrudan Ulaşın
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', marginTop: '12px', fontSize: '16px', lineHeight: '1.6' }}>
+                  Yaş, lokasyon (il/ilçe/mahalle), medeni durum ve çocuk durumu gibi mikro-profil filtreleriyle hedef kitlenizi oluşturun, maksimum 3 soruda anında gerçek veri toplayın.
+                </p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <Link href="/firmalar" className="btn-lime" style={{ textAlign: 'center' }}>
+                  Firmalar İçin Detaylar →
+                </Link>
+                <Link href="/firma-basvuru" className="btn-outline" style={{ textAlign: 'center' }}>
+                  Firma Başvurusu Yap
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <Footer />
     </div>
   );
 }
