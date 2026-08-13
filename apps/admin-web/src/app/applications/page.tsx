@@ -73,7 +73,7 @@ export default function ApplicationsPage() {
       <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '28px', fontWeight: 'bold' }}>Firma Başvuruları</h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>www.pagapp.com Kurumsal İş Ortaklığı ve Müşteri Başvuruları</p>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px' }}>www.pagapp.com.tr Kurumsal İş Ortaklığı ve Müşteri Başvuruları</p>
         </div>
       </header>
 

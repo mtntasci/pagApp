@@ -2195,7 +2195,40 @@ or:
 rather than simply:
 
 "Mobile complete."
+ ## CONCISE COMPLETION REPORT RULE
 
+All task completion reports MUST be short and result-focused.
+
+Do NOT produce long walkthroughs, detailed implementation narratives, or repeat the original task.
+
+Default completion report format:
+
+1. **Completed** — Maximum 3-5 short bullets describing what was actually done.
+2. **Verification** — Only final test/build results.
+3. **Blocker / TBD** — Include only if something remains unresolved.
+
+Rules:
+- Maximum ~10-15 lines by default.
+- Do not list every modified file unless explicitly requested.
+- Do not explain implementation details unless they are important.
+- Do not repeat successful tests individually when a single summary is enough.
+- Do not include a "Next Steps" section unless explicitly requested.
+- Never claim completion if required work, tests, or builds failed.
+
+Example:
+
+### Completed
+- Portal Email/Password authentication implemented.
+- First-login password change enforced.
+- Super Admin provisioning and portal authorization completed.
+
+### Verification
+- Backend: 33/33 PASS
+- Admin Web: BUILD SUCCESS
+- Marketing Web: BUILD SUCCESS
+
+### Blocker
+None.
 
 
 Keep PAG focused on the approved product.
