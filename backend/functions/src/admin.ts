@@ -56,6 +56,14 @@ export async function syncSurveyStoryBarDoc(
     const label = surveyData?.storyConfig?.storyLabel || surveyData?.title || 'Anket';
     const imageCategory = surveyData?.storyConfig?.imageCategory || surveyData?.category || 'General';
 
+    const existingDoc = await storyRef.get();
+    const existingData = existingDoc.exists ? existingDoc.data() : null;
+
+    // Default sortOrder = 999 for new stories, preserve existing if admin customized it
+    const sortOrder = typeof surveyData?.storyConfig?.position === 'number' 
+      ? surveyData.storyConfig.position
+      : (typeof existingData?.sortOrder === 'number' ? existingData.sortOrder : (typeof existingData?.position === 'number' ? existingData.position : 999));
+
     await storyRef.set({
       storyId: `story_${surveyId}`,
       surveyId: surveyId,
@@ -64,8 +72,12 @@ export async function syncSurveyStoryBarDoc(
       label: label,
       imageCategory: imageCategory,
       imageUrl: surveyData?.storyConfig?.imageUrl || '',
-      position: surveyData?.storyConfig?.position || 1,
+      position: sortOrder,
+      sortOrder: sortOrder,
+      startAt: surveyData?.startAt || null,
+      endAt: surveyData?.endAt || null,
       isActive: true,
+      createdAt: existingDoc.exists ? (existingData?.createdAt || serverNow) : serverNow,
       updatedAt: serverNow
     }, { merge: true });
   } else {
@@ -868,23 +880,60 @@ export const manageStoryBarAdminHandler = async (
 ) => {
   await verifyAdminUser(context);
   const db = admin.firestore();
-  const { storyId, surveyId, label, imageUrl, position, isActive } = data || {};
+  const { action, storyId, surveyId, label, imageUrl, position, sortOrder, isActive } = data || {};
 
-  if (!label || !surveyId) {
-    throw new functions.https.HttpsError('invalid-argument', 'label and surveyId are required.');
+  // Action: GET
+  if (action === 'GET' || (!action && !label && !surveyId)) {
+    const snap = await db.collection('storyBar').get();
+    const items: any[] = [];
+    snap.docs.forEach((doc) => {
+      const d = doc.data();
+      const sOrder = typeof d.sortOrder === 'number' ? d.sortOrder : (typeof d.position === 'number' ? d.position : 999);
+      items.push({
+        id: doc.id,
+        storyId: doc.id,
+        surveyId: d.surveyId || '',
+        label: d.label || d.shortLabel || '',
+        imageUrl: d.imageUrl || '',
+        position: sOrder,
+        sortOrder: sOrder,
+        isActive: d.isActive !== false,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+        updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
+      });
+    });
+    items.sort((a, b) => a.sortOrder - b.sortOrder);
+    return { success: true, data: { stories: items } };
   }
 
-  const targetStoryId = storyId || `story_${Date.now()}`;
+  // Action: DELETE
+  if (action === 'DELETE') {
+    if (!storyId) {
+      throw new functions.https.HttpsError('invalid-argument', 'storyId is required for DELETE.');
+    }
+    await db.collection('storyBar').doc(storyId).delete();
+    return { success: true, data: { storyId } };
+  }
+
+  // Action: SAVE
+  if (!label && !surveyId) {
+    throw new functions.https.HttpsError('invalid-argument', 'label or surveyId is required.');
+  }
+
+  const targetStoryId = storyId || (surveyId ? `story_${surveyId}` : `story_${Date.now()}`);
   const storyRef = db.collection('storyBar').doc(targetStoryId);
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
+  const resolvedSortOrder = typeof sortOrder === 'number' ? sortOrder : (typeof position === 'number' ? position : 999);
 
   try {
     await storyRef.set({
       storyId: targetStoryId,
-      surveyId,
-      label,
+      surveyId: surveyId || '',
+      label: label || 'Anket',
+      shortLabel: label || 'Anket',
       imageUrl: imageUrl || '',
-      position: typeof position === 'number' ? position : 1,
+      position: resolvedSortOrder,
+      sortOrder: resolvedSortOrder,
       isActive: isActive !== false,
       updatedAt: serverNow
     }, { merge: true });
@@ -1312,6 +1361,8 @@ export const getEligibleStoriesHandler = async (
   const db = admin.firestore();
 
   const stories: any[] = [];
+  const now = new Date();
+
   try {
     const snap = await db.collection('storyBar')
       .where('isActive', '==', true)
@@ -1320,6 +1371,7 @@ export const getEligibleStoriesHandler = async (
     for (const doc of snap.docs) {
       const d = doc.data();
       const surveyId = d.surveyId;
+      let startAtTime: number = 0;
 
       if (surveyId) {
         const surveyDoc = await db.collection('surveys').doc(surveyId).get();
@@ -1329,16 +1381,23 @@ export const getEligibleStoriesHandler = async (
         const activeStatuses = ['ACTIVE', 'SCHEDULED'];
         if (!activeStatuses.includes(sData.status) || sData.isArchived) continue;
 
+        // Check survey startAt time: Must not display before survey start date/time
         if (sData.startAt) {
           const startTime = sData.startAt.toDate ? sData.startAt.toDate() : new Date(sData.startAt);
-          if (!isNaN(startTime.getTime()) && startTime > new Date()) continue;
+          if (!isNaN(startTime.getTime())) {
+            startAtTime = startTime.getTime();
+            if (startTime > now) continue; // Not started yet
+          }
         }
 
+        // Check survey endAt time: Must not display after survey end date/time
         if (sData.endAt) {
           const endTime = sData.endAt.toDate ? sData.endAt.toDate() : new Date(sData.endAt);
-          if (!isNaN(endTime.getTime()) && endTime < new Date()) continue;
+          if (!isNaN(endTime.getTime()) && endTime < now) continue; // Ended
         }
       }
+
+      const sortOrder = typeof d.sortOrder === 'number' ? d.sortOrder : (typeof d.position === 'number' ? d.position : 999);
 
       stories.push({
         id: doc.id,
@@ -1349,7 +1408,9 @@ export const getEligibleStoriesHandler = async (
         label: d.label || d.shortLabel || 'Anket',
         imageUrl: d.imageUrl || '',
         imageCategory: d.imageCategory || 'General',
-        position: typeof d.position === 'number' ? d.position : 1,
+        position: sortOrder,
+        sortOrder: sortOrder,
+        startAtTime: startAtTime,
         isActive: true
       });
     }
@@ -1357,7 +1418,11 @@ export const getEligibleStoriesHandler = async (
     functions.logger.error('Error fetching eligible stories:', err);
   }
 
-  stories.sort((a, b) => a.position - b.position);
+  // Sorting rule: 1) sortOrder ASC (e.g. 1, 2, 3... 999), 2) startAtTime DESC (newest first)
+  stories.sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return b.startAtTime - a.startAtTime;
+  });
 
   return {
     success: true,

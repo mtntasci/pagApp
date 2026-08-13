@@ -140,6 +140,18 @@ service cloud.firestore {
       );
     }
 
+    // Story Bar Collection Rules
+    match /storyBar/{storyId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+    }
+
     // Default Deny
     match /{document=**} {
       allow read, write: if false;
