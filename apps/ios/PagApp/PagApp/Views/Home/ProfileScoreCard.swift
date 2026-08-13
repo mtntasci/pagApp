@@ -19,16 +19,16 @@ public struct ProfileScoreCard: View {
         return userService.currentUser?.profileScore ?? 0
     }
     
-    private var tierInfo: (title: String, subtitle: String?, badgeColor: Color, textColor: Color) {
+    private var tierInfo: (title: String, subtitle: String, badgeColor: Color, textColor: Color) {
         let percentile = userService.currentRanking?.percentile ?? 100.0
         if percentile <= 10.0 {
-            return ("En Güçlü", nil, Color(hex: "#FFD700"), Color(hex: "#0F172A"))
+            return ("En Güçlü", "Avantajlı konumunu koru", Color(hex: "#FFD700"), Color(hex: "#0F172A"))
         } else if percentile <= 50.0 {
-            return ("Güçlü", "sizi bekleyen puanları kaçırmayın", PAGTheme.brandLime, Color(hex: "#0F172A"))
+            return ("Güçlü", "Yeni puan fırsatlarını kaçırma", PAGTheme.brandLime, Color(hex: "#0F172A"))
         } else if percentile <= 70.0 {
-            return ("Umut Vaadeden", "Hadi nakit ödüller sizi bekliyor", Color(hex: "#F97316"), .white)
+            return ("Yükselişte", "Biraz daha puanla öne geçebilirsin", Color(hex: "#F97316"), .white)
         } else {
-            return ("Gelişim Sürecinde", "Ödüller birkaç tık uzağınızda", Color(hex: "#38BDF8"), Color(hex: "#0F172A"))
+            return ("Gelişim Sürecinde", "Profilini güçlendir, sıralamada yüksel", Color(hex: "#38BDF8"), Color(hex: "#0F172A"))
         }
     }
     
@@ -91,17 +91,10 @@ public struct ProfileScoreCard: View {
             }
             
             // Descriptive info / Subtitle
-            if let subtitle = tierInfo.subtitle {
-                Text(subtitle)
-                    .font(PAGTypography.bodySmall)
-                    .foregroundColor(Color(hex: "#B8C0CC"))
-                    .lineLimit(2)
-            } else {
-                Text("Yüksek Profil Puanın sayesinde yayınlanan anketlere öncelikli erişim hakkına sahipsin.")
-                    .font(PAGTypography.bodySmall)
-                    .foregroundColor(Color(hex: "#B8C0CC"))
-                    .lineLimit(2)
-            }
+            Text(tierInfo.subtitle)
+                .font(PAGTypography.bodySmall)
+                .foregroundColor(Color(hex: "#B8C0CC"))
+                .lineLimit(2)
         }
         .padding(PAGSpacing.md)
         .background(PAGTheme.brandMidnight)

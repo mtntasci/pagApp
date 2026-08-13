@@ -242,7 +242,7 @@ fun HomeScreen(
 
 private data class RankingTier(
     val title: String,
-    val subtitle: String?,
+    val subtitle: String,
     val badgeBgColor: Color,
     val badgeTextColor: Color
 )
@@ -252,25 +252,25 @@ private fun getRankingTier(percentile: Double?): RankingTier {
     return when {
         p <= 10.0 -> RankingTier(
             title = "En Güçlü",
-            subtitle = null,
+            subtitle = "Avantajlı konumunu koru",
             badgeBgColor = Color(0xFFFFD700), // Standout Gold
             badgeTextColor = Color(0xFF0F172A)
         )
         p <= 50.0 -> RankingTier(
             title = "Güçlü",
-            subtitle = "sizi bekleyen puanları kaçırmayın",
+            subtitle = "Yeni puan fırsatlarını kaçırma",
             badgeBgColor = Color(0xFFCCFF00), // Green (Brand Lime)
             badgeTextColor = Color(0xFF0F172A)
         )
         p <= 70.0 -> RankingTier(
-            title = "Umut Vaadeden",
-            subtitle = "Hadi nakit ödüller sizi bekliyor",
+            title = "Yükselişte",
+            subtitle = "Biraz daha puanla öne geçebilirsin",
             badgeBgColor = Color(0xFFF97316), // Warm Amber / Orange
             badgeTextColor = Color.White
         )
         else -> RankingTier(
             title = "Gelişim Sürecinde",
-            subtitle = "Ödüller birkaç tık uzağınızda",
+            subtitle = "Profilini güçlendir, sıralamada yüksel",
             badgeBgColor = Color(0xFF38BDF8), // Sky Blue / Cyan
             badgeTextColor = Color(0xFF0F172A)
         )
@@ -359,13 +359,11 @@ private fun UserProfileCard(
                 )
             }
 
-            tier.subtitle?.let { sub ->
-                Text(
-                    text = sub,
-                    style = PAGTheme.typography.caption,
-                    color = PAGTheme.colors.textMuted
-                )
-            }
+            Text(
+                text = tier.subtitle,
+                style = PAGTheme.typography.caption,
+                color = PAGTheme.colors.textMuted
+            )
         }
     }
 }
