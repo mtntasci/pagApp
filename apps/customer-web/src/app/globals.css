@@ -172,3 +172,43 @@ a {
   transform: translateX(-50%);
   z-index: 10;
 }
+
+/* Mobile Responsive Rules */
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+
+  .mobile-toggle {
+    display: flex !important;
+  }
+
+  .container {
+    padding: 0 16px !important;
+  }
+
+  h1 {
+    font-size: 32px !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.5px !important;
+  }
+
+  h2 {
+    font-size: 26px !important;
+    line-height: 1.3 !important;
+  }
+
+  .btn-lime, .btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .device-shell {
+    width: 240px;
+    height: 480px;
+  }
+
+  .mobile-hide-btn {
+    display: none !important;
+  }
+}
