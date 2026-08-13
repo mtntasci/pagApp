@@ -7,15 +7,19 @@ public class RewardService: ObservableObject {
     public static let shared = RewardService()
     
     @Published public private(set) var rewardBalance: Int = 0
-    @Published public private(set) var rewardLedgers: [PAGRewardLedgerEntry] = []
+    @Published public private(set) var profileScore: Int = 0
+    @Published public private(set) var rewards: [PAGRewardLedgerEntry] = []
     @Published public private(set) var vouchers: [PAGVoucher] = []
+    @Published public private(set) var scoreLedgers: [PAGScoreLedgerEntry] = []
     @Published public private(set) var isLoading: Bool = false
     @Published public private(set) var errorMessage: String? = nil
     
     private init() {}
     
     public func fetchUserRewards() async {
-        self.isLoading = true
+        if rewards.isEmpty && vouchers.isEmpty && scoreLedgers.isEmpty {
+            self.isLoading = true
+        }
         self.errorMessage = nil
         
         do {
@@ -27,23 +31,26 @@ public class RewardService: ObservableObject {
             }
             
             self.rewardBalance = dataDict["rewardBalance"] as? Int ?? 0
+            self.profileScore = dataDict["profileScore"] as? Int ?? 0
             
-            var parsedLedgers: [PAGRewardLedgerEntry] = []
-            if let rawLedgers = dataDict["ledgers"] as? [[String: Any]] {
-                for l in rawLedgers {
+            // 1. Monetary Rewards
+            var parsedRewards: [PAGRewardLedgerEntry] = []
+            if let rawRewards = dataDict["rewards"] as? [[String: Any]] {
+                for r in rawRewards {
                     let entry = PAGRewardLedgerEntry(
-                        id: l["id"] as? String ?? UUID().uuidString,
-                        surveyId: l["surveyId"] as? String ?? "",
-                        type: l["type"] as? String ?? "MONEY",
-                        amount: l["amount"] as? Int ?? 0,
-                        reason: l["reason"] as? String ?? "Anket Ödülü",
-                        createdAt: l["createdAt"] as? String ?? ""
+                        id: r["id"] as? String ?? UUID().uuidString,
+                        surveyId: r["surveyId"] as? String ?? "",
+                        type: r["type"] as? String ?? "MONEY",
+                        amount: r["amount"] as? Int ?? 0,
+                        reason: r["reason"] as? String ?? "Anket Ödülü",
+                        createdAt: r["createdAt"] as? String ?? ""
                     )
-                    parsedLedgers.append(entry)
+                    parsedRewards.append(entry)
                 }
             }
-            self.rewardLedgers = parsedLedgers
+            self.rewards = parsedRewards
             
+            // 2. Vouchers
             var parsedVouchers: [PAGVoucher] = []
             if let rawVouchers = dataDict["vouchers"] as? [[String: Any]] {
                 for v in rawVouchers {
@@ -61,6 +68,24 @@ public class RewardService: ObservableObject {
                 }
             }
             self.vouchers = parsedVouchers
+            
+            // 3. Profile Score History
+            var parsedScoreLedgers: [PAGScoreLedgerEntry] = []
+            if let rawScores = dataDict["scoreLedgers"] as? [[String: Any]] {
+                for s in rawScores {
+                    let entry = PAGScoreLedgerEntry(
+                        id: s["id"] as? String ?? UUID().uuidString,
+                        userId: s["userId"] as? String ?? "",
+                        sourceType: s["sourceType"] as? String ?? "SURVEY",
+                        sourceId: s["sourceId"] as? String ?? "",
+                        amount: s["amount"] as? Int ?? 0,
+                        reason: s["reason"] as? String ?? "Profil Puanı",
+                        createdAt: s["createdAt"] as? String ?? ""
+                    )
+                    parsedScoreLedgers.append(entry)
+                }
+            }
+            self.scoreLedgers = parsedScoreLedgers
             self.isLoading = false
         } catch {
             print("[RewardService] Fetch rewards error: \(error.localizedDescription)")

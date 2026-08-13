@@ -70,7 +70,6 @@ export const processSurveyRewardInTransaction = async (
   // 1. MONEY REWARD TYPE
   // --------------------------------------------------
   if (rewardDef.rewardType === 'MONEY') {
-    // Determine finisher rank using transaction.get(query)
     const existingResponsesSnap = await transaction.get(
       db.collection('surveyResponses')
         .where('surveyId', '==', surveyId)
@@ -145,7 +144,7 @@ export const processSurveyRewardInTransaction = async (
 };
 
 // --------------------------------------------------
-// 3. GET USER REWARDS CALLABLE HANDLER
+// 3. GET USER REWARDS & PROFILE SCORE HISTORY CALLABLE
 // --------------------------------------------------
 export const getUserRewardsHandler = async (
   data: any,
@@ -161,47 +160,75 @@ export const getUserRewardsHandler = async (
   const uid = context.auth.uid;
   const db = admin.firestore();
 
-  const rewardLedgersSnap = await db
-    .collection('rewardLedgers')
-    .where('userId', '==', uid)
-    .get();
+  // Execute queries in parallel for maximum performance
+  const [rewardLedgersSnap, scoreLedgersSnap, userDocSnap] = await Promise.all([
+    db.collection('rewardLedgers').where('userId', '==', uid).get(),
+    db.collection('profileScoreLedgers').where('userId', '==', uid).get(),
+    db.collection('users').doc(uid).get()
+  ]);
 
-  const userDoc = await db.collection('users').doc(uid).get();
-  const rewardBalance = userDoc.exists ? (userDoc.data()?.rewardBalance || 0) : 0;
+  const userDocData = userDocSnap.exists ? userDocSnap.data() || {} : {};
+  const rewardBalance = userDocData.rewardBalance || 0;
+  const profileScore = userDocData.profileScore || 0;
 
   const rewards: any[] = [];
   const vouchers: any[] = [];
 
   rewardLedgersSnap.docs.forEach((doc) => {
     const d = doc.data();
+    const createdAtIso = d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || new Date().toISOString();
     if (d.type === 'VOUCHER') {
       vouchers.push({
-        ledgerId: doc.id,
-        surveyId: d.surveyId,
-        voucherId: d.voucherId,
-        voucherPoolId: d.voucherPoolId,
-        voucherTitle: d.voucherTitle || 'Hediye Çeki',
-        amount: d.amount,
-        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt
+        voucherId: d.voucherId || doc.id,
+        poolId: d.voucherPoolId || '',
+        title: d.voucherTitle || 'Hediye Çeki',
+        code: d.code || 'CODE_REDACTED',
+        valueAmount: d.amount || 0,
+        status: 'ASSIGNED',
+        assignedAt: createdAtIso,
+        expiresAt: null
       });
     } else {
       rewards.push({
-        ledgerId: doc.id,
-        surveyId: d.surveyId,
+        id: doc.id,
+        surveyId: d.surveyId || '',
         type: d.type || 'MONEY',
-        amount: d.amount,
-        reason: d.reason,
-        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt
+        amount: d.amount || 0,
+        reason: d.reason || 'Anket Ödülü',
+        createdAt: createdAtIso
       });
     }
   });
+
+  const scoreLedgers: any[] = [];
+  scoreLedgersSnap.docs.forEach((doc) => {
+    const d = doc.data();
+    const createdAtIso = d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || new Date().toISOString();
+    scoreLedgers.push({
+      id: doc.id,
+      userId: d.userId || uid,
+      sourceType: d.sourceType || 'SURVEY',
+      sourceId: d.sourceId || '',
+      amount: d.amount || 0,
+      reason: d.reason || 'Profil Puanı Kazancı',
+      createdAt: createdAtIso,
+      metadata: d.metadata || null
+    });
+  });
+
+  // Sort descending by date
+  rewards.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  vouchers.sort((a, b) => new Date(b.assignedAt).getTime() - new Date(a.assignedAt).getTime());
+  scoreLedgers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return {
     success: true,
     data: {
       rewardBalance,
+      profileScore,
       rewards,
-      vouchers
+      vouchers,
+      scoreLedgers
     }
   };
 };
