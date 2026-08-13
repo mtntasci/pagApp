@@ -429,11 +429,29 @@ export default function SurveysPage() {
     try {
       const getCatsFn = httpsCallable(functions, 'manageSurveyCategoriesAdmin');
       const res: any = await getCatsFn({ action: 'GET' });
-      if (res.data?.success && Array.isArray(res.data.data?.categories)) {
+      if (res.data?.success && Array.isArray(res.data.data?.categories) && res.data.data.categories.length > 0) {
         setAvailableCategories(res.data.data.categories);
+        return;
       }
     } catch (err) {
-      console.warn('Fetch survey categories error:', err);
+      console.warn('Fetch survey categories Cloud Function error/fallback:', err);
+    }
+
+    try {
+      const snap = await getDocs(collection(db, 'surveyCategories'));
+      const list = snap.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          id: docSnap.id,
+          name: d.name || docSnap.id,
+          isVisible: typeof d.isVisible === 'boolean' ? d.isVisible : true,
+          sortOrder: typeof d.sortOrder === 'number' ? d.sortOrder : 1
+        };
+      });
+      list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      setAvailableCategories(list);
+    } catch (fsErr) {
+      console.error('Fetch survey categories Firestore fallback error:', fsErr);
     }
   }, []);
 

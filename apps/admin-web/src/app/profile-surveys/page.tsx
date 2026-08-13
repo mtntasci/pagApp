@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 
 export default function ProfileSurveysPage() {
   const [questions, setQuestions] = useState<any[]>([]);
@@ -51,16 +52,45 @@ export default function ProfileSurveysPage() {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const getCatsFn = httpsCallable(functions, 'manageProfileCategoriesAdmin');
-      const catRes = (await getCatsFn({ action: 'GET' })) as any;
-      if (catRes.data && catRes.data.success && Array.isArray(catRes.data.data.categories)) {
-        setCategories(catRes.data.data.categories);
+      // 1. Fetch Profile Categories with direct Firestore fallback
+      try {
+        const getCatsFn = httpsCallable(functions, 'manageProfileCategoriesAdmin');
+        const catRes = (await getCatsFn({ action: 'GET' })) as any;
+        if (catRes.data && catRes.data.success && Array.isArray(catRes.data.data.categories) && catRes.data.data.categories.length > 0) {
+          setCategories(catRes.data.data.categories);
+        } else {
+          throw new Error('Cloud Function categories empty');
+        }
+      } catch (cloudErr) {
+        console.warn('Cloud Function manageProfileCategoriesAdmin unavailable, fetching from Firestore directly:', cloudErr);
+        const catSnap = await getDocs(collection(db, 'profileSurveyCategories'));
+        const catList = catSnap.docs.map((d) => ({
+          id: d.id,
+          name: d.data().name || d.id,
+          isVisible: typeof d.data().isVisible === 'boolean' ? d.data().isVisible : true,
+          sortOrder: typeof d.data().sortOrder === 'number' ? d.data().sortOrder : 1
+        }));
+        catList.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+        setCategories(catList);
       }
 
-      const listFn = httpsCallable(functions, 'listProfileQuestionsAdmin');
-      const res = (await listFn({})) as any;
-      if (res.data && res.data.success && Array.isArray(res.data.data.questions)) {
-        setQuestions(res.data.data.questions);
+      // 2. Fetch Profile Questions with direct Firestore fallback
+      try {
+        const listFn = httpsCallable(functions, 'listProfileQuestionsAdmin');
+        const res = (await listFn({})) as any;
+        if (res.data && res.data.success && Array.isArray(res.data.data.questions)) {
+          setQuestions(res.data.data.questions);
+        } else {
+          throw new Error('Cloud Function questions empty');
+        }
+      } catch (cloudErr) {
+        console.warn('Cloud Function listProfileQuestionsAdmin unavailable, fetching from Firestore directly:', cloudErr);
+        const qSnap = await getDocs(collection(db, 'profileQuestions'));
+        const qList = qSnap.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        }));
+        setQuestions(qList);
       }
     } catch (err: any) {
       console.error(err);
