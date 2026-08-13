@@ -367,7 +367,7 @@ export default function SurveysPage() {
           category: surveyObj.category || 'Genel',
           title: surveyObj.title.trim(),
           description: surveyObj.description || undefined,
-          status: surveyObj.status || 'DRAFT',
+          status: 'PENDING_APPROVAL',
           startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
           endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : undefined,
           questions: formattedQuestions,

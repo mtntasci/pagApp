@@ -102,7 +102,7 @@ public struct SurveysView: View {
                         .padding(PAGSpacing.lg)
                         Spacer()
                     } else {
-                        ScrollView {
+                        ScrollView(.vertical, showsIndicators: false) {
                             VStack(spacing: PAGSpacing.md) {
                                 let currentList = selectedTab == 0 ? surveyService.eligibleSurveys : surveyService.completedSurveys
                                 
@@ -133,6 +133,7 @@ public struct SurveysView: View {
                                 }
                             }
                             .padding(PAGSpacing.md)
+                            .frame(maxWidth: .infinity)
                         }
                     }
                 }

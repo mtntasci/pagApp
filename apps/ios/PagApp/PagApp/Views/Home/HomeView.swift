@@ -29,7 +29,7 @@ public struct HomeView: View {
                 PAGTheme.backgroundPrimary
                     .ignoresSafeArea()
                 
-                ScrollView {
+                ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
                         PAGStoryBar(items: storyItems) { item in
                             switch item {
@@ -152,6 +152,7 @@ public struct HomeView: View {
                         .padding(.horizontal, PAGSpacing.sm)
                         .padding(.vertical, PAGSpacing.md)
                     }
+                    .frame(maxWidth: .infinity)
                 }
             }
             .navigationBarHidden(true)
