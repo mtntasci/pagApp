@@ -22,7 +22,9 @@ import {
   getPortalUserHandler,
   submitCompanyApplicationHandler,
   listCompanyApplicationsAdminHandler,
-  updateCompanyApplicationStatusAdminHandler
+  updateCompanyApplicationStatusAdminHandler,
+  createPortalUserAdminHandler,
+  completePasswordChangePortalUserHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -80,3 +82,5 @@ export const getPortalUser = functions.https.onCall(getPortalUserHandler);
 export const submitCompanyApplication = functions.https.onCall(submitCompanyApplicationHandler);
 export const listCompanyApplicationsAdmin = functions.https.onCall(listCompanyApplicationsAdminHandler);
 export const updateCompanyApplicationStatusAdmin = functions.https.onCall(updateCompanyApplicationStatusAdminHandler);
+export const createPortalUserAdmin = functions.https.onCall(createPortalUserAdminHandler);
+export const completePasswordChangePortalUser = functions.https.onCall(completePasswordChangePortalUserHandler);

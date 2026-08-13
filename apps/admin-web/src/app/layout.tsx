@@ -89,15 +89,32 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
           </Link>
         </nav>
 
-        <div style={{ marginTop: 'auto', padding: '16px 12px', borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ marginTop: 'auto', padding: '16px 12px', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {user && isAdmin && (
-            <div style={{ marginBottom: '12px' }}>
+            <div style={{ marginBottom: '4px' }}>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Yönetici Hesabı</p>
               <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
                 {user.email}
               </p>
             </div>
           )}
+          <Link
+            href="/change-password"
+            style={{
+              width: '100%',
+              padding: '8px 12px',
+              backgroundColor: 'var(--bg-surface-secondary)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '6px',
+              fontSize: '13px',
+              fontWeight: 600,
+              textAlign: 'center',
+              display: 'block'
+            }}
+          >
+            🔒 Şifre Değiştir
+          </Link>
           <button
             onClick={() => signOut()}
             style={{
@@ -108,7 +125,8 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
               border: '1px solid var(--error-color)',
               borderRadius: '6px',
               fontSize: '13px',
-              fontWeight: 600
+              fontWeight: 600,
+              cursor: 'pointer'
             }}
           >
             🚪 Çıkış Yap

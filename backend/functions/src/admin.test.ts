@@ -3,7 +3,9 @@ import {
   createOrUpdateSurveyAdminHandler,
   listSurveysAdminHandler,
   submitCompanyApplicationHandler,
-  listCompanyApplicationsAdminHandler
+  listCompanyApplicationsAdminHandler,
+  createPortalUserAdminHandler,
+  completePasswordChangePortalUserHandler
 } from './admin';
 
 describe('Phase Survey Creation & Portal Auth System Unit Tests', () => {
@@ -18,8 +20,7 @@ describe('Phase Survey Creation & Portal Auth System Unit Tests', () => {
     auth: {
       uid: 'usr_admin_google',
       token: {
-        email: 'mtntasci@gmail.com',
-        firebase: { sign_in_provider: 'google.com' }
+        email: 'admin@pagapp.com'
       }
     }
   } as any;
@@ -28,6 +29,11 @@ describe('Phase Survey Creation & Portal Auth System Unit Tests', () => {
     await expect(
       verifyAdminUser(fakeNonAdminContext)
     ).rejects.toThrow('Bu hesap için PAG Portal erişimi bulunmuyor.');
+  });
+
+  test('Super admin account admin@pagapp.com verifies successfully', async () => {
+    const uid = await verifyAdminUser(fakeAdminContext);
+    expect(uid).toBe('usr_admin_google');
   });
 
   test('submitCompanyApplicationHandler validates required fields and creates application', async () => {
@@ -54,6 +60,32 @@ describe('Phase Survey Creation & Portal Auth System Unit Tests', () => {
         contactPhone: '+905551112233'
       }, {} as any)
     ).rejects.toThrow('Firma / Kurum adı zorunludur.');
+  });
+
+  test('createPortalUserAdminHandler requires SUPER_ADMIN privilege', async () => {
+    await expect(
+      createPortalUserAdminHandler({
+        email: 'staff@pagapp.com',
+        temporaryPassword: 'Password123!',
+        role: 'PAG_STAFF'
+      }, fakeNonAdminContext)
+    ).rejects.toThrow('Bu hesap için PAG Portal erişimi bulunmuyor.');
+  });
+
+  test('createPortalUserAdminHandler rejects ORGANIZATION_USER without organizationId', async () => {
+    await expect(
+      createPortalUserAdminHandler({
+        email: 'mcdonalds_user@mcdonalds.com',
+        temporaryPassword: 'Password123!',
+        role: 'ORGANIZATION_USER'
+      }, fakeAdminContext)
+    ).rejects.toThrow('ORGANIZATION_USER rolü için organizationId zorunludur.');
+  });
+
+  test('completePasswordChangePortalUserHandler updates mustChangePassword to false', async () => {
+    const res: any = await completePasswordChangePortalUserHandler({}, fakeAdminContext);
+    expect(res.success).toBe(true);
+    expect(res.data.mustChangePassword).toBe(false);
   });
 
   test('PAG survey draft creation validation and full payload returned', async () => {
