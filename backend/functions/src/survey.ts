@@ -184,7 +184,8 @@ export const getSurveyDetailHandler = async (
   const survey = surveyDoc.data() as PAGSurveyData;
   const now = admin.firestore.Timestamp.now();
 
-  if (survey.status !== 'ACTIVE') {
+  const activeStatuses = ['ACTIVE', 'APPROVED', 'SCHEDULED'];
+  if (!activeStatuses.includes(survey.status) || (survey as any).isArchived) {
     throw new functions.https.HttpsError(
       'failed-precondition',
       'This survey is no longer active.'
@@ -193,7 +194,7 @@ export const getSurveyDetailHandler = async (
 
   if (survey.startAt) {
     const startTime = survey.startAt.toDate ? survey.startAt.toDate() : new Date(survey.startAt);
-    if (startTime > now.toDate()) {
+    if (!isNaN(startTime.getTime()) && startTime > now.toDate()) {
       throw new functions.https.HttpsError(
         'failed-precondition',
         'This survey has not started yet.'
@@ -292,8 +293,9 @@ export const submitSurveyResponseHandler = async (
       throw new functions.https.HttpsError('not-found', 'Survey not found.');
     }
 
-    const survey = surveyDoc.data() as PAGSurveyData;
-    if (survey.status !== 'ACTIVE') {
+    const survey = surveyDoc.data() as PAGSurveyData & { isArchived?: boolean };
+    const activeStatuses = ['ACTIVE', 'APPROVED', 'SCHEDULED'];
+    if (!activeStatuses.includes(survey.status) || survey.isArchived) {
       throw new functions.https.HttpsError('failed-precondition', 'Survey is not active.');
     }
 
