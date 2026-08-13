@@ -19,22 +19,14 @@ export default function Footer() {
           gap: '40px',
           marginBottom: '48px'
         }}>
-          {/* Company & Product Summary */}
+          {/* 1. PAG Summary */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                backgroundColor: 'rgba(183, 243, 74, 0.15)',
-                border: '1px solid var(--brand-lime)',
-                borderRadius: '10px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ fontWeight: 'bold', color: 'var(--brand-lime)', fontSize: '16px' }}>PAG</span>
-              </div>
-              <span style={{ fontSize: '20px', fontWeight: 'bold', color: '#FFFFFF' }}>PAG</span>
+              <img
+                src="/logo.png"
+                alt="PAG Logo"
+                style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'contain' }}
+              />
             </div>
             <p style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
               Kullanıcı profil sıralaması, kontrollü push bildirimleri ve hedeflenmiş anket ekosistemi.
@@ -48,32 +40,21 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Product Links */}
-          <div>
-            <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Ürün</h4>
-            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <li><Link href="/#nedir">PAG Nedir?</Link></li>
-              <li><Link href="/#nasil-calisir">Nasıl Çalışır?</Link></li>
-              <li><Link href="/#profil-puani">Profil Puanı</Link></li>
-              <li><Link href="/#oduller">Ödüller</Link></li>
-            </ul>
-          </div>
-
-          {/* Business Links */}
+          {/* 2. Firmalar Links */}
           <div>
             <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Firmalar</h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/firmalar" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>Firmalar İçin</Link></li>
               <li><Link href="/firma-basvuru">Firma Başvurusu</Link></li>
               <li>
-                <a href="https://app.pagapp.com" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)' }}>
+                <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-primary)' }}>
                   🏢 Firma Girişi (Portal)
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Corporate Links */}
+          {/* 3. Kurumsal Links */}
           <div>
             <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Kurumsal</h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -82,7 +63,7 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Legal Links */}
+          {/* 4. Yasal Links */}
           <div>
             <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>Yasal</h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>

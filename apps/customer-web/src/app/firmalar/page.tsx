@@ -27,7 +27,7 @@ export default function FirmalarPage() {
               <Link href="/firma-basvuru" className="btn-lime">
                 🚀 PAG ile Çalışmak İstiyorum
               </Link>
-              <a href="https://app.pagapp.com" target="_blank" rel="noopener noreferrer" className="btn-outline">
+              <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" className="btn-outline">
                 🏢 Firma Girişi (Portal)
               </a>
             </div>
@@ -138,7 +138,7 @@ export default function FirmalarPage() {
               <Link href="/firma-basvuru" className="btn-lime">
                 Firma Başvuru Formunu Doldur →
               </Link>
-              <a href="https://app.pagapp.com" target="_blank" rel="noopener noreferrer" className="btn-outline">
+              <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" className="btn-outline">
                 Portal Girişi
               </a>
             </div>

@@ -23,19 +23,11 @@ export default function Header() {
       }}>
         {/* Brand Logo */}
         <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{
-            width: '42px',
-            height: '42px',
-            backgroundColor: 'rgba(183, 243, 74, 0.15)',
-            border: '1px solid var(--brand-lime)',
-            borderRadius: '12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}>
-            <span style={{ fontWeight: '900', color: 'var(--brand-lime)', fontSize: '20px', letterSpacing: '-0.5px' }}>PAG</span>
-          </div>
-          <span style={{ fontSize: '22px', fontWeight: '800', color: '#FFFFFF', letterSpacing: '-0.5px' }}>PAG</span>
+          <img
+            src="/logo.png"
+            alt="PAG Logo"
+            style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'contain' }}
+          />
         </Link>
 
         {/* Desktop Navigation */}
@@ -60,7 +52,7 @@ export default function Header() {
         {/* Action CTAs */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <a
-            href="https://app.pagapp.com"
+            href="https://app.pagapp.com.tr"
             target="_blank"
             rel="noopener noreferrer"
             className="btn-outline"

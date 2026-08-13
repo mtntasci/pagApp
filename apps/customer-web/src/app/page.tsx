@@ -14,48 +14,47 @@ export default function HomePage() {
       <main style={{ flex: 1 }}>
         {/* HERO SECTION — USER FIRST */}
         <section style={{
-          padding: '80px 0 60px 0',
-          background: 'radial-gradient(circle at 50% 20%, rgba(183, 243, 74, 0.08) 0%, rgba(1, 16, 51, 0) 70%)'
+          padding: '100px 0 80px 0',
+          background: 'radial-gradient(circle at 50% 30%, rgba(183, 243, 74, 0.12) 0%, rgba(1, 16, 51, 0) 70%)'
         }}>
-          <div className="container" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px', alignItems: 'center' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div className="container" style={{ textAlign: 'center', maxWidth: '840px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '24px' }}>
               <div className="badge-lime">
                 ⚡ Mobil Anket & Profilleme Ekosistemi
               </div>
 
-              <h1 style={{ fontSize: '48px', fontWeight: '900', lineHeight: '1.15', letterSpacing: '-1px' }}>
+              <h1 style={{ fontSize: '52px', fontWeight: '900', lineHeight: '1.15', letterSpacing: '-1px' }}>
                 Profil Puanını Yükselt, <br />
                 <span className="text-gradient">Öne Geç, Ödüllü Anketleri</span> İlk Sen Gör!
               </h1>
 
-              <p style={{ fontSize: '18px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              <p style={{ fontSize: '19px', color: 'var(--text-secondary)', lineHeight: '1.6', maxWidth: '720px' }}>
                 PAG; ilgi alanlarınıza uygun anketlere katılarak <strong>Profil Puanı</strong> kazandığınız, yüksek puanla gelecek kampanya ve anket bildirimlerinde <strong>öncelik elde ettiğiniz</strong> yeni nesil mobil platformdur.
               </p>
 
-              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px' }}>
-                <a href="#nasil-calisir" className="btn-lime">
+              <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '8px' }}>
+                <a href="#nasil-calisir" className="btn-lime" style={{ padding: '14px 28px', fontSize: '15px' }}>
                   Nasıl Çalışır? Detayları Gör ↓
                 </a>
-                <Link href="/firmalar" className="btn-outline">
+                <Link href="/firmalar" className="btn-outline" style={{ padding: '14px 28px', fontSize: '15px' }}>
                   🏢 Kurumsal / Firmalar İçin
                 </Link>
               </div>
 
-              <div style={{ display: 'flex', gap: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '24px', marginTop: '12px' }}>
+              <div style={{ display: 'flex', gap: '36px', justifyContent: 'center', flexWrap: 'wrap', borderTop: '1px solid var(--border-color)', paddingTop: '28px', marginTop: '16px', width: '100%', maxWidth: '600px' }}>
                 <div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Maks. 3 Soru</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Hızlı ve yormayan sorular</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Maks. 3 Soru</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Hızlı ve yormayan sorular</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#FFFFFF' }}>Dinamik Sıralama</div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)' }}>Puanına göre bildirim önceliği</div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: '#FFFFFF' }}>Dinamik Sıralama</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Puanına göre bildirim önceliği</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>Kontrollü Push</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Zamanında ve adil bildirim</div>
                 </div>
               </div>
-            </div>
-
-            {/* Mobile App Visual Showcase */}
-            <div>
-              <DeviceMockups />
             </div>
           </div>
         </section>
@@ -169,34 +168,18 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* SECTION 3: ANKETLER */}
-        <section id="anketler" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
+        {/* SECTION 3: UYGULAMAYI TANIYIN */}
+        <section id="uygulamayi-taniyin" style={{ padding: '80px 0', borderTop: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
           <div className="container">
             <div style={{ textAlign: 'center', maxWidth: '640px', margin: '0 auto 48px auto' }}>
-              <div className="badge-lime">Maksimum 3 Soru</div>
-              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>Hızlı ve Yormayan Anket Deneyimi</h2>
+              <div className="badge-lime">📱 Mobil Ekranlar</div>
+              <h2 style={{ fontSize: '36px', fontWeight: '800', marginTop: '12px', color: 'white' }}>Uygulamayı Tanıyın</h2>
               <p style={{ color: 'var(--text-secondary)', marginTop: '8px', fontSize: '16px' }}>
-                Uzun ve sıkıcı anketlere son. PAG anketleri maksimum 3 sorudan oluşur ve dakikalarınızı almaz.
+                PAG mobil uygulamasını keşfedin. Ekranları değiştirerek ana sayfa, story akışı, anketler, ödüller ve profil özelliklerini canlı deneyimleyin.
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-              <div className="glass-card" style={{ padding: '32px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'rgba(183, 243, 74, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>🌐</div>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>PAG Genel Anketleri</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  PAG platformu tarafından düzenlenen, genel eğilimleri ve kullanıcı tercihlerini anlamaya yönelik anketlerdir. Katılan kullanıcılara Profil Puanı veya genel ödüller kazandırır.
-                </p>
-              </div>
-
-              <div className="glass-card" style={{ padding: '32px' }}>
-                <div style={{ width: '48px', height: '48px', borderRadius: '12px', backgroundColor: 'rgba(57, 119, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', marginBottom: '20px' }}>🏢</div>
-                <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px' }}>Firma & Marka Anketleri</h3>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-                  Anlaşmalı markaların (Örn: Ford, McDonald's) belirli hedef kitlelere yönelik düzenlediği anketlerdir. Bu anketlerde Para Ödülü, Hediye Çeki (Voucher) veya yüksek Profil Puanı sunulabilir.
-                </p>
-              </div>
-            </div>
+            <DeviceMockups />
           </div>
         </section>
 

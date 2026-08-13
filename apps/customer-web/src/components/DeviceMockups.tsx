@@ -3,10 +3,10 @@
 import React, { useState } from 'react';
 
 export default function DeviceMockups() {
-  const [activeScreen, setActiveScreen] = useState<'home' | 'survey' | 'score' | 'rewards' | 'profile'>('home');
+  const [activeScreen, setActiveScreen] = useState<'home' | 'story' | 'survey' | 'rewards' | 'profile'>('home');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '32px', width: '100%' }}>
       {/* Screen Selectors */}
       <div style={{
         display: 'flex',
@@ -14,25 +14,25 @@ export default function DeviceMockups() {
         flexWrap: 'wrap',
         justifyContent: 'center',
         backgroundColor: 'var(--bg-surface)',
-        padding: '6px',
-        borderRadius: '12px',
+        padding: '8px',
+        borderRadius: '14px',
         border: '1px solid var(--border-color)'
       }}>
         {[
-          { id: 'home', label: '📱 Ana Sayfa & Story' },
-          { id: 'survey', label: '📝 Anket (Maks 3 Soru)' },
-          { id: 'score', label: '⭐ Profil Puanı' },
+          { id: 'home', label: '📱 Ana Sayfa' },
+          { id: 'story', label: '⚡ Story Bar' },
+          { id: 'survey', label: '📝 Anketler' },
           { id: 'rewards', label: '🎁 Ödüller' },
-          { id: 'profile', label: '👤 Profil Güçlendirme' }
+          { id: 'profile', label: '👤 Profil' }
         ].map((btn) => (
           <button
             key={btn.id}
             onClick={() => setActiveScreen(btn.id as any)}
             style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
+              padding: '10px 18px',
+              borderRadius: '10px',
               border: 'none',
-              fontSize: '13px',
+              fontSize: '14px',
               fontWeight: 600,
               cursor: 'pointer',
               backgroundColor: activeScreen === btn.id ? 'var(--brand-lime)' : 'transparent',
@@ -46,7 +46,7 @@ export default function DeviceMockups() {
       </div>
 
       {/* Mobile Device Frame */}
-      <div className="device-shell">
+      <div className="device-shell" style={{ width: '320px', height: '620px' }}>
         <div className="device-notch"></div>
 
         {/* Screen Content Render */}
@@ -55,10 +55,12 @@ export default function DeviceMockups() {
           {/* Header Bar */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{ width: '24px', height: '24px', backgroundColor: 'rgba(183,243,74,0.2)', border: '1px solid var(--brand-lime)', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>PAG</span>
-              </div>
-              <span style={{ fontSize: '13px', fontWeight: 'bold' }}>PAG Mobil</span>
+              <img
+                src="/logo.png"
+                alt="PAG Logo"
+                style={{ width: '24px', height: '24px', borderRadius: '6px', objectFit: 'contain' }}
+              />
+              <span style={{ fontSize: '13px', fontWeight: 'bold', color: 'white' }}>PAG Mobil</span>
             </div>
             <span style={{ fontSize: '11px', color: 'var(--brand-lime)', backgroundColor: 'rgba(183,243,74,0.1)', padding: '2px 8px', borderRadius: '10px' }}>
               Puan: 850
@@ -68,19 +70,10 @@ export default function DeviceMockups() {
           {/* SCREEN 1: HOME */}
           {activeScreen === 'home' && (
             <>
-              {/* Story Bar */}
-              <div>
-                <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Öne Çıkanlar</span>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-                  {['Teknoloji', 'Otomotiv', 'Spor', 'Moda'].map((cat, i) => (
-                    <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', border: '2px solid var(--brand-lime)', backgroundColor: 'var(--bg-surface-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px' }}>
-                        {i === 0 ? '💻' : i === 1 ? '🚗' : i === 2 ? '⚽' : '👟'}
-                      </div>
-                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{cat}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Welcome Message */}
+              <div style={{ backgroundColor: 'var(--bg-surface)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Hoş Geldiniz 👋</div>
+                <div style={{ fontSize: '14px', fontWeight: 'bold', color: 'white', marginTop: '2px' }}>Öncelikli Anket Akışı</div>
               </div>
 
               {/* Active Survey Card */}
@@ -89,7 +82,7 @@ export default function DeviceMockups() {
                   <span style={{ fontSize: '10px', backgroundColor: 'rgba(57,119,246,0.2)', color: '#3977F6', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>Özel Anket</span>
                   <span style={{ fontSize: '10px', color: 'var(--brand-lime)', fontWeight: 'bold' }}>+150 Profil Puanı</span>
                 </div>
-                <h5 style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '6px' }}>Teknoloji ve Akıllı Cihaz Tercihleri</h5>
+                <h5 style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '6px', color: 'white' }}>Teknoloji ve Akıllı Cihaz Tercihleri</h5>
                 <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>Maksimum 3 Soru • Katılım Limiti Mevcut</p>
                 <div style={{ marginTop: '10px', padding: '6px', backgroundColor: 'var(--brand-lime)', color: '#011033', textAlign: 'center', borderRadius: '6px', fontWeight: 'bold', fontSize: '11px' }}>
                   Ankete Başla →
@@ -104,7 +97,34 @@ export default function DeviceMockups() {
             </>
           )}
 
-          {/* SCREEN 2: SURVEY */}
+          {/* SCREEN 2: STORY BAR */}
+          {activeScreen === 'story' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <span style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Öne Çıkan Hikayeler</span>
+                <div style={{ display: 'flex', gap: '10px', marginTop: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                  {['Teknoloji', 'Otomotiv', 'Kahve', 'Finans'].map((cat, i) => (
+                    <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ width: '52px', height: '52px', borderRadius: '50%', border: '2px solid var(--brand-lime)', backgroundColor: 'var(--bg-surface-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                        {i === 0 ? '💻' : i === 1 ? '🚗' : i === 2 ? '☕' : '💳'}
+                      </div>
+                      <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{cat}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ backgroundColor: 'var(--bg-surface)', padding: '14px', borderRadius: '12px', border: '1px solid var(--border-highlight)', marginTop: '8px' }}>
+                <span style={{ fontSize: '10px', color: 'var(--brand-lime)', fontWeight: 'bold' }}>Marka Öne Çıkarma</span>
+                <h5 style={{ fontSize: '13px', fontWeight: 'bold', marginTop: '4px', color: 'white' }}>Yeni Nesil Cihaz Lansmanı Story</h5>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Anlaşmalı markaların hedeflenmiş hikaye içerikleri mobil uygulama üst bandında yayınlanır.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* SCREEN 3: SURVEY */}
           {activeScreen === 'survey' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-secondary)' }}>
@@ -140,34 +160,6 @@ export default function DeviceMockups() {
             </div>
           )}
 
-          {/* SCREEN 3: PROFILE SCORE */}
-          {activeScreen === 'score' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '12px', textAlign: 'center', border: '1px solid var(--border-highlight)' }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>Mevcut Profil Puanınız</span>
-                <div style={{ fontSize: '28px', fontWeight: '900', color: 'var(--brand-lime)', marginTop: '4px' }}>850 Puan</div>
-                <span style={{ fontSize: '10px', color: 'var(--success-color)' }}>Top 5% Kullanıcı Sıralaması</span>
-              </div>
-
-              <div style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Son Puan Hareketleri (Ledger)</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {[
-                  { title: 'Teknoloji Anketi Katılımı', pts: '+150 Puan', date: 'Bugün' },
-                  { title: 'Telefon Doğrulaması', pts: '+200 Puan', date: 'Dün' },
-                  { title: 'Temel Profil Tamamlama', pts: '+500 Puan', date: '3 gün önce' }
-                ].map((item, idx) => (
-                  <div key={idx} style={{ padding: '8px 10px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '11px', fontWeight: 'bold' }}>{item.title}</div>
-                      <div style={{ fontSize: '9px', color: 'var(--text-muted)' }}>{item.date}</div>
-                    </div>
-                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>{item.pts}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* SCREEN 4: REWARDS */}
           {activeScreen === 'rewards' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -191,7 +183,7 @@ export default function DeviceMockups() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ backgroundColor: 'var(--bg-surface)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px' }}>
-                  <span>Temel Profil Tamamlama</span>
+                  <span style={{ color: 'white' }}>Temel Profil Tamamlama</span>
                   <span style={{ color: 'var(--brand-lime)', fontWeight: 'bold' }}>%100</span>
                 </div>
               </div>
@@ -213,3 +205,4 @@ export default function DeviceMockups() {
     </div>
   );
 }
+
