@@ -19,6 +19,7 @@ export default function ChangePasswordPage() {
 
   const isForced = portalUser?.mustChangePassword === true;
 
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
