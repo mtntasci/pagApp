@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 
 function removeUndefinedFields<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
@@ -69,9 +70,25 @@ export default function SurveysPage() {
       const res: any = await listFn({});
       if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
         setSurveys(res.data.data.surveys);
+        setIsLoading(false);
+        return;
       }
     } catch (err: any) {
-      console.error('Fetch Surveys Admin SDK error:', err);
+      console.warn('Fetch Surveys Admin SDK error/fallback:', err);
+    }
+
+    try {
+      const snap = await getDocs(collection(db, 'surveys'));
+      const list = snap.docs.map(docSnap => {
+        const d = docSnap.data();
+        return {
+          ...d,
+          surveyId: docSnap.id
+        };
+      });
+      setSurveys(list);
+    } catch (fsErr) {
+      console.error('Fetch Surveys Firestore fallback error:', fsErr);
     } finally {
       setIsLoading(false);
     }
