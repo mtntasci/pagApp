@@ -598,8 +598,16 @@ export const approveSurveyAdminHandler = async (
       const questions = sData.questions || [];
       const questionSnapshot = JSON.parse(JSON.stringify(questions));
 
+      let resolvedStatus = 'ACTIVE';
+      if (sData.startAt) {
+        const startD = sData.startAt.toDate ? sData.startAt.toDate() : new Date(sData.startAt);
+        if (!isNaN(startD.getTime()) && startD.getTime() > Date.now()) {
+          resolvedStatus = 'SCHEDULED';
+        }
+      }
+
       await surveyRef.update({
-        status: 'APPROVED',
+        status: resolvedStatus,
         questionSnapshot: questionSnapshot,
         'approvalInfo.approvedBy': adminUser.uid,
         'approvalInfo.approvedAt': serverNow,
@@ -609,7 +617,7 @@ export const approveSurveyAdminHandler = async (
     } else {
       await surveyRef.set({
         surveyId,
-        status: 'APPROVED',
+        status: 'ACTIVE',
         'approvalInfo.approvedBy': adminUser.uid,
         'approvalInfo.approvedAt': serverNow,
         updatedAt: serverNow,

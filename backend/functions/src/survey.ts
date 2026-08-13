@@ -76,7 +76,7 @@ export const getEligibleSurveysHandler = async (
 
   const surveysSnapshot = await db
     .collection('surveys')
-    .where('status', '==', 'ACTIVE')
+    .where('status', 'in', ['ACTIVE', 'APPROVED', 'SCHEDULED'])
     .get();
 
   const userResponsesSnapshot = await db
@@ -99,15 +99,17 @@ export const getEligibleSurveysHandler = async (
   const userBasicProfile = basicProfileSnap.exists ? basicProfileSnap.data() : null;
 
   surveysSnapshot.docs.forEach((doc) => {
-    const survey = doc.data() as PAGSurveyData;
+    const survey = doc.data() as PAGSurveyData & { isArchived?: boolean };
+
+    if (survey.isArchived) return;
 
     if (survey.startAt) {
       const startTime = survey.startAt.toDate ? survey.startAt.toDate() : new Date(survey.startAt);
-      if (startTime > now.toDate()) return;
+      if (!isNaN(startTime.getTime()) && startTime > now.toDate()) return;
     }
     if (survey.endAt) {
       const endTime = survey.endAt.toDate ? survey.endAt.toDate() : new Date(survey.endAt);
-      if (endTime < now.toDate()) return;
+      if (!isNaN(endTime.getTime()) && endTime < now.toDate()) return;
     }
 
     const isCompleted = completedSurveyIds.has(survey.surveyId);
