@@ -972,11 +972,31 @@ export default function SurveysPage() {
                       value={formCategory} onChange={(e) => setFormCategory(e.target.value)}
                       style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     >
-                      <option value="Otomotiv">Otomotiv</option>
-                      <option value="Yeme / İçme">Yeme / İçme</option>
-                      <option value="Teknoloji">Teknoloji</option>
-                      <option value="Spor">Spor</option>
-                      <option value="Genel">Genel</option>
+                      {availableCategories.length > 0 ? (
+                        availableCategories
+                          .filter((cat) => typeof cat.isVisible !== 'boolean' || cat.isVisible || cat.name === formCategory)
+                          .map((cat) => (
+                            <option key={cat.id} value={cat.name}>
+                              {cat.name}
+                            </option>
+                          ))
+                      ) : (
+                        <>
+                          <option value="Yaşam">Yaşam</option>
+                          <option value="Alışveriş & Tüketim">Alışveriş & Tüketim</option>
+                          <option value="Yeme & İçme">Yeme & İçme</option>
+                          <option value="Teknoloji">Teknoloji</option>
+                          <option value="Otomotiv & Ulaşım">Otomotiv & Ulaşım</option>
+                          <option value="Spor & Sağlıklı Yaşam">Spor & Sağlıklı Yaşam</option>
+                          <option value="Seyahat & Eğlence">Seyahat & Eğlence</option>
+                          <option value="Finans">Finans</option>
+                          <option value="Ev & Yaşam">Ev & Yaşam</option>
+                          <option value="Moda & Kişisel Bakım">Moda & Kişisel Bakım</option>
+                          <option value="Medya & Dijital İçerik">Medya & Dijital İçerik</option>
+                          <option value="Eğitim & Kariyer">Eğitim & Kariyer</option>
+                          <option value="Genel">Genel</option>
+                        </>
+                      )}
                     </select>
                   </div>
                 </div>
