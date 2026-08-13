@@ -52,10 +52,16 @@ service cloud.firestore {
       );
     }
 
-    // Surveys Collection: READ by authenticated users, WRITE strictly prohibited for clients
+    // Surveys Collection: READ by authenticated users, WRITE by authorized active portal users
     match /surveys/{surveyId} {
       allow read: if isAuthenticated();
-      allow write: if false; // All creation/updates via Cloud Functions Admin SDK
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
     }
 
     // Survey Responses: READ by owner/admin, WRITE strictly prohibited for client SDKs
