@@ -43,15 +43,19 @@ export default function FirmaBasvuruPage() {
       });
 
       if (res.data?.success) {
-        setSubmitSuccess(true);
-        setFormData({
-          companyName: '',
-          contactName: '',
-          contactEmail: '',
-          contactPhone: '',
-          website: '',
-          message: ''
-        });
+        if (res.data.isDuplicate) {
+          setErrorMsg(res.data.message || 'Başvurunuz daha önce alınmıştır.');
+        } else {
+          setSubmitSuccess(true);
+          setFormData({
+            companyName: '',
+            contactName: '',
+            contactEmail: '',
+            contactPhone: '',
+            website: '',
+            message: ''
+          });
+        }
       }
     } catch (err: any) {
       console.error('Company Application Error:', err);

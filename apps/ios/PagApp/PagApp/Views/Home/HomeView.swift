@@ -4,6 +4,7 @@ public struct HomeView: View {
     @StateObject private var userService = UserService.shared
     @StateObject private var surveyService = SurveyService.shared
     @StateObject private var profileSurveyService = ProfileSurveyService.shared
+    @StateObject private var storyService = StoryService.shared
     @State private var navPath = NavigationPath()
     @State private var targetFlowSurvey: PAGSurvey? = nil
     public var onNavigateToSurveys: (() -> Void)? = nil
@@ -14,7 +15,8 @@ public struct HomeView: View {
     
     private var storyItems: [StoryItemType] {
         var items: [StoryItemType] = [.home]
-        let sortedStories = StoryMock.sampleList
+        let sourceList = storyService.stories.isEmpty ? StoryMock.sampleList : storyService.stories
+        let sortedStories = sourceList
             .filter { $0.isActive }
             .sorted { $0.position < $1.position }
         items.append(contentsOf: sortedStories.map { .story($0) })
@@ -168,6 +170,7 @@ public struct HomeView: View {
                 }
             }
             .task {
+                await storyService.fetchStories()
                 await surveyService.fetchEligibleSurveys()
                 await profileSurveyService.fetchProfileQuestions(batchSize: 3)
             }

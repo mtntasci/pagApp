@@ -46,6 +46,7 @@ import com.alafteknoloji.pagapp.models.StoryType
 import com.alafteknoloji.pagapp.models.SurveyMock
 import com.alafteknoloji.pagapp.models.UserProfileMock
 import com.alafteknoloji.pagapp.services.ProfileSurveyService
+import com.alafteknoloji.pagapp.services.StoryService
 import com.alafteknoloji.pagapp.services.SurveyService
 import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
@@ -62,24 +63,28 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     appState: AppState,
     userService: UserService? = null,
-    surveyService: SurveyService = remember { SurveyService() }
+    surveyService: SurveyService = remember { SurveyService() },
+    storyService: StoryService = remember { StoryService() }
 ) {
     val context = LocalContext.current
     val profileSurveyService = remember { ProfileSurveyService.getInstance(context) }
 
     val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
     val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()
+    val fetchedStories: List<StoryMock> by storyService.stories.collectAsState()
     val isLoadingSurveys by surveyService.isLoading.collectAsState()
     val hasPromotedQuestion by profileSurveyService.hasPromotedQuestion.collectAsState()
     val userProfile = UserProfileMock.sample
 
     LaunchedEffect(Unit) {
+        storyService.fetchStories()
         surveyService.fetchEligibleSurveys()
         profileSurveyService.fetchProfileQuestions(3)
     }
 
     val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
-    val sortedStories = StoryMock.sampleList.filter { it.isActive }.sortedBy { it.position }
+    val activeStoryList: List<StoryMock> = if (fetchedStories.isNotEmpty()) fetchedStories else StoryMock.sampleList
+    val sortedStories = activeStoryList.filter { it.isActive }.sortedBy { it.position }
     storyItems.addAll(sortedStories.map { StoryItemType.Story(it) })
 
     if (appState.homeRoute == HomeRoute.EARN_PROFILE_SCORE) {

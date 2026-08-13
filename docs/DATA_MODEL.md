@@ -54,6 +54,9 @@ campaigns/
 pushDeliveries/
 surveyCategories/
 profileSurveyCategories/
+storyBar/
+companyApplications/
+companyAppLookups/
 rewardLedger/
 rewardBalances/
 voucherPools/

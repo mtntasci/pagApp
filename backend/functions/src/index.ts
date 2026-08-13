@@ -28,7 +28,8 @@ import {
   completePasswordChangePortalUserHandler,
   manageSurveyCategoriesAdminHandler,
   seedCategoriesAdminHandler,
-  cleanSurveyDataAdminHandler
+  cleanSurveyDataAdminHandler,
+  getEligibleStoriesHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -105,6 +106,7 @@ export const approveSurveyAdmin = functions.https.onCall(approveSurveyAdminHandl
 export const archiveSurveyAdmin = functions.https.onCall(archiveSurveyAdminHandler);
 export const manageVoucherPoolAdmin = functions.https.onCall(manageVoucherPoolAdminHandler);
 export const manageStoryBarAdmin = functions.https.onCall(manageStoryBarAdminHandler);
+export const getEligibleStories = functions.https.onCall(getEligibleStoriesHandler);
 
 export const getPortalUser = functions.https.onCall(getPortalUserHandler);
 export const submitCompanyApplication = functions.https.onCall(submitCompanyApplicationHandler);

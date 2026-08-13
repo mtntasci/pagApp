@@ -32,6 +32,53 @@ export function removeUndefinedFields<T>(obj: T): T {
   return obj;
 }
 
+export function normalizeTRPhone(phone: string): string {
+  const digits = (phone || '').replace(/\D/g, '');
+  if (digits.startsWith('90') && digits.length === 12) return digits.substring(2);
+  if (digits.startsWith('0') && digits.length === 11) return digits.substring(1);
+  return digits;
+}
+
+export async function syncSurveyStoryBarDoc(
+  db: admin.firestore.Firestore,
+  surveyId: string,
+  surveyData: any
+) {
+  const storyRef = db.collection('storyBar').doc(`story_${surveyId}`);
+  const showInStory = surveyData?.storyConfig?.showInStory === true;
+  const status = surveyData?.status;
+  const isArchived = surveyData?.isArchived === true;
+
+  const isActiveStatus = (status === 'ACTIVE' || status === 'SCHEDULED') && !isArchived;
+
+  if (showInStory && isActiveStatus) {
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+    const label = surveyData?.storyConfig?.storyLabel || surveyData?.title || 'Anket';
+    const imageCategory = surveyData?.storyConfig?.imageCategory || surveyData?.category || 'General';
+
+    await storyRef.set({
+      storyId: `story_${surveyId}`,
+      surveyId: surveyId,
+      type: 'SURVEY',
+      shortLabel: label,
+      label: label,
+      imageCategory: imageCategory,
+      imageUrl: surveyData?.storyConfig?.imageUrl || '',
+      position: surveyData?.storyConfig?.position || 1,
+      isActive: true,
+      updatedAt: serverNow
+    }, { merge: true });
+  } else {
+    const doc = await storyRef.get();
+    if (doc.exists) {
+      await storyRef.update({
+        isActive: false,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+    }
+  }
+}
+
 // Helper to verify Admin/Portal authorization & retrieve role metadata
 export const verifyAdminUser = async (
   context: functions.https.CallableContext,
@@ -484,6 +531,7 @@ export const createOrUpdateSurveyAdminHandler = async (
 
   try {
     await surveyRef.set(cleanedPayload, { merge: true });
+    await syncSurveyStoryBarDoc(db, targetSurveyId, cleanedPayload);
   } catch (err: any) {
     if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) {
       throw err;
@@ -676,6 +724,11 @@ export const approveSurveyAdminHandler = async (
         updatedAt: serverNow,
         publishedAt: serverNow
       });
+
+      const updatedSnap = await surveyRef.get();
+      if (updatedSnap.exists) {
+        await syncSurveyStoryBarDoc(db, surveyId, updatedSnap.data());
+      }
     } else {
       await surveyRef.set({
         surveyId,
@@ -685,6 +738,11 @@ export const approveSurveyAdminHandler = async (
         updatedAt: serverNow,
         publishedAt: serverNow
       }, { merge: true });
+
+      const updatedSnap = await surveyRef.get();
+      if (updatedSnap.exists) {
+        await syncSurveyStoryBarDoc(db, surveyId, updatedSnap.data());
+      }
     }
   } catch (err: any) {
     if (err.code === 'permission-denied' || err.code === 'invalid-argument') throw err;
@@ -876,37 +934,94 @@ export const submitCompanyApplicationHandler = async (
 ) => {
   const { companyName, contactName, contactEmail, contactPhone, website, message } = data || {};
 
-  if (!companyName || typeof companyName !== 'string') {
+  if (!companyName || typeof companyName !== 'string' || !companyName.trim()) {
     throw new functions.https.HttpsError('invalid-argument', 'Firma / Kurum adı zorunludur.');
   }
   if (!contactName || !contactEmail || !contactPhone) {
     throw new functions.https.HttpsError('invalid-argument', 'Yetkili ad soyad, e-posta ve telefon zorunludur.');
   }
 
-  const db = admin.firestore();
-  const applicationId = `app_${Date.now()}`;
-  const docRef = db.collection('companyApplications').doc(applicationId);
-  const serverNow = admin.firestore.FieldValue.serverTimestamp();
+  const cleanEmail = contactEmail.trim().toLowerCase();
+  const cleanPhone = normalizeTRPhone(contactPhone);
 
-  const applicationData = removeUndefinedFields({
-    applicationId,
-    companyName: companyName.trim(),
-    contactName: contactName.trim(),
-    contactEmail: contactEmail.trim().toLowerCase(),
-    contactPhone: contactPhone.trim(),
-    website: website ? website.trim() : null,
-    message: message ? message.trim() : null,
-    status: 'PENDING',
-    createdAt: serverNow
-  });
-
-  try {
-    await docRef.set(applicationData);
-  } catch (err: any) {
-    if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
+  if (!cleanEmail.includes('@')) {
+    throw new functions.https.HttpsError('invalid-argument', 'Geçerli bir e-posta adresi giriniz.');
   }
 
-  return { success: true, data: applicationData };
+  if (cleanPhone.length < 10) {
+    throw new functions.https.HttpsError('invalid-argument', 'Geçerli bir telefon numarası giriniz.');
+  }
+
+  const db = admin.firestore();
+  const emailLookupRef = db.collection('companyAppLookups').doc(`email_${cleanEmail}`);
+  const phoneLookupRef = db.collection('companyAppLookups').doc(`phone_${cleanPhone}`);
+
+  return await db.runTransaction(async (transaction) => {
+    // === 1. READ LOOKUPS FIRST ===
+    const emailLookupDoc = await transaction.get(emailLookupRef);
+    const phoneLookupDoc = await transaction.get(phoneLookupRef);
+
+    if (emailLookupDoc.exists || phoneLookupDoc.exists) {
+      const existingStatus = (emailLookupDoc.exists ? emailLookupDoc.data()?.status : phoneLookupDoc.data()?.status) || 'PENDING';
+      let userMsg = 'Başvurunuz daha önce alınmıştır. İncelendikten sonra sizlere bilgi verilecektir.';
+
+      if (existingStatus === 'REJECTED') {
+        userMsg = 'Başvurunuz reddedilmiş ve size e-posta ile bilgi verilmiştir.';
+      } else if (existingStatus === 'APPROVED') {
+        userMsg = 'Başvurunuz onaylanmıştır. Giriş bilgileri için temsilciniz sizinle en kısa sürede iletişime geçecektir.';
+      }
+
+      return {
+        success: true,
+        isDuplicate: true,
+        message: userMsg,
+        data: null
+      };
+    }
+
+    // === 2. CREATE NEW APPLICATION & LOOKUPS ===
+    const applicationId = `app_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+    const docRef = db.collection('companyApplications').doc(applicationId);
+    const serverNow = admin.firestore.FieldValue.serverTimestamp();
+
+    const applicationData = removeUndefinedFields({
+      applicationId,
+      companyName: companyName.trim(),
+      contactName: contactName.trim(),
+      contactEmail: cleanEmail,
+      contactPhone: contactPhone.trim(),
+      normalizedPhone: cleanPhone,
+      website: website ? website.trim() : null,
+      message: message ? message.trim() : null,
+      status: 'PENDING',
+      createdAt: serverNow
+    });
+
+    transaction.set(docRef, applicationData);
+
+    transaction.set(emailLookupRef, {
+      lookupType: 'EMAIL',
+      value: cleanEmail,
+      applicationId,
+      status: 'PENDING',
+      createdAt: serverNow
+    });
+
+    transaction.set(phoneLookupRef, {
+      lookupType: 'PHONE',
+      value: cleanPhone,
+      applicationId,
+      status: 'PENDING',
+      createdAt: serverNow
+    });
+
+    return {
+      success: true,
+      isDuplicate: false,
+      message: 'Başvurunuz başarıyla alınmıştır. En kısa sürede sizinle iletişime geçilecektir.',
+      data: applicationData
+    };
+  });
 };
 
 export const listCompanyApplicationsAdminHandler = async (
@@ -954,11 +1069,32 @@ export const updateCompanyApplicationStatusAdminHandler = async (
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
 
   try {
-    await docRef.update({
-      status,
-      updatedAt: serverNow,
-      updatedBy: adminUser.uid
-    });
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+      const appData = docSnap.data() || {};
+      await docRef.update({
+        status,
+        updatedAt: serverNow,
+        updatedBy: adminUser.uid
+      });
+
+      const cleanEmail = (appData.contactEmail || '').trim().toLowerCase();
+      const cleanPhone = normalizeTRPhone(appData.contactPhone || appData.normalizedPhone || '');
+
+      if (cleanEmail) {
+        await db.collection('companyAppLookups').doc(`email_${cleanEmail}`).set({
+          status,
+          updatedAt: serverNow
+        }, { merge: true });
+      }
+
+      if (cleanPhone) {
+        await db.collection('companyAppLookups').doc(`phone_${cleanPhone}`).set({
+          status,
+          updatedAt: serverNow
+        }, { merge: true });
+      }
+    }
   } catch (err: any) {
     if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
   }
@@ -1166,6 +1302,67 @@ export const seedCategoriesAdminHandler = async (
   await pBatch.commit();
 
   return { success: true, message: 'Seeded 13 Survey Categories and 13 Profile Categories successfully.' };
+};
+
+export const getEligibleStoriesHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  if (!admin.apps.length) admin.initializeApp();
+  const db = admin.firestore();
+
+  const stories: any[] = [];
+  try {
+    const snap = await db.collection('storyBar')
+      .where('isActive', '==', true)
+      .get();
+
+    for (const doc of snap.docs) {
+      const d = doc.data();
+      const surveyId = d.surveyId;
+
+      if (surveyId) {
+        const surveyDoc = await db.collection('surveys').doc(surveyId).get();
+        if (!surveyDoc.exists) continue;
+
+        const sData = surveyDoc.data() || {};
+        const activeStatuses = ['ACTIVE', 'SCHEDULED'];
+        if (!activeStatuses.includes(sData.status) || sData.isArchived) continue;
+
+        if (sData.startAt) {
+          const startTime = sData.startAt.toDate ? sData.startAt.toDate() : new Date(sData.startAt);
+          if (!isNaN(startTime.getTime()) && startTime > new Date()) continue;
+        }
+
+        if (sData.endAt) {
+          const endTime = sData.endAt.toDate ? sData.endAt.toDate() : new Date(sData.endAt);
+          if (!isNaN(endTime.getTime()) && endTime < new Date()) continue;
+        }
+      }
+
+      stories.push({
+        id: doc.id,
+        storyId: doc.id,
+        surveyId: d.surveyId || null,
+        type: d.type || 'SURVEY',
+        shortLabel: d.shortLabel || d.label || 'Anket',
+        label: d.label || d.shortLabel || 'Anket',
+        imageUrl: d.imageUrl || '',
+        imageCategory: d.imageCategory || 'General',
+        position: typeof d.position === 'number' ? d.position : 1,
+        isActive: true
+      });
+    }
+  } catch (err: any) {
+    functions.logger.error('Error fetching eligible stories:', err);
+  }
+
+  stories.sort((a, b) => a.position - b.position);
+
+  return {
+    success: true,
+    data: { stories }
+  };
 };
 
 export const cleanSurveyDataAdminHandler = async (
