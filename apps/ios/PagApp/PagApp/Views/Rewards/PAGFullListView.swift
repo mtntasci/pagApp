@@ -75,6 +75,13 @@ public struct PAGFullListView: View {
         return isoStr.prefix(10).description
     }
 
+    private func displayReason(_ reason: String) -> String {
+        if reason == "Temel Profil Tamamlama Ödülü" {
+            return "Tamamlama Ödülü"
+        }
+        return reason
+    }
+
     public var body: some View {
         ZStack {
             PAGTheme.backgroundPrimary.ignoresSafeArea()
@@ -239,8 +246,10 @@ public struct PAGFullListView: View {
                     Spacer()
                 }
                 
-                Text(entry.reason)
+                Text(displayReason(entry.reason))
                     .font(PAGTypography.heading)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .foregroundColor(PAGTheme.textPrimary)
                 
                 Text(formatDateStr(entry.createdAt))

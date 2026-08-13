@@ -3,9 +3,10 @@ import SwiftUI
 public struct RewardsView: View {
     @StateObject private var rewardService = RewardService.shared
     
-    // Accordion default closed states as requested
+    // Accordion default closed states as requested by user
     @State private var isRewardsExpanded: Bool = false
     @State private var isVouchersExpanded: Bool = false
+    @State private var isScoreHistoryExpanded: Bool = false // Default closed
     
     public init() {}
     
@@ -21,6 +22,13 @@ public struct RewardsView: View {
             return trFormatter.string(from: d)
         }
         return isoStr.prefix(10).description
+    }
+
+    private func displayReason(_ reason: String) -> String {
+        if reason == "Temel Profil Tamamlama Ödülü" {
+            return "Tamamlama Ödülü"
+        }
+        return reason
     }
 
     public var body: some View {
@@ -129,8 +137,10 @@ public struct RewardsView: View {
                                         ForEach(Array(rewardService.rewards.prefix(5))) { history in
                                             HStack {
                                                 VStack(alignment: .leading, spacing: 4) {
-                                                    Text(history.reason)
+                                                    Text(displayReason(history.reason))
                                                         .font(PAGTypography.heading)
+                                                        .lineLimit(1)
+                                                        .truncationMode(.tail)
                                                         .foregroundColor(PAGTheme.textPrimary)
                                                     Text(formatDateStr(history.createdAt))
                                                         .font(PAGTypography.caption)
@@ -280,51 +290,82 @@ public struct RewardsView: View {
                         }
                         .padding(.horizontal, PAGSpacing.md)
                         
-                        Divider().background(PAGTheme.borderDefault)
-                        
                         // ==================================================
-                        // 3. PROFİL PUANLARI GEÇMİŞİ (İkisinin Altında, Renkli)
+                        // 3. PROFİL PUANLARI ACCORDION (Varsayılan Kapalı)
                         // ==================================================
-                        VStack(alignment: .leading, spacing: PAGSpacing.md) {
-                            HStack {
-                                Text("Profil Puanları Geçmişi")
-                                    .font(PAGTypography.title)
-                                    .foregroundColor(PAGTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "bolt.fill")
-                                    .foregroundColor(PAGTheme.brandLime)
-                            }
-                            .padding(.horizontal, PAGSpacing.md)
-                            
-                            if rewardService.scoreLedgers.isEmpty {
-                                Text("Henüz kazanılmış Profil Puanı kaydı bulunmuyor.")
-                                    .font(PAGTypography.bodySmall)
-                                    .foregroundColor(PAGTheme.textMuted)
-                                    .padding(.horizontal, PAGSpacing.md)
-                            } else {
-                                // Display LAST 5 RECORDS
-                                ForEach(Array(rewardService.scoreLedgers.prefix(5))) { entry in
-                                    scoreRow(entry)
+                        VStack(spacing: 0) {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                    isScoreHistoryExpanded.toggle()
                                 }
-                                
-                                // "Tüm Profil Puanı Geçmişini Gör" Button (100 kayıtlık liste)
-                                NavigationLink(destination: PAGFullListView(listType: .scoreHistory, scoreLedgers: rewardService.scoreLedgers)) {
-                                    HStack {
-                                        Text("Tüm Profil Puanı Geçmişini Gör (\(rewardService.scoreLedgers.count) Kayıt)")
+                            }) {
+                                HStack {
+                                    Image(systemName: "bolt.fill")
+                                        .foregroundColor(Color(red: 0.65, green: 0.25, blue: 0.95))
+                                        .font(.system(size: 20))
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Profil Puanları Geçmişi")
                                             .font(PAGTypography.heading)
-                                            .foregroundColor(PAGTheme.brandMidnight)
-                                        Spacer()
-                                        Image(systemName: "arrow.right")
-                                            .foregroundColor(PAGTheme.brandMidnight)
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                        Text("\(rewardService.scoreLedgers.count) Kayıt")
+                                            .font(PAGTypography.caption)
+                                            .foregroundColor(PAGTheme.textMuted)
                                     }
-                                    .padding(14)
-                                    .background(PAGTheme.brandLime)
-                                    .cornerRadius(PAGRadius.medium)
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: isScoreHistoryExpanded ? "chevron.up" : "chevron.down")
+                                        .foregroundColor(PAGTheme.textMuted)
+                                        .font(.system(size: 16, weight: .semibold))
                                 }
-                                .padding(.horizontal, PAGSpacing.md)
+                                .padding()
+                                .background(PAGTheme.surfacePrimary)
+                                .cornerRadius(PAGRadius.medium)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                        .stroke(PAGTheme.borderDefault, lineWidth: 1)
+                                )
+                            }
+                            
+                            if isScoreHistoryExpanded {
+                                VStack(spacing: 10) {
+                                    if rewardService.scoreLedgers.isEmpty {
+                                        Text("Henüz kazanılmış Profil Puanı kaydı bulunmuyor.")
+                                            .font(PAGTypography.caption)
+                                            .foregroundColor(PAGTheme.textMuted)
+                                            .padding()
+                                    } else {
+                                        // Display LAST 5 RECORDS
+                                        ForEach(Array(rewardService.scoreLedgers.prefix(5))) { entry in
+                                            scoreRow(entry)
+                                        }
+                                        
+                                        // "Tüm Profil Puanı Geçmişini Gör" Button (100 kayıtlık liste)
+                                        NavigationLink(destination: PAGFullListView(listType: .scoreHistory, scoreLedgers: rewardService.scoreLedgers)) {
+                                            HStack {
+                                                Text("Tüm Profil Puanı Geçmişini Gör (\(rewardService.scoreLedgers.count) Kayıt)")
+                                                    .font(PAGTypography.caption)
+                                                    .fontWeight(.bold)
+                                                    .foregroundColor(PAGTheme.brandLime)
+                                                Spacer()
+                                                Image(systemName: "arrow.right")
+                                                    .font(.system(size: 12))
+                                                    .foregroundColor(PAGTheme.brandLime)
+                                            }
+                                            .padding(10)
+                                            .background(PAGTheme.brandLime.opacity(0.12))
+                                            .cornerRadius(PAGRadius.small)
+                                        }
+                                    }
+                                }
+                                .padding(12)
+                                .background(PAGTheme.surfacePrimary.opacity(0.6))
+                                .cornerRadius(PAGRadius.medium)
                                 .padding(.top, 4)
                             }
                         }
+                        .padding(.horizontal, PAGSpacing.md)
                         
                         Spacer().frame(height: 40)
                     }
@@ -342,22 +383,22 @@ public struct RewardsView: View {
     // Categorized Color Coding helper for Profile Score sources
     @ViewBuilder
     private func scoreRow(_ entry: PAGScoreLedgerEntry) -> some View {
-        let (badgeText, badgeIcon, badgeBg, badgeFg) = scoreSourceMetadata(entry.sourceType)
+        let (badgeText, badgeIcon, badgeBg, _) = scoreSourceMetadata(entry.sourceType)
         
         HStack(spacing: 12) {
             Circle()
                 .fill(badgeBg.opacity(0.18))
-                .frame(width: 42, height: 42)
+                .frame(width: 40, height: 40)
                 .overlay(
                     Image(systemName: badgeIcon)
-                        .font(.system(size: 18))
+                        .font(.system(size: 16))
                         .foregroundColor(badgeBg)
                 )
             
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(badgeText)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 10, weight: .bold))
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(badgeBg.opacity(0.15))
@@ -367,8 +408,11 @@ public struct RewardsView: View {
                     Spacer()
                 }
                 
-                Text(entry.reason)
+                // Single line truncation (...)
+                Text(displayReason(entry.reason))
                     .font(PAGTypography.heading)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                     .foregroundColor(PAGTheme.textPrimary)
                 
                 Text(formatDateStr(entry.createdAt))
@@ -382,14 +426,9 @@ public struct RewardsView: View {
                 .font(PAGTypography.heading)
                 .foregroundColor(badgeBg)
         }
-        .padding()
-        .background(PAGTheme.surfacePrimary)
-        .cornerRadius(PAGRadius.medium)
-        .overlay(
-            RoundedRectangle(cornerRadius: PAGRadius.medium)
-                .stroke(badgeBg.opacity(0.3), lineWidth: 1)
-        )
-        .padding(.horizontal, PAGSpacing.md)
+        .padding(12)
+        .background(PAGTheme.surfaceSecondary)
+        .cornerRadius(PAGRadius.small)
     }
     
     private func scoreSourceMetadata(_ sourceType: String) -> (text: String, icon: String, bg: Color, fg: Color) {
