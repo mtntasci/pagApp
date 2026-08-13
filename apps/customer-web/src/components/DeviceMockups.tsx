@@ -46,7 +46,7 @@ export default function DeviceMockups() {
       </div>
 
       {/* Mobile Device Frame */}
-      <div className="device-shell" style={{ width: '320px', height: '620px' }}>
+      <div className="device-shell" style={{ width: '100%', maxWidth: '320px', height: '620px' }}>
         <div className="device-notch"></div>
 
         {/* Screen Content Render */}

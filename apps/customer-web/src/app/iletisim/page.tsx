@@ -38,7 +38,7 @@ export default function IletisimPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div className="responsive-grid-2">
             {/* Company Info Box */}
             <div className="glass-card" style={{ padding: '36px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <h2 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--brand-lime)' }}>

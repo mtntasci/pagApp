@@ -91,7 +91,7 @@ export default function FirmalarPage() {
           </div>
 
           {/* SECTION 4: RAPORLAMA VE PII KORUMASI */}
-          <div style={{ marginBottom: '64px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div className="responsive-grid-2" style={{ marginBottom: '64px' }}>
             <div className="glass-card" style={{ padding: '32px' }}>
               <div className="badge-lime" style={{ marginBottom: '12px' }}>04. Raporlama & Analytics</div>
               <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '12px' }}>
