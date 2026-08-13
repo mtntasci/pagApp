@@ -61,8 +61,9 @@ public struct PAGChildrenInfo: Codable {
 }
 
 public struct PAGBasicProfile: Codable {
+    public var gender: String // MALE, FEMALE, PREFER_NOT_TO_SAY
     public var birthDetails: PAGBirthDetails
-    public var maritalStatus: String // SINGLE, MARRIED, DIVORCED, WIDOWED, OTHER
+    public var maritalStatus: String // SINGLE, MARRIED, PREFER_NOT_TO_SAY (plus legacy DIVORCED, WIDOWED, OTHER)
     public var childrenInfo: PAGChildrenInfo
     public var residenceAddress: PAGLocationPair
     public var hometown: PAGLocationPair
@@ -70,14 +71,16 @@ public struct PAGBasicProfile: Codable {
     public var scoreAwarded: Bool
     
     public init(
+        gender: String = "PREFER_NOT_TO_SAY",
         birthDetails: PAGBirthDetails = PAGBirthDetails(),
-        maritalStatus: String = "",
+        maritalStatus: String = "PREFER_NOT_TO_SAY",
         childrenInfo: PAGChildrenInfo = PAGChildrenInfo(),
         residenceAddress: PAGLocationPair = PAGLocationPair(),
         hometown: PAGLocationPair = PAGLocationPair(),
         completionPercentage: Int = 0,
         scoreAwarded: Bool = false
     ) {
+        self.gender = gender
         self.birthDetails = birthDetails
         self.maritalStatus = maritalStatus
         self.childrenInfo = childrenInfo

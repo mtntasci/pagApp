@@ -17,6 +17,7 @@ export interface LocationPair {
 }
 
 export interface BasicProfileInput {
+  gender?: 'MALE' | 'FEMALE' | 'PREFER_NOT_TO_SAY';
   birthDetails?: {
     birthDate?: string;
     cityId?: string;
@@ -24,7 +25,7 @@ export interface BasicProfileInput {
     districtId?: string;
     districtName?: string;
   };
-  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | 'OTHER';
+  maritalStatus?: 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | 'OTHER' | 'PREFER_NOT_TO_SAY';
   childrenInfo?: {
     hasChildren: boolean;
     childrenCount: number;
@@ -206,9 +207,17 @@ export const updateBasicProfileHandler = async (
     }
   }
 
+  // Validate Gender if provided
+  if (data.gender) {
+    const validGenders = ['MALE', 'FEMALE', 'PREFER_NOT_TO_SAY'];
+    if (!validGenders.includes(data.gender)) {
+      throw new functions.https.HttpsError('invalid-argument', 'Invalid gender value.');
+    }
+  }
+
   // Validate Marital Status if provided
   if (data.maritalStatus) {
-    const validStatuses = ['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'OTHER'];
+    const validStatuses = ['SINGLE', 'MARRIED', 'DIVORCED', 'WIDOWED', 'OTHER', 'PREFER_NOT_TO_SAY'];
     if (!validStatuses.includes(data.maritalStatus)) {
       throw new functions.https.HttpsError('invalid-argument', 'Invalid maritalStatus value.');
     }

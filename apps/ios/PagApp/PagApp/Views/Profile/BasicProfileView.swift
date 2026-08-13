@@ -315,6 +315,41 @@ public struct BasicProfileView: View {
     @ViewBuilder
     private var step1BirthDetailsView: some View {
         VStack(alignment: .leading, spacing: 20) {
+            // Cinsiyet Seçimi
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Cinsiyetiniz")
+                    .font(PAGTypography.bodyLarge)
+                    .foregroundColor(PAGTheme.textPrimary)
+                
+                let genderOptions: [(code: String, label: String)] = [
+                    ("MALE", "Erkek"),
+                    ("FEMALE", "Kadın"),
+                    ("PREFER_NOT_TO_SAY", "Belirtmek İstemiyorum")
+                ]
+                
+                HStack(spacing: 8) {
+                    ForEach(genderOptions, id: \.code) { opt in
+                        Button(action: {
+                            draftProfile.gender = opt.code
+                        }) {
+                            Text(opt.label)
+                                .font(PAGTypography.caption)
+                                .fontWeight(.semibold)
+                                .padding(.vertical, 10)
+                                .padding(.horizontal, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(draftProfile.gender == opt.code ? PAGTheme.brandLime : PAGTheme.surfacePrimary)
+                                .foregroundColor(draftProfile.gender == opt.code ? PAGTheme.brandMidnight : PAGTheme.textPrimary)
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(draftProfile.gender == opt.code ? PAGTheme.brandLime : PAGTheme.borderDefault, lineWidth: 1)
+                                )
+                        }
+                    }
+                }
+            }
+
             VStack(alignment: .leading, spacing: 8) {
                 Text("Doğum Tarihi")
                     .font(PAGTypography.bodyLarge)
@@ -411,11 +446,9 @@ public struct BasicProfileView: View {
                 .foregroundColor(PAGTheme.textMuted)
             
             let options: [(code: String, label: String)] = [
-                ("SINGLE", "Bekar"),
                 ("MARRIED", "Evli"),
-                ("DIVORCED", "Boşanmış"),
-                ("WIDOWED", "Dul"),
-                ("OTHER", "Diğer")
+                ("SINGLE", "Bekar"),
+                ("PREFER_NOT_TO_SAY", "Belirtmek İstemiyorum")
             ]
             
             ForEach(options, id: \.code) { opt in

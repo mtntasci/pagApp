@@ -1,6 +1,7 @@
 package com.alafteknoloji.pagapp.ui.screens.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,35 +10,51 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.alafteknoloji.pagapp.AppState
+import com.alafteknoloji.pagapp.models.HomeRoute
+import com.alafteknoloji.pagapp.models.StoryItemType
+import com.alafteknoloji.pagapp.models.StoryMock
+import com.alafteknoloji.pagapp.models.StoryType
 import com.alafteknoloji.pagapp.models.SurveyMock
 import com.alafteknoloji.pagapp.models.UserProfileMock
+import com.alafteknoloji.pagapp.services.ProfileSurveyService
+import com.alafteknoloji.pagapp.services.SurveyService
+import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.components.PAGCard
 import com.alafteknoloji.pagapp.ui.components.SurveyCard
 import com.alafteknoloji.pagapp.ui.screens.home.story.PAGStoryBar
-import com.alafteknoloji.pagapp.models.StoryItemType
-import com.alafteknoloji.pagapp.models.HomeRoute
-import com.alafteknoloji.pagapp.models.StoryMock
-import com.alafteknoloji.pagapp.models.StoryType
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.MutableStateFlow
-import com.alafteknoloji.pagapp.services.UserService
-import com.alafteknoloji.pagapp.AppState
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,21 +62,26 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     appState: AppState,
     userService: UserService? = null,
-    surveyService: com.alafteknoloji.pagapp.services.SurveyService = androidx.compose.runtime.remember { com.alafteknoloji.pagapp.services.SurveyService() }
+    surveyService: SurveyService = remember { SurveyService() }
 ) {
+    val context = LocalContext.current
+    val profileSurveyService = remember { ProfileSurveyService.getInstance(context) }
+
     val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
     val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()
     val isLoadingSurveys by surveyService.isLoading.collectAsState()
+    val hasPromotedQuestion by profileSurveyService.hasPromotedQuestion.collectAsState()
     val userProfile = UserProfileMock.sample
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         surveyService.fetchEligibleSurveys()
+        profileSurveyService.fetchProfileQuestions(3)
     }
-    
+
     val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
     val sortedStories = StoryMock.sampleList.filter { it.isActive }.sortedBy { it.position }
     storyItems.addAll(sortedStories.map { StoryItemType.Story(it) })
-    
+
     if (appState.homeRoute == HomeRoute.EARN_PROFILE_SCORE) {
         EarnProfileScoreScreen(
             onBack = { appState.homeRoute = HomeRoute.HOME },
@@ -96,7 +118,74 @@ fun HomeScreen(
                     }
                 )
             }
-            
+
+            // Home Promotion Card (Hides automatically when all promoted questions are answered)
+            if (hasPromotedQuestion) {
+                item {
+                    Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, RoundedCornerShape(12.dp))
+                                .border(1.5.dp, PAGTheme.colors.brandLime, RoundedCornerShape(12.dp))
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Puan kazanmak ister misin?",
+                                    style = PAGTheme.typography.heading,
+                                    color = PAGTheme.colors.textPrimary
+                                )
+                                Icon(
+                                    imageVector = Icons.Filled.Star,
+                                    contentDescription = null,
+                                    tint = PAGTheme.colors.brandLime
+                                )
+                            }
+
+                            Text(
+                                text = "Hadi profilini güçlendirelim.",
+                                style = PAGTheme.typography.body,
+                                color = PAGTheme.colors.textMuted
+                            )
+
+                            Button(
+                                onClick = {
+                                    appState.selectedTab = 3 // Switch to Profile tab
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(44.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Profili Güçlendir",
+                                        color = PAGTheme.colors.brandMidnight,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = PAGTheme.colors.brandMidnight
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             item {
                 Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
                     UserProfileCard(userProfile = userProfile, pagUser = pagUser)
@@ -105,11 +194,45 @@ fun HomeScreen(
 
             item {
                 Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                    RealActiveSurveysSection(
-                        surveys = eligibleSurveys,
-                        isLoading = isLoadingSurveys,
-                        onNavigateToSurvey = { id -> appState.navigateToSurvey(id) }
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.md)) {
+                        Text(
+                            text = "Aktif Anketler",
+                            style = PAGTheme.typography.title,
+                            color = PAGTheme.colors.textPrimary
+                        )
+
+                        if (isLoadingSurveys) {
+                            androidx.compose.material3.CircularProgressIndicator(color = PAGTheme.colors.brandLime)
+                        } else if (eligibleSurveys.isEmpty()) {
+                            Text(
+                                text = "Şu an için katılabileceğiniz aktif anket bulunmuyor.",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textMuted
+                            )
+                        } else {
+                            eligibleSurveys.take(5).forEach { survey ->
+                                SurveyCard(
+                                    survey = SurveyMock(
+                                        id = survey.surveyId,
+                                        title = survey.title,
+                                        ownerName = survey.ownerDisplayName,
+                                        description = survey.description,
+                                        profileScoreReward = survey.profileScoreReward,
+                                        rewardType = com.alafteknoloji.pagapp.models.RewardType.PROFILE_SCORE_ONLY,
+                                        rewardAmount = null,
+                                        voucherTitle = null,
+                                        estimatedDurationMinutes = 2,
+                                        surveyType = com.alafteknoloji.pagapp.models.SurveyType.PAG,
+                                        category = com.alafteknoloji.pagapp.models.SurveyCategory.FOR_YOU,
+                                        status = com.alafteknoloji.pagapp.models.SurveyStatus.ACTIVE,
+                                        endDate = null,
+                                        questions = emptyList()
+                                    ),
+                                    onTakeSurvey = { appState.navigateToSurvey(survey.surveyId) }
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -174,63 +297,6 @@ private fun UserProfileCard(userProfile: UserProfileMock, pagUser: com.alaftekno
                     title = userProfile.rankingPercentileText,
                     style = PAGBadgeStyle.Tag
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RealActiveSurveysSection(
-    surveys: List<com.alafteknoloji.pagapp.models.PAGSurvey>,
-    isLoading: Boolean,
-    onNavigateToSurvey: (String) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = "Sana Özel Aktif Anketler",
-                    style = PAGTheme.typography.title,
-                    color = PAGTheme.colors.textPrimary
-                )
-                Text(
-                    text = "Profil skorun sayesinde öncelikli erişim sağlandı",
-                    style = PAGTheme.typography.bodySmall,
-                    color = PAGTheme.colors.textSecondary
-                )
-            }
-            PAGBadge(
-                title = "${surveys.size} Aktif",
-                style = PAGBadgeStyle.Info
-            )
-        }
-
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                androidx.compose.material3.CircularProgressIndicator(color = PAGTheme.colors.brandLime)
-            }
-        } else if (surveys.isEmpty()) {
-            Text(
-                text = "Şu an katılabileceğiniz aktif anket bulunmuyor.",
-                style = PAGTheme.typography.bodySmall,
-                color = PAGTheme.colors.textMuted
-            )
-        } else {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
-            ) {
-                surveys.take(5).forEach { survey ->
-                    com.alafteknoloji.pagapp.ui.screens.surveys.PAGSurveyCard(
-                        survey = survey,
-                        onTakeSurvey = { onNavigateToSurvey(survey.surveyId) }
-                    )
-                }
             }
         }
     }

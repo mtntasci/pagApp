@@ -153,9 +153,8 @@ public final class BasicProfileService: ObservableObject {
                 bProfile.scoreAwarded = data["scoreAwarded"] as? Bool ?? false
                 
                 if let pDict = data["profile"] as? [String: Any] {
-                    if let marital = pDict["maritalStatus"] as? String {
-                        bProfile.maritalStatus = marital
-                    }
+                    bProfile.gender = pDict["gender"] as? String ?? "PREFER_NOT_TO_SAY"
+                    bProfile.maritalStatus = pDict["maritalStatus"] as? String ?? "PREFER_NOT_TO_SAY"
                     
                     if let bDict = pDict["birthDetails"] as? [String: Any] {
                         bProfile.birthDetails = PAGBirthDetails(
@@ -231,6 +230,7 @@ public final class BasicProfileService: ObservableObject {
             "districtName": profile.birthDetails.districtName
         ]
         
+        payload["gender"] = profile.gender
         payload["maritalStatus"] = profile.maritalStatus
         
         var childrenArr: [[String: String]] = []

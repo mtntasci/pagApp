@@ -128,14 +128,16 @@ class BasicProfileService(private val context: Context) {
                 @Suppress("UNCHECKED_CAST")
                 val pMap = data?.get("profile") as? Map<String, Any>
 
+                var gender = "PREFER_NOT_TO_SAY"
                 var birthDetails = PAGBirthDetails()
-                var marital = ""
+                var marital = "PREFER_NOT_TO_SAY"
                 var childrenInfo = PAGChildrenInfo()
                 var residenceAddress = PAGLocationPair()
                 var hometown = PAGLocationPair()
 
                 if (pMap != null) {
-                    marital = pMap["maritalStatus"] as? String ?: ""
+                    gender = pMap["gender"] as? String ?: "PREFER_NOT_TO_SAY"
+                    marital = pMap["maritalStatus"] as? String ?: "PREFER_NOT_TO_SAY"
 
                     @Suppress("UNCHECKED_CAST")
                     val bMap = pMap["birthDetails"] as? Map<String, Any>
@@ -197,6 +199,7 @@ class BasicProfileService(private val context: Context) {
                 }
 
                 _basicProfile.value = PAGBasicProfile(
+                    gender = gender,
                     birthDetails = birthDetails,
                     maritalStatus = marital,
                     childrenInfo = childrenInfo,
@@ -224,6 +227,7 @@ class BasicProfileService(private val context: Context) {
         }
 
         val payload = hashMapOf(
+            "gender" to profile.gender,
             "birthDetails" to hashMapOf(
                 "birthDate" to profile.birthDetails.birthDate,
                 "cityId" to profile.birthDetails.cityId,

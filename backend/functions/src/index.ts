@@ -30,6 +30,15 @@ import {
   getBasicProfileHandler,
   updateBasicProfileHandler
 } from './profile';
+import {
+  getProfileQuestionsHandler,
+  submitProfileQuestionAnswersHandler,
+  getAnsweredProfileQuestionsHandler,
+  updateProfileQuestionAnswerHandler,
+  createOrUpdateProfileQuestionAdminHandler,
+  listProfileQuestionsAdminHandler,
+  manageProfileCategoriesAdminHandler
+} from './profileSurveys';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -48,6 +57,14 @@ export const getEligibleSurveys = functions.https.onCall(getEligibleSurveysHandl
 export const getSurveyDetail = functions.https.onCall(getSurveyDetailHandler);
 export const submitSurveyResponse = functions.https.onCall(submitSurveyResponseHandler);
 export const updateProfileSurveyResponse = functions.https.onCall(updateProfileSurveyResponseHandler);
+
+/**
+ * Profile Questions Engine Callable Functions (Domain B).
+ */
+export const getProfileQuestions = functions.https.onCall(getProfileQuestionsHandler);
+export const submitProfileQuestionAnswers = functions.https.onCall(submitProfileQuestionAnswersHandler);
+export const getAnsweredProfileQuestions = functions.https.onCall(getAnsweredProfileQuestionsHandler);
+export const updateProfileQuestionAnswer = functions.https.onCall(updateProfileQuestionAnswerHandler);
 
 /**
  * Basic User Profile Callable Functions.
@@ -84,3 +101,8 @@ export const listCompanyApplicationsAdmin = functions.https.onCall(listCompanyAp
 export const updateCompanyApplicationStatusAdmin = functions.https.onCall(updateCompanyApplicationStatusAdminHandler);
 export const createPortalUserAdmin = functions.https.onCall(createPortalUserAdminHandler);
 export const completePasswordChangePortalUser = functions.https.onCall(completePasswordChangePortalUserHandler);
+
+// Admin Profile Questions Callables
+export const createOrUpdateProfileQuestionAdmin = functions.https.onCall(createOrUpdateProfileQuestionAdminHandler);
+export const listProfileQuestionsAdmin = functions.https.onCall(listProfileQuestionsAdminHandler);
+export const manageProfileCategoriesAdmin = functions.https.onCall(manageProfileCategoriesAdminHandler);

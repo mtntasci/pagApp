@@ -3,6 +3,7 @@ import SwiftUI
 public struct HomeView: View {
     @StateObject private var userService = UserService.shared
     @StateObject private var surveyService = SurveyService.shared
+    @StateObject private var profileSurveyService = ProfileSurveyService.shared
     @State private var navPath = NavigationPath()
     @State private var targetFlowSurvey: PAGSurvey? = nil
     
@@ -46,6 +47,50 @@ public struct HomeView: View {
                         }
                         
                         VStack(spacing: PAGSpacing.lg) {
+                            
+                            // ==================================================
+                            // HOME PROMOTION CARD (If unanswered showOnHome questions exist)
+                            // ==================================================
+                            if profileSurveyService.hasPromotedQuestion {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack {
+                                        Text("Puan kazanmak ister misin?")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                        Spacer()
+                                        Image(systemName: "sparkles")
+                                            .foregroundColor(PAGTheme.brandLime)
+                                    }
+                                    
+                                    Text("Hadi profilini güçlendirelim.")
+                                        .font(PAGTypography.body)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                    
+                                    NavigationLink(destination: ProfileSurveysView()) {
+                                        HStack {
+                                            Text("Profili Güçlendir")
+                                                .font(PAGTypography.heading)
+                                                .foregroundColor(PAGTheme.brandMidnight)
+                                            Spacer()
+                                            Image(systemName: "arrow.right")
+                                                .foregroundColor(PAGTheme.brandMidnight)
+                                        }
+                                        .padding(.vertical, 12)
+                                        .padding(.horizontal, 16)
+                                        .background(PAGTheme.brandLime)
+                                        .cornerRadius(PAGRadius.medium)
+                                    }
+                                    .padding(.top, 4)
+                                }
+                                .padding()
+                                .background(PAGTheme.surfacePrimary)
+                                .cornerRadius(PAGRadius.medium)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                        .stroke(PAGTheme.brandLime, lineWidth: 1.5)
+                                )
+                            }
+                            
                             ProfileScoreCard()
                             
                             VStack(alignment: .leading, spacing: PAGSpacing.md) {
@@ -97,6 +142,7 @@ public struct HomeView: View {
             }
             .task {
                 await surveyService.fetchEligibleSurveys()
+                await profileSurveyService.fetchProfileQuestions(batchSize: 3)
             }
         }
     }

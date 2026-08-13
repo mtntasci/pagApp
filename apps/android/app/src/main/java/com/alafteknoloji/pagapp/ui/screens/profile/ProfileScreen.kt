@@ -28,6 +28,7 @@ import androidx.compose.ui.unit.sp
 import com.alafteknoloji.pagapp.models.PAGSurvey
 import com.alafteknoloji.pagapp.services.AuthService
 import com.alafteknoloji.pagapp.services.BasicProfileService
+import com.alafteknoloji.pagapp.services.ProfileSurveyService
 import com.alafteknoloji.pagapp.services.SurveyService
 import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
@@ -53,6 +54,7 @@ fun ProfileScreen(
     val context = LocalContext.current
     val basicProfileService = remember { BasicProfileService(context) }
     val surveyService = remember { SurveyService() }
+    val profileSurveyService = remember { ProfileSurveyService.getInstance(context) }
 
     var currentSubRoute by remember { mutableStateOf(ProfileSubRoute.MAIN) }
     var selectedSurvey by remember { mutableStateOf<PAGSurvey?>(null) }
@@ -60,6 +62,7 @@ fun ProfileScreen(
     val authUser by AuthService.currentUser.collectAsState()
     val pagUser by (userService?.currentUser ?: kotlinx.coroutines.flow.MutableStateFlow(null)).collectAsState()
     val basicProfileState by basicProfileService.basicProfile.collectAsState()
+    val availableScoreX by profileSurveyService.availableScoreX.collectAsState()
 
     val displayName = pagUser?.displayName ?: authUser?.displayName ?: authUser?.email ?: "Kullanıcı"
     val email = pagUser?.email ?: authUser?.email
@@ -83,6 +86,7 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         basicProfileService.fetchBasicProfile()
+        profileSurveyService.fetchProfileQuestions(3)
     }
 
     when (currentSubRoute) {
@@ -94,12 +98,7 @@ fun ProfileScreen(
         }
         ProfileSubRoute.PROFILE_SURVEYS -> {
             ProfileSurveysScreen(
-                surveyService = surveyService,
-                onNavigateBack = { currentSubRoute = ProfileSubRoute.MAIN },
-                onSelectSurvey = { survey ->
-                    selectedSurvey = survey
-                    currentSubRoute = ProfileSubRoute.SURVEY_DETAIL
-                }
+                onBackClick = { currentSubRoute = ProfileSubRoute.MAIN }
             )
         }
         ProfileSubRoute.SURVEY_DETAIL -> {
@@ -218,7 +217,7 @@ fun ProfileScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.",
+                                text = "Cinsiyet, doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.",
                                 style = PAGTheme.typography.caption,
                                 color = PAGTheme.colors.textMuted,
                                 modifier = Modifier.weight(1f)
@@ -233,16 +232,16 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
 
-                    // 2. Yeni Kart — Profilini Güçlendir (Profil Anketleri Girişi)
+                    // 2. Dynamic Profile Box — New Score Opportunity
                     Column(
                         modifier = Modifier
                             .padding(horizontal = PAGTheme.spacing.md)
                             .fillMaxWidth()
                             .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
                             .border(
-                                1.dp,
-                                if (isBasicProfileComplete) PAGTheme.colors.brandLime.copy(alpha = 0.5f) else PAGTheme.colors.borderDefault,
-                                PAGTheme.radius.md
+                                width = if (availableScoreX > 0) 2.dp else 1.dp,
+                                color = if (availableScoreX > 0) PAGTheme.colors.brandLime else PAGTheme.colors.borderDefault,
+                                shape = PAGTheme.radius.md
                             )
                             .padding(PAGTheme.spacing.md),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -265,11 +264,38 @@ fun ProfileScreen(
                             )
                         }
 
-                        Text(
-                            text = "Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?",
-                            style = PAGTheme.typography.body,
-                            color = PAGTheme.colors.textPrimary
-                        )
+                        if (availableScoreX > 0) {
+                            // Dynamic Title: "[$availableScoreX] Yeni Puan Avantajını Kaçırma"
+                            Surface(
+                                color = PAGTheme.colors.brandLime,
+                                shape = RoundedCornerShape(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "[$availableScoreX] Yeni Puan Avantajını Kaçırma",
+                                        color = PAGTheme.colors.brandMidnight,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 14.sp
+                                    )
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = PAGTheme.colors.brandMidnight
+                                    )
+                                }
+                            }
+                        } else {
+                            Text(
+                                text = "Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?",
+                                style = PAGTheme.typography.body,
+                                color = PAGTheme.colors.textPrimary
+                            )
+                        }
 
                         Text(
                             text = "Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.",
@@ -320,7 +346,7 @@ fun ProfileScreen(
                                 )
                                 Icon(
                                     imageVector = Icons.Filled.Lock,
-                                    contentDescription = "Kilitli",
+                                    contentDescription = null,
                                     tint = PAGTheme.colors.textMuted,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -328,87 +354,118 @@ fun ProfileScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
+                    Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
 
-                    // 3. Verifications (Doğrulamalar - Source of Truth)
-                    Text(
-                        text = "Doğrulamalar",
-                        style = PAGTheme.typography.title,
-                        color = PAGTheme.colors.textPrimary,
-                        modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)
-                    )
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.sm))
-
+                    // Verification Badges
                     Column(
                         modifier = Modifier
                             .padding(horizontal = PAGTheme.spacing.md)
-                            .fillMaxWidth()
-                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(PAGTheme.spacing.xs)
                     ) {
-                        VerificationRow("Telefon", phoneStatusText, isPhoneVerified, true)
-                        VerificationRow("E-posta", emailStatusText, isEmailVerified, true)
-                        VerificationRow("Kimlik / KYC", kycStatusText, isKycVerified, false)
-                    }
+                        Text(
+                            text = "Doğrulamalar",
+                            style = PAGTheme.typography.heading,
+                            color = PAGTheme.colors.textPrimary
+                        )
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-
-                    // 4. Logout Button
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier
-                            .padding(horizontal = PAGTheme.spacing.md)
-                            .fillMaxWidth()
-                            .height(56.dp)
-                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                            .border(1.dp, PAGTheme.colors.error.copy(alpha = 0.3f), PAGTheme.radius.md)
-                            .clickable { AuthService.signOut() }
-                            .padding(horizontal = PAGTheme.spacing.md)
-                    ) {
+                        // Phone
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(PAGTheme.spacing.sm)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .padding(PAGTheme.spacing.md),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                                contentDescription = "Çıkış Yap",
-                                tint = PAGTheme.colors.error
-                            )
+                            Text(text = "Telefon Doğrulaması", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
                             Text(
-                                text = "Çıkış Yap",
-                                style = PAGTheme.typography.heading,
-                                color = PAGTheme.colors.error
+                                text = phoneStatusText,
+                                style = PAGTheme.typography.caption,
+                                color = if (isPhoneVerified) PAGTheme.colors.brandLime else Color.Yellow
+                            )
+                        }
+
+                        // Email
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .padding(PAGTheme.spacing.md),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "E-Posta Doğrulaması", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
+                            Text(
+                                text = emailStatusText,
+                                style = PAGTheme.typography.caption,
+                                color = if (isEmailVerified) PAGTheme.colors.brandLime else Color.Yellow
+                            )
+                        }
+
+                        // KYC
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .padding(PAGTheme.spacing.md),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "Kimlik Doğrulaması (KYC)", style = PAGTheme.typography.body, color = PAGTheme.colors.textPrimary)
+                            Text(
+                                text = kycStatusText,
+                                style = PAGTheme.typography.caption,
+                                color = if (isKycVerified) PAGTheme.colors.brandLime else Color.Yellow
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.xl))
-                }
-            }
-        }
-    }
-}
+                    Spacer(modifier = Modifier.height(PAGTheme.spacing.lg))
 
-@Composable
-private fun VerificationRow(title: String, status: String, isVerified: Boolean, showDivider: Boolean) {
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(PAGTheme.spacing.md),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(text = title, style = PAGTheme.typography.bodyLarge, color = PAGTheme.colors.textPrimary)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = status, style = PAGTheme.typography.body, color = if (isVerified) PAGTheme.colors.success else PAGTheme.colors.textMuted)
-                if (!isVerified) {
-                    Icon(imageVector = Icons.Filled.Warning, contentDescription = null, tint = PAGTheme.colors.warning, modifier = Modifier.size(16.dp))
+                    // Sign Out Button
+                    Button(
+                        onClick = { AuthService.signOut() },
+                        modifier = Modifier
+                            .padding(horizontal = PAGTheme.spacing.md)
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.surfacePrimary),
+                        shape = PAGTheme.radius.md
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ExitToApp,
+                                contentDescription = null,
+                                tint = Color.Red
+                            )
+                            Text(text = "Çıkış Yap", color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(PAGTheme.spacing.sm))
+
+                    // Dark Red Passive Clear Data Button
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier
+                            .padding(horizontal = PAGTheme.spacing.md)
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF450A0A),
+                            disabledContainerColor = Color(0xFF450A0A).copy(alpha = 0.5f)
+                        ),
+                        shape = PAGTheme.radius.md
+                    ) {
+                        Text(text = "Çıkış Yap ve Verilerimi Temizle", color = Color.Red.copy(alpha = 0.6f))
+                    }
                 }
             }
-        }
-        if (showDivider) {
-            HorizontalDivider(color = PAGTheme.colors.borderDefault, modifier = Modifier.padding(start = PAGTheme.spacing.md))
         }
     }
 }

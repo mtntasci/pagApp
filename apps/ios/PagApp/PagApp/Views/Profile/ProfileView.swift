@@ -2,32 +2,15 @@ import SwiftUI
 import FirebaseAuth
 
 public struct ProfileView: View {
-    @EnvironmentObject private var authService: AuthService
+    @StateObject private var authService = AuthService()
     @StateObject private var userService = UserService.shared
     @StateObject private var basicProfileService = BasicProfileService.shared
+    @StateObject private var profileSurveyService = ProfileSurveyService.shared
+    @StateObject private var rewardService = RewardService.shared
+    
+    @State private var isPulsing: Bool = false
 
     public init() {}
-
-    private var userDisplayName: String {
-        if let name = userService.currentUser?.displayName, !name.isEmpty {
-            return name
-        }
-        if let name = authService.currentUser?.displayName, !name.isEmpty {
-            return name
-        }
-        if let email = userService.currentUser?.email ?? authService.currentUser?.email {
-            return email
-        }
-        return "Kullanıcı"
-    }
-
-    private var userEmail: String? {
-        return userService.currentUser?.email ?? authService.currentUser?.email
-    }
-
-    private var profileScore: Int {
-        return userService.currentUser?.profileScore ?? 0
-    }
 
     private var isPhoneVerified: Bool {
         if let u = userService.currentUser {
@@ -93,43 +76,67 @@ public struct ProfileView: View {
                                             .foregroundColor(PAGTheme.brandMidnight)
                                     }
                                 }
-                                .frame(width: 84, height: 84)
+                                .frame(width: 80, height: 80)
                                 .clipShape(Circle())
                                 .overlay(Circle().stroke(PAGTheme.brandLime, lineWidth: 2))
+                                .shadow(radius: 4)
                             } else {
                                 Image(systemName: "person.crop.circle.fill")
-                                    .font(.system(size: 80))
+                                    .resizable()
+                                    .frame(width: 80, height: 80)
                                     .foregroundColor(PAGTheme.brandMidnight)
                             }
 
-                            Text(userDisplayName)
+                            Text(authService.currentUser?.displayName ?? "PAG Kullanıcısı")
                                 .font(PAGTypography.title)
                                 .foregroundColor(PAGTheme.textPrimary)
 
-                            if let email = userEmail, email != userDisplayName {
-                                Text(email)
-                                    .font(PAGTypography.caption)
-                                    .foregroundColor(PAGTheme.textMuted)
-                            }
+                            Text(authService.currentUser?.email ?? "")
+                                .font(PAGTypography.caption)
+                                .foregroundColor(PAGTheme.textMuted)
 
-                            PAGBadge(title: "\(profileScore) Profil Puanı", iconName: "bolt.fill", style: .profileScore)
+                            HStack(spacing: 8) {
+                                PAGBadge(title: "Profile Score: \(userService.currentUser?.profileScore ?? 0)", iconName: "bolt.fill", style: .tag)
+                                PAGBadge(title: "Bakiye: ₺\(rewardService.rewardBalance)", iconName: "banknote.fill", style: .tag)
+                            }
+                            .padding(.top, 4)
                         }
                         .padding(.top, PAGSpacing.lg)
 
-                        // 1. Profilini Güçlendir Kartı
-                        VStack(alignment: .leading, spacing: PAGSpacing.xs) {
+                        // ==================================================
+                        // DYNAMIC PROFILE BOX — NEW SCORE OPPORTUNITY
+                        // ==================================================
+                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                             HStack {
                                 Text("Profilini Güçlendir")
                                     .font(PAGTypography.heading)
                                     .foregroundColor(PAGTheme.textPrimary)
                                 Spacer()
-                                Image(systemName: "bolt.badge.clock.fill")
+                                Image(systemName: "sparkles")
                                     .foregroundColor(PAGTheme.brandLime)
                             }
 
-                            Text("Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?")
-                                .font(PAGTypography.body)
-                                .foregroundColor(PAGTheme.textPrimary)
+                            if profileSurveyService.availableScoreX > 0 {
+                                // Dynamic Dynamic Title: "[X] Yeni Puan Avantajını Kaçırma"
+                                HStack {
+                                    Text("[\(profileSurveyService.availableScoreX)] Yeni Puan Avantajını Kaçırma")
+                                        .font(PAGTypography.heading)
+                                        .fontWeight(.bold)
+                                        .foregroundColor(PAGTheme.brandMidnight)
+                                    Spacer()
+                                    Image(systemName: "arrow.up.right.circle.fill")
+                                        .foregroundColor(PAGTheme.brandMidnight)
+                                }
+                                .padding(12)
+                                .background(PAGTheme.brandLime)
+                                .cornerRadius(PAGRadius.small)
+                                .scaleEffect(isPulsing ? 1.02 : 1.0)
+                                .animation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true), value: isPulsing)
+                            } else {
+                                Text("Ek sorulara yanıt vererek Profil Puanı kazanabileceğinizi biliyor musunuz?")
+                                    .font(PAGTypography.body)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                            }
 
                             Text("Profil sorularını yanıtladıkça sana daha uygun anketlere erişebilir ve Profil Puanı kazanabilirsin.")
                                 .font(PAGTypography.caption)
@@ -176,105 +183,120 @@ public struct ProfileView: View {
                         .cornerRadius(PAGRadius.medium)
                         .overlay(
                             RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                .stroke(isBasicProfileComplete ? PAGTheme.brandLime.opacity(0.5) : PAGTheme.borderDefault, lineWidth: 1)
+                                .stroke(profileSurveyService.availableScoreX > 0 ? PAGTheme.brandLime : PAGTheme.borderDefault, lineWidth: profileSurveyService.availableScoreX > 0 ? 2 : 1)
                         )
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // 2. Verifications (Doğrulamalar)
-                        VStack(alignment: .leading, spacing: 0) {
+                        // Verification Status Badges
+                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                             Text("Doğrulamalar")
-                                .font(PAGTypography.title)
+                                .font(PAGTypography.heading)
                                 .foregroundColor(PAGTheme.textPrimary)
-                                .padding(.horizontal, PAGSpacing.md)
-                                .padding(.bottom, PAGSpacing.sm)
 
-                            VStack(spacing: 0) {
-                                VerificationRow(title: "Telefon", status: isPhoneVerified ? "Doğrulandı" : "Doğrulanmadı", isVerified: isPhoneVerified, showDivider: true)
-                                VerificationRow(title: "E-posta", status: isEmailVerified ? "Doğrulandı" : "Doğrulanmadı", isVerified: isEmailVerified, showDivider: true)
-                                VerificationRow(title: "Kimlik / KYC", status: kycStatusText, isVerified: isKycVerified, showDivider: false)
+                            HStack {
+                                Image(systemName: isPhoneVerified ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .foregroundColor(isPhoneVerified ? PAGTheme.success : PAGTheme.warning)
+                                Text("Telefon Doğrulaması")
+                                    .font(PAGTypography.body)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                                Spacer()
+                                Text(isPhoneVerified ? "Doğrulandı" : "Doğrulanmadı")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(isPhoneVerified ? PAGTheme.success : PAGTheme.warning)
                             }
+                            .padding()
                             .background(PAGTheme.surfacePrimary)
                             .cornerRadius(PAGRadius.medium)
-                            .padding(.horizontal, PAGSpacing.md)
-                        }
 
-                        // 3. Temel Profil Box (Çıkış Yap Üstü)
-                        NavigationLink(destination: BasicProfileView()) {
-                            HStack(spacing: PAGSpacing.md) {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack {
-                                        Text("Temel Profil")
-                                            .font(PAGTypography.heading)
-                                            .foregroundColor(PAGTheme.textPrimary)
-                                        Spacer()
-                                        Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
-                                            .font(PAGTypography.caption)
-                                            .fontWeight(.bold)
-                                            .foregroundColor(PAGTheme.brandLime)
-                                    }
-                                    Text("Doğum, medeni durum, çocuk ve adres bilgilerinizi yönetin.")
-                                        .font(PAGTypography.caption)
-                                        .foregroundColor(PAGTheme.textMuted)
-                                        .multilineTextAlignment(.leading)
+                            HStack {
+                                Image(systemName: isEmailVerified ? "checkmark.circle.fill" : "exclamationmark.circle.fill")
+                                    .foregroundColor(isEmailVerified ? PAGTheme.success : PAGTheme.warning)
+                                Text("E-Posta Doğrulaması")
+                                    .font(PAGTypography.body)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                                Spacer()
+                                Text(isEmailVerified ? "Doğrulandı" : "Doğrulanmadı")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(isEmailVerified ? PAGTheme.success : PAGTheme.warning)
+                            }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+
+                            HStack {
+                                Image(systemName: isKycVerified ? "checkmark.circle.fill" : "clock.fill")
+                                    .foregroundColor(isKycVerified ? PAGTheme.success : PAGTheme.warning)
+                                Text("Kimlik Doğrulaması (KYC)")
+                                    .font(PAGTypography.body)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                                Spacer()
+                                Text(kycStatusText)
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(isKycVerified ? PAGTheme.success : PAGTheme.warning)
+                            }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                        }
+                        .padding(.horizontal, PAGSpacing.md)
+
+                        // Basic Profile Box
+                        VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+                            HStack {
+                                Text("Temel Profil")
+                                    .font(PAGTypography.heading)
+                                    .foregroundColor(PAGTheme.textPrimary)
+                                Spacer()
+                                Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(isBasicProfileComplete ? PAGTheme.success : PAGTheme.warning)
+                            }
+
+                            Text("Demografik bilgilerinizi eksiksiz doldurarak Profil Puanı kazanın.")
+                                .font(PAGTypography.caption)
+                                .foregroundColor(PAGTheme.textMuted)
+
+                            NavigationLink(destination: BasicProfileView()) {
+                                HStack {
+                                    Text(isBasicProfileComplete ? "Temel Profili Düzenle" : "Temel Profili Tamamla")
+                                        .font(PAGTypography.heading)
+                                        .foregroundColor(PAGTheme.brandMidnight)
+                                    Spacer()
+                                    Image(systemName: "arrow.right")
+                                        .foregroundColor(PAGTheme.brandMidnight)
                                 }
-                                Image(systemName: "chevron.right")
-                                    .foregroundColor(PAGTheme.textMuted)
+                                .padding(.vertical, 12)
+                                .padding(.horizontal, 16)
+                                .background(PAGTheme.brandLime)
+                                .cornerRadius(PAGRadius.medium)
                             }
-                            .padding()
-                            .background(PAGTheme.surfacePrimary)
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(PAGTheme.brandLime.opacity(0.3), lineWidth: 1)
-                            )
+                            .padding(.top, 4)
                         }
+                        .padding()
+                        .background(PAGTheme.surfacePrimary)
+                        .cornerRadius(PAGRadius.medium)
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // 4. Logout Button (Çıkış Yap)
-                        Button(action: {
-                            authService.signOut()
-                        }) {
-                            HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 20))
-                                Text("Çıkış Yap")
-                                    .font(PAGTypography.heading)
-                                Spacer()
+                        // Sign Out Button
+                        PAGButton(
+                            title: "Çıkış Yap",
+                            iconName: "rectangle.portrait.and.arrow.right",
+                            style: .secondary,
+                            action: {
+                                authService.signOut()
                             }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(PAGTheme.surfacePrimary)
-                            .foregroundColor(PAGTheme.error)
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(PAGTheme.error.opacity(0.3), lineWidth: 1)
-                            )
-                        }
+                        )
                         .padding(.horizontal, PAGSpacing.md)
 
-                        // 5. Sign Out & Clear Data Button (Çıkış Yap ve Verilerimi Temizle - Pasif, Koyu Kırmızı)
-                        Button(action: {
-                            // Currently passive / disabled
-                        }) {
-                            HStack {
-                                Image(systemName: "trash.fill")
-                                    .font(.system(size: 20))
-                                Text("Çıkış Yap ve Verilerimi Temizle")
-                                    .font(PAGTypography.heading)
-                                Spacer()
-                            }
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(red: 0.40, green: 0.05, blue: 0.05))
-                            .foregroundColor(Color.white.opacity(0.5))
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(Color(red: 0.50, green: 0.08, blue: 0.08), lineWidth: 1)
-                            )
-                        }
+                        // Dark Red Passive Clear Data Button
+                        PAGButton(
+                            title: "Çıkış Yap ve Verilerimi Temizle",
+                            iconName: "trash.fill",
+                            style: .secondary,
+                            action: {}
+                        )
                         .disabled(true)
+                        .opacity(0.6)
                         .padding(.horizontal, PAGSpacing.md)
 
                         Spacer().frame(height: 40)
@@ -284,45 +306,13 @@ public struct ProfileView: View {
             .navigationTitle("Profil")
             .onAppear {
                 Task {
+                    await userService.bootstrapCurrentUser()
                     await basicProfileService.fetchBasicProfile()
+                    await profileSurveyService.fetchProfileQuestions(batchSize: 3)
+                    await rewardService.fetchUserRewards()
+                    isPulsing = true
                 }
             }
         }
     }
-}
-
-private struct VerificationRow: View {
-    let title: String
-    let status: String
-    let isVerified: Bool
-    let showDivider: Bool
-
-    var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(title)
-                    .font(PAGTypography.bodyLarge)
-                    .foregroundColor(PAGTheme.textPrimary)
-                Spacer()
-                Text(status)
-                    .font(PAGTypography.body)
-                    .foregroundColor(isVerified ? PAGTheme.success : PAGTheme.textMuted)
-                if !isVerified {
-                    Image(systemName: "exclamationmark.circle")
-                        .foregroundColor(PAGTheme.warning)
-                }
-            }
-            .padding()
-
-            if showDivider {
-                Divider().background(PAGTheme.borderDefault)
-                    .padding(.leading)
-            }
-        }
-    }
-}
-
-#Preview {
-    ProfileView()
-        .environmentObject(AuthService())
 }
