@@ -55,51 +55,11 @@ public struct HomeView: View {
                         VStack(spacing: PAGSpacing.lg) {
                             
                             // ==================================================
-                            // DYNAMIC TOP PROMOTION CARD ACCORDING TO PROFILE COMPLETION
+                            // HOME PROMOTION CARD: "Profili Güçlendir" (Appears ONLY IF Basic Profile is Complete)
                             // ==================================================
                             let isBasicComplete = (userService.currentUser?.profileCompleted ?? false) || basicProfileService.basicProfile.completionPercentage == 100
                             
-                            if !isBasicComplete {
-                                // 1. TEMEL PROFİL TAMAMLANMADI -> TEMEL PROFİL DOĞRULA VE KAZAN KARTI ÜSTTE
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Text("Temel Profili Doğrula ve Kazan")
-                                            .font(PAGTypography.heading)
-                                            .foregroundColor(PAGTheme.textPrimary)
-                                        Spacer()
-                                        Image(systemName: "person.badge.shield.checkmark.fill")
-                                            .foregroundColor(PAGTheme.brandLime)
-                                    }
-                                    
-                                    Text("Demografik ve iletişim bilgilerini tamamla, +200 Profil Puanı kazan.")
-                                        .font(PAGTypography.body)
-                                        .foregroundColor(PAGTheme.textMuted)
-                                    
-                                    NavigationLink(destination: BasicProfileView()) {
-                                        HStack {
-                                            Text("Temel Profili Tamamla")
-                                                .font(PAGTypography.heading)
-                                                .foregroundColor(PAGTheme.brandMidnight)
-                                            Spacer()
-                                            Image(systemName: "arrow.right")
-                                                .foregroundColor(PAGTheme.brandMidnight)
-                                        }
-                                        .padding(.vertical, 12)
-                                        .padding(.horizontal, 16)
-                                        .background(PAGTheme.brandLime)
-                                        .cornerRadius(PAGRadius.medium)
-                                    }
-                                    .padding(.top, 4)
-                                }
-                                .padding()
-                                .background(PAGTheme.surfacePrimary)
-                                .cornerRadius(PAGRadius.medium)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                        .stroke(PAGTheme.brandLime, lineWidth: 1.5)
-                                )
-                            } else if profileSurveyService.hasPromotedQuestion {
-                                // 2. TEMEL PROFİL TAMAMLANDI -> PROFİLİ GÜÇLENDİR KARTI ŞİMDİKİ YERİNDE GÖRÜNÜR
+                            if isBasicComplete && profileSurveyService.hasPromotedQuestion {
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
                                         Text("Puan kazanmak ister misin?")

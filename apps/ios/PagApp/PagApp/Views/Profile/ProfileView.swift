@@ -118,7 +118,52 @@ public struct ProfileView: View {
                         .padding(.top, PAGSpacing.lg)
 
                         // ==================================================
-                        // DYNAMIC PROFILE BOX — NEW SCORE OPPORTUNITY
+                        // 1. TEMEL PROFİL BOX (Shown at VERY TOP when incomplete)
+                        // ==================================================
+                        if !isBasicProfileComplete {
+                            VStack(alignment: .leading, spacing: PAGSpacing.sm) {
+                                HStack {
+                                    Text("Temel Profil")
+                                        .font(PAGTypography.heading)
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                    Spacer()
+                                    Text("%\(basicProfileService.basicProfile.completionPercentage) Tamamlandı")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.warning)
+                                }
+
+                                Text("Demografik ve iletişim bilgilerinizi eksiksiz doldurarak +200 Profil Puanı kazanın.")
+                                    .font(PAGTypography.caption)
+                                    .foregroundColor(PAGTheme.textMuted)
+
+                                NavigationLink(destination: BasicProfileView()) {
+                                    HStack {
+                                        Text("Temel Profili Tamamla")
+                                            .font(PAGTypography.heading)
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                        Spacer()
+                                        Image(systemName: "arrow.right")
+                                            .foregroundColor(PAGTheme.brandMidnight)
+                                    }
+                                    .padding(.vertical, 12)
+                                    .padding(.horizontal, 16)
+                                    .background(PAGTheme.brandLime)
+                                    .cornerRadius(PAGRadius.medium)
+                                }
+                                .padding(.top, 4)
+                            }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(PAGTheme.brandLime, lineWidth: 1.5)
+                            )
+                            .padding(.horizontal, PAGSpacing.md)
+                        }
+
+                        // ==================================================
+                        // 2. DYNAMIC PROFILE BOX — NEW SCORE OPPORTUNITY
                         // ==================================================
                         VStack(alignment: .leading, spacing: PAGSpacing.sm) {
                             HStack {

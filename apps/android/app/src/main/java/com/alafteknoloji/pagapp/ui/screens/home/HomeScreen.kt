@@ -124,75 +124,9 @@ fun HomeScreen(
                 )
             }
 
-            // Dynamic Top Promotion Card according to Profile Completion
+            // Home Promotion Card: "Profili Güçlendir" (Appears ONLY IF Basic Profile is Complete)
             val isBasicComplete = pagUser?.profileCompleted ?: false
-            if (!isBasicComplete) {
-                // 1. TEMEL PROFİL TAMAMLANMADI -> TEMEL PROFİL DOĞRULA VE KAZAN KARTI ÜSTTE
-                item {
-                    Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(PAGTheme.colors.surfacePrimary, RoundedCornerShape(12.dp))
-                                .border(1.5.dp, PAGTheme.colors.brandLime, RoundedCornerShape(12.dp))
-                                .padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Temel Profili Doğrula ve Kazan",
-                                    style = PAGTheme.typography.heading,
-                                    color = PAGTheme.colors.textPrimary
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.Star,
-                                    contentDescription = null,
-                                    tint = PAGTheme.colors.brandLime
-                                )
-                            }
-
-                            Text(
-                                text = "Demografik ve iletişim bilgilerini tamamla, +200 Profil Puanı kazan.",
-                                style = PAGTheme.typography.body,
-                                color = PAGTheme.colors.textMuted
-                            )
-
-                            Button(
-                                onClick = {
-                                    appState.selectedTab = 3 // Switch to Profile tab
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(44.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Temel Profili Tamamla",
-                                        color = PAGTheme.colors.brandMidnight,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Icon(
-                                        imageVector = Icons.Filled.ArrowForward,
-                                        contentDescription = null,
-                                        tint = PAGTheme.colors.brandMidnight
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            } else if (hasPromotedQuestion) {
-                // 2. TEMEL PROFİL TAMAMLANDI -> PROFİLİ GÜÇLENDİR KARTI ŞİMDİKİ YERİNDE GÖRÜNÜR
+            if (isBasicComplete && hasPromotedQuestion) {
                 item {
                     Box(modifier = Modifier.padding(horizontal = PAGTheme.spacing.md)) {
                         Column(

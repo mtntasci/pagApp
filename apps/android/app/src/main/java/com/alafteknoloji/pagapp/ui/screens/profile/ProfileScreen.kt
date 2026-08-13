@@ -177,14 +177,14 @@ fun ProfileScreen(
                     }
 
                     Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
-                    // 1. Basic Profile Box — Shown here right above sign out button when completed
-                    if (isBasicProfileComplete) {
+                    // 1. Basic Profile Box — Shown at VERY TOP when incomplete
+                    if (!isBasicProfileComplete) {
                         Column(
                             modifier = Modifier
                                 .padding(horizontal = PAGTheme.spacing.md)
                                 .fillMaxWidth()
                                 .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
-                                .border(1.dp, PAGTheme.colors.borderDefault, PAGTheme.radius.md)
+                                .border(1.5.dp, PAGTheme.colors.brandLime, PAGTheme.radius.md)
                                 .clickable { currentSubRoute = ProfileSubRoute.BASIC_PROFILE }
                                 .padding(PAGTheme.spacing.md),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -203,7 +203,7 @@ fun ProfileScreen(
                                     text = "%${basicProfileState.completionPercentage} Tamamlandı",
                                     style = PAGTheme.typography.caption,
                                     fontWeight = FontWeight.Bold,
-                                    color = PAGTheme.colors.brandLime
+                                    color = PAGTheme.colors.warning
                                 )
                             }
                             Row(
@@ -212,15 +212,15 @@ fun ProfileScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Demografik ve iletişim bilgilerinizi güncel tutabilirsiniz.",
+                                    text = "Demografik ve iletişim bilgilerinizi eksiksiz doldurarak +200 Profil Puanı kazanın.",
                                     style = PAGTheme.typography.caption,
                                     color = PAGTheme.colors.textMuted,
                                     modifier = Modifier.weight(1f)
                                 )
                                 Icon(
                                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                                    contentDescription = "Düzenle",
-                                    tint = PAGTheme.colors.textMuted
+                                    contentDescription = "Tamamla",
+                                    tint = PAGTheme.colors.brandLime
                                 )
                             }
                         }
@@ -520,7 +520,56 @@ fun ProfileScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(PAGTheme.spacing.lg))
+                    // Basic Profile Box — Shown right above sign out button when completed
+                    if (isBasicProfileComplete) {
+                        Column(
+                            modifier = Modifier
+                                .padding(horizontal = PAGTheme.spacing.md)
+                                .fillMaxWidth()
+                                .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                                .border(1.dp, PAGTheme.colors.borderDefault, PAGTheme.radius.md)
+                                .clickable { currentSubRoute = ProfileSubRoute.BASIC_PROFILE }
+                                .padding(PAGTheme.spacing.md),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Temel Profil",
+                                    style = PAGTheme.typography.heading,
+                                    color = PAGTheme.colors.textPrimary
+                                )
+                                Text(
+                                    text = "%${basicProfileState.completionPercentage} Tamamlandı",
+                                    style = PAGTheme.typography.caption,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PAGTheme.colors.brandLime
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Demografik ve iletişim bilgilerinizi güncel tutabilirsiniz.",
+                                    style = PAGTheme.typography.caption,
+                                    color = PAGTheme.colors.textMuted,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                    contentDescription = "Düzenle",
+                                    tint = PAGTheme.colors.textMuted
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
+                    }
 
                     // Sign Out Button
                     Button(
