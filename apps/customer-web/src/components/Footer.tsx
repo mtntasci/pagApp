@@ -22,20 +22,17 @@ export default function Footer() {
           {/* 1. PAG Summary */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, #B7F34A 0%, #3977F6 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: '900',
-                fontSize: '18px',
-                color: '#010C26'
-              }}>
-                P
-              </div>
+              <img
+                src="/app_icon.png"
+                alt="PAG Logo"
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  objectFit: 'cover',
+                  border: '1px solid rgba(183, 243, 74, 0.4)'
+                }}
+              />
               <span style={{ fontSize: '20px', fontWeight: '900', color: 'white' }}>
                 PAG<span style={{ color: 'var(--brand-lime)' }}>.</span>
               </span>
@@ -60,7 +57,7 @@ export default function Footer() {
             </h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/#nasil-calisir" style={{ transition: 'color 0.2s' }}>⚡ PAG Nasıl Çalışır?</Link></li>
-              <li><Link href="/#profil-puani" style={{ transition: 'color 0.2s' }}>⭐ Profil Puanı Nedir?</Link></li>
+              <li><Link href="/#profil-puani" style={{ transition: 'color 0.2s' }}>⭐ Profil Puanı & Gruplar</Link></li>
               <li><Link href="/#simulasyon" style={{ color: 'var(--brand-lime)', fontWeight: 600 }}>🎮 Canlı Anket Simülatörü</Link></li>
               <li><Link href="/#oduller" style={{ transition: 'color 0.2s' }}>💸 Nakit & Çek Ödülleri</Link></li>
               <li><Link href="/#uygulamayi-taniyin" style={{ transition: 'color 0.2s' }}>📱 Mobil Ekranlar</Link></li>
@@ -74,7 +71,7 @@ export default function Footer() {
             </h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <li><Link href="/firmalar" style={{ color: '#60A5FA', fontWeight: 600 }}>🏢 Kurumsal Tanıtım</Link></li>
-              <li><Link href="/#kurumsal">🎯 Kitle Simülatörü</Link></li>
+              <li><Link href="/#kurumsal">🎯 Mikro-Hedefleme & Analitik</Link></li>
               <li><Link href="/firma-basvuru" style={{ color: 'var(--brand-lime)' }}>🚀 Kurumsal Başvuru</Link></li>
               <li>
                 <a href="https://app.pagapp.com.tr" target="_blank" rel="noopener noreferrer" style={{ color: 'white' }}>

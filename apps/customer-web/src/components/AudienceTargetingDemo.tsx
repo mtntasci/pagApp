@@ -56,7 +56,7 @@ export default function AudienceTargetingDemo() {
     <div className="glass-card-blue" style={{ padding: '40px 32px', border: '1px solid var(--border-blue-highlight)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <span className="badge-blue">🎯 Kurumsal Kitle Simülatörü</span>
+          <span className="badge-blue">🎯 Mikro-Hedefleme Simülatörü</span>
           <h3 style={{ fontSize: '24px', fontWeight: '800', color: 'white', marginTop: '8px' }}>
             Hassas Hedef Kitle Kurgulayıcı (Mikro-Segmentasyon)
           </h3>

@@ -196,9 +196,9 @@ export default function HomePage() {
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: 'rgba(183, 243, 74, 0.2)', color: 'var(--brand-lime)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', flexShrink: 0 }}>✓</div>
                     <div>
-                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Kademeli Bildirimde 1. Grup</h4>
+                      <h4 style={{ fontSize: '16px', fontWeight: 'bold', color: 'white' }}>Elmas & Yakut Bildirim Önceliği</h4>
                       <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                        PAG push bildirimleri kontrollü gönderilir (Batching). Yüksek puanlılar bildirimi ilk alan grupta yer alır.
+                        PAG bildirimleri değer sırasına göre <strong>Elmas (00:00)</strong>, <strong>Yakut (+60s)</strong>, <strong>Altın (+120s)</strong> ve <strong>Gümüş (+180s)</strong> gruplarına kademeli gönderilir.
                       </p>
                     </div>
                   </div>

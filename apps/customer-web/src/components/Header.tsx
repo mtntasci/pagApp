@@ -30,7 +30,7 @@ export default function Header() {
   return (
     <>
       <header style={{
-        backgroundColor: 'rgba(1, 12, 38, 0.9)',
+        backgroundColor: 'rgba(1, 12, 38, 0.92)',
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border-color)',
@@ -46,21 +46,18 @@ export default function Header() {
         }}>
           {/* Brand Logo & Tag */}
           <Link href="/" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '12px',
-              background: 'linear-gradient(135deg, #B7F34A 0%, #3977F6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: '900',
-              fontSize: '20px',
-              color: '#010C26',
-              boxShadow: '0 0 16px rgba(183, 243, 74, 0.35)'
-            }}>
-              P
-            </div>
+            <img
+              src="/app_icon.png"
+              alt="PAG Logo"
+              style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '11px',
+                objectFit: 'cover',
+                boxShadow: '0 0 16px rgba(183, 243, 74, 0.3)',
+                border: '1px solid rgba(183, 243, 74, 0.4)'
+              }}
+            />
             <div>
               <span style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '-0.5px', color: 'white' }}>
                 PAG<span style={{ color: 'var(--brand-lime)' }}>.</span>
@@ -72,7 +69,7 @@ export default function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }} className="desktop-nav">
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '28px' }} className="desktop-nav">
             <Link href="/#nasil-calisir" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
               Nasıl Çalışır?
             </Link>
@@ -81,9 +78,6 @@ export default function Header() {
             </Link>
             <Link href="/#oduller" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
               Ödül Dünyası
-            </Link>
-            <Link href="/#kurumsal" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
-              Kurumsal Kitle
             </Link>
             <Link
               href="/firmalar"
@@ -170,9 +164,6 @@ export default function Header() {
             </Link>
             <Link href="/#oduller" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
               Ödül Dünyası
-            </Link>
-            <Link href="/#kurumsal" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
-              Kurumsal Kitle
             </Link>
             <Link href="/firmalar" onClick={closeMenu} style={{ color: 'var(--brand-lime)', fontSize: '16px', fontWeight: 700, padding: '6px 0' }}>
               🏢 Kurumsal Çözümler

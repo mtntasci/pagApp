@@ -73,20 +73,17 @@ export default function DeviceMockups() {
             paddingBottom: '10px'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '24px',
-                height: '24px',
-                borderRadius: '6px',
-                backgroundColor: 'var(--brand-lime)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#010C26',
-                fontWeight: '900',
-                fontSize: '12px'
-              }}>
-                P
-              </div>
+              <img
+                src="/app_icon.png"
+                alt="PAG Logo"
+                style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '6px',
+                  objectFit: 'cover',
+                  border: '1px solid rgba(183, 243, 74, 0.4)'
+                }}
+              />
               <span style={{ fontSize: '13px', fontWeight: '800', color: 'white' }}>PAG Mobil</span>
             </div>
             <div style={{
