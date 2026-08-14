@@ -30,8 +30,9 @@ export default function Header() {
   return (
     <>
       <header style={{
-        backgroundColor: 'rgba(1, 16, 51, 0.95)',
-        backdropFilter: 'blur(12px)',
+        backgroundColor: 'rgba(1, 12, 38, 0.9)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border-color)',
         position: 'sticky',
         top: 0,
@@ -41,58 +42,84 @@ export default function Header() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          height: '72px'
+          height: '76px'
         }}>
-          {/* Brand Logo */}
+          {/* Brand Logo & Tag */}
           <Link href="/" onClick={closeMenu} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <img
-              src="/logo.png"
-              alt="PAG Logo"
-              style={{ width: '42px', height: '42px', borderRadius: '10px', objectFit: 'contain' }}
-            />
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #B7F34A 0%, #3977F6 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: '900',
+              fontSize: '20px',
+              color: '#010C26',
+              boxShadow: '0 0 16px rgba(183, 243, 74, 0.35)'
+            }}>
+              P
+            </div>
+            <div>
+              <span style={{ fontSize: '20px', fontWeight: '900', letterSpacing: '-0.5px', color: 'white' }}>
+                PAG<span style={{ color: 'var(--brand-lime)' }}>.</span>
+              </span>
+              <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-muted)', letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: '-3px' }}>
+                Mobil & Kurumsal
+              </span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '28px' }} className="desktop-nav">
-            <Link href="/#nedir" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
-              PAG Nedir?
-            </Link>
-            <Link href="/#nasil-calisir" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
+          <nav style={{ display: 'flex', alignItems: 'center', gap: '24px' }} className="desktop-nav">
+            <Link href="/#nasil-calisir" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
               Nasıl Çalışır?
             </Link>
-            <Link href="/#oduller" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
-              Ödüller
+            <Link href="/#simulasyon" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
+              Canlı Simülatör
+            </Link>
+            <Link href="/#oduller" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
+              Ödül Dünyası
+            </Link>
+            <Link href="/#kurumsal" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 600, transition: 'color 0.2s' }}>
+              Kurumsal Kitle
             </Link>
             <Link
               href="/firmalar"
               style={{
-                color: '#FFFFFF',
-                fontSize: '14px',
-                fontWeight: 600,
+                color: '#60A5FA',
+                fontSize: '13px',
+                fontWeight: 700,
                 padding: '6px 14px',
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
+                backgroundColor: 'rgba(57, 119, 246, 0.12)',
+                border: '1px solid rgba(57, 119, 246, 0.3)',
+                borderRadius: '10px',
                 transition: 'all 0.2s ease'
               }}
             >
-              Kurumsal
-            </Link>
-            <Link href="/iletisim" style={{ color: 'var(--text-secondary)', fontSize: '14px', fontWeight: 500, transition: 'color 0.2s' }}>
-              İletişim
+              🏢 Kurumsal Çözümler
             </Link>
           </nav>
 
           {/* Action CTAs & Mobile Hamburger */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Link
+              href="/firma-basvuru"
+              className="btn-lime mobile-hide-btn"
+              style={{ padding: '10px 18px', fontSize: '13px' }}
+            >
+              Kurumsal Başvuru
+            </Link>
+
             <a
               href="https://app.pagapp.com.tr"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-outline mobile-hide-btn"
-              style={{ padding: '8px 16px', fontSize: '13px' }}
+              style={{ padding: '10px 18px', fontSize: '13px' }}
             >
-              🏢 Kurumsal Giriş
+              Portal Girişi →
             </a>
 
             {/* Mobile Menu Toggle Button */}
@@ -103,7 +130,7 @@ export default function Header() {
                 display: 'none',
                 background: 'rgba(255, 255, 255, 0.08)',
                 border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '8px',
+                borderRadius: '10px',
                 color: 'white',
                 fontSize: '22px',
                 width: '42px',
@@ -123,47 +150,53 @@ export default function Header() {
         {mobileOpen && (
           <div style={{
             position: 'absolute',
-            top: '72px',
+            top: '76px',
             left: 0,
             right: 0,
-            backgroundColor: '#011033',
+            backgroundColor: '#010C26',
             borderBottom: '1px solid var(--border-color)',
             padding: '24px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.6)',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.8)',
             zIndex: 99
           }}>
-            <Link href="/#nedir" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '8px 0' }}>
-              PAG Nedir?
-            </Link>
-            <Link href="/#nasil-calisir" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '8px 0' }}>
+            <Link href="/#nasil-calisir" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
               Nasıl Çalışır?
             </Link>
-            <Link href="/#oduller" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '8px 0' }}>
-              Ödüller
+            <Link href="/#simulasyon" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
+              Canlı Simülatör
             </Link>
-            <Link href="/firmalar" onClick={closeMenu} style={{ color: 'var(--brand-lime)', fontSize: '16px', fontWeight: 700, padding: '8px 0' }}>
-              Kurumsal Çözümler
+            <Link href="/#oduller" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
+              Ödül Dünyası
             </Link>
-            <Link href="/firma-basvuru" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '8px 0' }}>
+            <Link href="/#kurumsal" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
+              Kurumsal Kitle
+            </Link>
+            <Link href="/firmalar" onClick={closeMenu} style={{ color: 'var(--brand-lime)', fontSize: '16px', fontWeight: 700, padding: '6px 0' }}>
+              🏢 Kurumsal Çözümler
+            </Link>
+            <Link href="/firma-basvuru" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
               Kurumsal Başvuru
             </Link>
-            <Link href="/iletisim" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '8px 0' }}>
+            <Link href="/iletisim" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
               İletişim
             </Link>
 
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
+            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <Link href="/firma-basvuru" onClick={closeMenu} className="btn-lime" style={{ justifyContent: 'center' }}>
+                🚀 Kurumsal Başvuru Yap
+              </Link>
               <a
                 href="https://app.pagapp.com.tr"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={closeMenu}
-                className="btn-lime"
-                style={{ width: '100%', justifyContent: 'center' }}
+                className="btn-outline"
+                style={{ justifyContent: 'center' }}
               >
-                🏢 Kurumsal Portal Girişi
+                🏢 Portal Girişi
               </a>
             </div>
           </div>
@@ -177,8 +210,8 @@ export default function Header() {
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(4px)',
+            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(6px)',
             zIndex: 98
           }}
         />
