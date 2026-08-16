@@ -81,16 +81,17 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* 4. Yasal & Gizlilik */}
+          {/* 4. Yasal & Destek */}
           <div>
             <h4 style={{ color: '#FFFFFF', fontSize: '15px', fontWeight: '700', marginBottom: '16px' }}>
-              Yasal & Güvenlik
+              Yasal & Destek
             </h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <li><Link href="/kvkk">KVKK Aydınlatma Metni</Link></li>
-              <li><Link href="/gizlilik">Gizlilik Politikası</Link></li>
-              <li><Link href="/kullanim-kosullari">Kullanım Koşulları</Link></li>
-              <li><Link href="/iletisim">İletişim & Destek</Link></li>
+              <li><Link href="/privacy" style={{ transition: 'color 0.2s' }}>Gizlilik Politikası</Link></li>
+              <li><Link href="/user-privacy" style={{ transition: 'color 0.2s' }}>KVKK Aydınlatma Metni</Link></li>
+              <li><Link href="/age-suitability" style={{ color: 'var(--brand-lime)', fontWeight: 600, transition: 'color 0.2s' }}>🔞 Yaş Uygunluğu (18+)</Link></li>
+              <li><Link href="/kullanim-kosullari" style={{ transition: 'color 0.2s' }}>Kullanım Koşulları</Link></li>
+              <li><Link href="/support" style={{ transition: 'color 0.2s' }}>💬 PAG Destek Merkezi</Link></li>
             </ul>
           </div>
         </div>

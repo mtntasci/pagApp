@@ -171,8 +171,8 @@ export default function Header() {
             <Link href="/firma-basvuru" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
               Kurumsal Başvuru
             </Link>
-            <Link href="/iletisim" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
-              İletişim
+            <Link href="/support" onClick={closeMenu} style={{ color: 'white', fontSize: '16px', fontWeight: 600, padding: '6px 0' }}>
+              Destek & Yardım
             </Link>
 
             <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
