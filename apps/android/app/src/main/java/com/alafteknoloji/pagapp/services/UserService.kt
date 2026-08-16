@@ -66,6 +66,39 @@ class UserService(private val context: Context) {
                 @Suppress("UNCHECKED_CAST")
                 val userData = responseMap?.get("data") as? Map<String, Any>
                 if (userData != null) {
+                    @Suppress("UNCHECKED_CAST")
+                    val commPrefsData = userData["communicationPreferences"] as? Map<String, Any> ?: emptyMap()
+                    val commPrefs = com.alafteknoloji.pagapp.models.CommunicationPreferences(
+                        pushMarketing = commPrefsData["pushMarketing"] as? Boolean ?: false,
+                        smsMarketing = commPrefsData["smsMarketing"] as? Boolean ?: false,
+                        emailMarketing = commPrefsData["emailMarketing"] as? Boolean ?: false,
+                        phoneMarketing = commPrefsData["phoneMarketing"] as? Boolean ?: false
+                    )
+
+                    @Suppress("UNCHECKED_CAST")
+                    val missingDocsData = userData["missingDocuments"] as? List<Map<String, Any>> ?: emptyList()
+                    val missingDocs = missingDocsData.mapNotNull { d ->
+                        val docId = d["documentId"] as? String ?: return@mapNotNull null
+                        val type = d["type"] as? String ?: return@mapNotNull null
+                        val version = d["version"] as? String ?: return@mapNotNull null
+                        val title = d["title"] as? String ?: return@mapNotNull null
+                        val url = d["url"] as? String ?: return@mapNotNull null
+                        val hash = d["contentHash"] as? String ?: return@mapNotNull null
+                        com.alafteknoloji.pagapp.models.LegalDocument(
+                            documentId = docId,
+                            type = type,
+                            version = version,
+                            title = title,
+                            url = url,
+                            contentHash = hash,
+                            isRequired = d["isRequired"] as? Boolean ?: true,
+                            isActive = d["isActive"] as? Boolean ?: true,
+                            requiresReacceptance = d["requiresReacceptance"] as? Boolean ?: false
+                        )
+                    }
+
+                    val isUnderage = userData["isUnderage"] as? Boolean ?: (userData["status"] as? String == "SUSPENDED_UNDERAGE" || userData["status"] as? String == "UNDERAGE")
+
                     val user = PAGUser(
                         userId = userData["userId"] as? String ?: "",
                         email = userData["email"] as? String,
@@ -82,7 +115,13 @@ class UserService(private val context: Context) {
                         iban = userData["iban"] as? String,
                         tckn = userData["tckn"] as? String,
                         ibanVerified = userData["ibanVerified"] as? Boolean ?: false,
-                        activeDeviceId = userData["activeDeviceId"] as? String
+                        activeDeviceId = userData["activeDeviceId"] as? String,
+                        legalConsentRequired = userData["legalConsentRequired"] as? Boolean ?: false,
+                        missingDocumentIds = (userData["missingDocumentIds"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
+                        missingDocuments = missingDocs,
+                        communicationPreferences = commPrefs,
+                        isUnderage = isUnderage,
+                        underageBlocked = isUnderage
                     )
                     _currentUser.value = user
                     _isBootstrapping.value = false
@@ -110,7 +149,12 @@ class UserService(private val context: Context) {
                 phoneVerified = !authUser.phoneNumber.isNullOrEmpty(),
                 emailVerified = authUser.isEmailVerified,
                 kycStatus = "NOT_STARTED",
-                activeDeviceId = deviceService.deviceId
+                activeDeviceId = deviceService.deviceId,
+                legalConsentRequired = true,
+                missingDocumentIds = listOf("TERMS", "KVKK_NOTICE", "REWARD_TERMS"),
+                communicationPreferences = com.alafteknoloji.pagapp.models.CommunicationPreferences(),
+                isUnderage = false,
+                underageBlocked = false
             )
             _currentUser.value = fallbackUser
             _bootstrapError.value = null
@@ -196,6 +240,21 @@ class UserService(private val context: Context) {
     fun updateUserProfileScore(newScore: Int) {
         val user = _currentUser.value ?: return
         _currentUser.value = user.copy(profileScore = newScore)
+    }
+
+    fun completeLegalConsent(preferences: com.alafteknoloji.pagapp.models.CommunicationPreferences) {
+        val user = _currentUser.value ?: return
+        _currentUser.value = user.copy(
+            legalConsentRequired = false,
+            missingDocumentIds = emptyList(),
+            missingDocuments = emptyList(),
+            communicationPreferences = preferences
+        )
+    }
+
+    fun updateCommunicationPreferencesState(preferences: com.alafteknoloji.pagapp.models.CommunicationPreferences) {
+        val user = _currentUser.value ?: return
+        _currentUser.value = user.copy(communicationPreferences = preferences)
     }
 
     fun clearUserSession() {

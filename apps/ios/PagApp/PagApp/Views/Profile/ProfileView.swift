@@ -365,6 +365,39 @@ public struct ProfileView: View {
                             .padding(.horizontal, PAGSpacing.md)
                         }
 
+                        // Legal & Permissions Navigation Button
+                        NavigationLink(destination: LegalSettingsView()) {
+                            HStack {
+                                Image(systemName: "shield.lefthalf.filled.badge.checkmark")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(PAGTheme.brandLime)
+                                    .frame(width: 24)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Sözleşmeler ve İzinler")
+                                        .font(PAGTypography.body)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                    Text("Yasal metinler, onaylar ve iletişim tercihleri")
+                                        .font(PAGTypography.caption)
+                                        .foregroundColor(PAGTheme.textMuted)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(PAGTheme.textSecondary)
+                            }
+                            .padding()
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(PAGRadius.medium)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                    .stroke(PAGTheme.borderColor, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .padding(.horizontal, PAGSpacing.md)
+
                         // Sign Out & Account Buttons
                         VStack(spacing: 12) {
                             PAGButton(

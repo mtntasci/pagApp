@@ -22,6 +22,14 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public let ibanVerified: Bool
     public let activeDeviceId: String?
     
+    // Legal & Consent Status
+    public var legalConsentRequired: Bool
+    public var missingDocumentIds: [String]
+    public var missingDocuments: [LegalDocument]
+    public var communicationPreferences: CommunicationPreferences
+    public var isUnderage: Bool
+    public var underageBlocked: Bool
+    
     public init(
         userId: String,
         email: String? = nil,
@@ -40,7 +48,13 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         iban: String? = nil,
         tckn: String? = nil,
         ibanVerified: Bool = false,
-        activeDeviceId: String? = nil
+        activeDeviceId: String? = nil,
+        legalConsentRequired: Bool = false,
+        missingDocumentIds: [String] = [],
+        missingDocuments: [LegalDocument] = [],
+        communicationPreferences: CommunicationPreferences = CommunicationPreferences(),
+        isUnderage: Bool = false,
+        underageBlocked: Bool = false
     ) {
         self.userId = userId
         self.email = email
@@ -60,5 +74,11 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         self.tckn = tckn
         self.ibanVerified = ibanVerified
         self.activeDeviceId = activeDeviceId
+        self.legalConsentRequired = legalConsentRequired
+        self.missingDocumentIds = missingDocumentIds
+        self.missingDocuments = missingDocuments
+        self.communicationPreferences = communicationPreferences
+        self.isUnderage = isUnderage
+        self.underageBlocked = underageBlocked
     }
 }

@@ -87,10 +87,13 @@ export default function Footer() {
               Yasal & Destek
             </h4>
             <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <li><Link href="/privacy" style={{ transition: 'color 0.2s' }}>Gizlilik Politikası</Link></li>
+              <li><Link href="/terms" style={{ transition: 'color 0.2s' }}>Kullanım Koşulları & Sözleşme</Link></li>
               <li><Link href="/user-privacy" style={{ transition: 'color 0.2s' }}>KVKK Aydınlatma Metni</Link></li>
+              <li><Link href="/explicit-consent" style={{ transition: 'color 0.2s' }}>Açık Rıza Metni</Link></li>
+              <li><Link href="/commercial-communication" style={{ transition: 'color 0.2s' }}>Ticari İleti İzni</Link></li>
+              <li><Link href="/reward-terms" style={{ transition: 'color 0.2s' }}>Ödül & Kampanya Koşulları</Link></li>
+              <li><Link href="/privacy" style={{ transition: 'color 0.2s' }}>Gizlilik Politikası</Link></li>
               <li><Link href="/age-suitability" style={{ color: 'var(--brand-lime)', fontWeight: 600, transition: 'color 0.2s' }}>🔞 Yaş Uygunluğu (18+)</Link></li>
-              <li><Link href="/kullanim-kosullari" style={{ transition: 'color 0.2s' }}>Kullanım Koşulları</Link></li>
               <li><Link href="/support" style={{ transition: 'color 0.2s' }}>💬 PAG Destek Merkezi</Link></li>
             </ul>
           </div>

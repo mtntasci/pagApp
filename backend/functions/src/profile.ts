@@ -211,6 +211,13 @@ export const updateBasicProfileHandler = async (
     if (!/^\d{4}-\d{2}-\d{2}$/.test(data.birthDetails.birthDate)) {
       throw new functions.https.HttpsError('invalid-argument', 'birthDate must be in YYYY-MM-DD or DD.MM.YYYY format.');
     }
+    const computedAge = calculateAgeFromBirthDate(data.birthDetails.birthDate);
+    if (computedAge !== null && computedAge < 18) {
+      throw new functions.https.HttpsError(
+        'failed-precondition',
+        'PAG yalnızca 18 yaş ve üzeri bireyler içindir.'
+      );
+    }
   }
 
   // Validate Gender if provided

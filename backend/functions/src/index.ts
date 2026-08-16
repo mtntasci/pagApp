@@ -47,6 +47,12 @@ import {
   listProfileQuestionsAdminHandler,
   manageProfileCategoriesAdminHandler
 } from './profileSurveys';
+import {
+  getActiveLegalDocumentsHandler,
+  recordLegalAcceptancesHandler,
+  updateCommunicationPreferencesHandler,
+  seedLegalDocumentsAdminHandler
+} from './legal';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -122,4 +128,13 @@ export const manageSurveyCategoriesAdmin = functions.https.onCall(manageSurveyCa
 export const manageProfileCategoriesAdmin = functions.https.onCall(manageProfileCategoriesAdminHandler);
 export const seedCategoriesAdmin = functions.https.onCall(seedCategoriesAdminHandler);
 export const cleanSurveyDataAdmin = functions.https.onCall(cleanSurveyDataAdminHandler);
+
+/**
+ * Legal Documents, User Consent & Communication Preferences Callables.
+ */
+export const getActiveLegalDocuments = functions.https.onCall(getActiveLegalDocumentsHandler);
+export const recordLegalAcceptances = functions.https.onCall(recordLegalAcceptancesHandler);
+export const updateCommunicationPreferences = functions.https.onCall(updateCommunicationPreferencesHandler);
+export const seedLegalDocumentsAdmin = functions.https.onCall(seedLegalDocumentsAdminHandler);
+
 

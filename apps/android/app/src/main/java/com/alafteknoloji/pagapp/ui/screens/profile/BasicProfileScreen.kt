@@ -103,6 +103,26 @@ fun BasicProfileScreen(
                                 if (draftProfile.firstName.isBlank()) { inlineErrorMsg = "Lütfen adınızı giriniz."; return@Button }
                                 if (draftProfile.lastName.isBlank()) { inlineErrorMsg = "Lütfen soyadınızı giriniz."; return@Button }
                                 if (draftProfile.birthDetails.birthDate.isEmpty()) { inlineErrorMsg = "Lütfen doğum tarihinizi seçiniz."; return@Button }
+                                try {
+                                    val parts = draftProfile.birthDetails.birthDate.split("-")
+                                    if (parts.size == 3) {
+                                        val year = parts[0].toInt()
+                                        val month = parts[1].toInt()
+                                        val day = parts[2].toInt()
+                                        val birthCal = java.util.Calendar.getInstance().apply { set(year, month - 1, day) }
+                                        val today = java.util.Calendar.getInstance()
+                                        var age = today.get(java.util.Calendar.YEAR) - birthCal.get(java.util.Calendar.YEAR)
+                                        if (today.get(java.util.Calendar.DAY_OF_YEAR) < birthCal.get(java.util.Calendar.DAY_OF_YEAR)) {
+                                            age--
+                                        }
+                                        if (age < 18) {
+                                            inlineErrorMsg = "PAG yalnızca 18 yaş ve üzeri bireyler içindir."
+                                            return@Button
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    // ignore parse failure
+                                }
                                 if (draftProfile.birthDetails.cityId.isEmpty()) { inlineErrorMsg = "Lütfen doğum yeri ilini seçiniz."; return@Button }
                                 if (draftProfile.birthDetails.districtId.isEmpty()) { inlineErrorMsg = "Lütfen doğum yeri ilçesini seçiniz."; return@Button }
                             } else if (currentStep == 2) {

@@ -18,5 +18,11 @@ data class PAGUser(
     val iban: String? = null,
     val tckn: String? = null,
     val ibanVerified: Boolean = false,
-    val activeDeviceId: String? = null
+    val activeDeviceId: String? = null,
+    val legalConsentRequired: Boolean = false,
+    val missingDocumentIds: List<String> = emptyList(),
+    val missingDocuments: List<LegalDocument> = emptyList(),
+    val communicationPreferences: CommunicationPreferences = CommunicationPreferences(),
+    val isUnderage: Boolean = false,
+    val underageBlocked: Boolean = false
 )

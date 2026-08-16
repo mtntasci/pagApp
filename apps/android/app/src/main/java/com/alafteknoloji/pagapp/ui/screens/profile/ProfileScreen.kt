@@ -43,7 +43,8 @@ enum class ProfileSubRoute {
     BASIC_PROFILE,
     PROFILE_SURVEYS,
     SURVEY_DETAIL,
-    SURVEY_FLOW
+    SURVEY_FLOW,
+    LEGAL_SETTINGS
 }
 
 @Composable
@@ -124,6 +125,12 @@ fun ProfileScreen(
             } ?: run {
                 currentSubRoute = ProfileSubRoute.PROFILE_SURVEYS
             }
+        }
+        ProfileSubRoute.LEGAL_SETTINGS -> {
+            LegalSettingsScreen(
+                userService = userService ?: remember { UserService(context) },
+                onBack = { currentSubRoute = ProfileSubRoute.MAIN }
+            )
         }
         ProfileSubRoute.MAIN -> {
             Box(
@@ -548,6 +555,42 @@ fun ProfileScreen(
 
                         Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
                     }
+
+                    // Legal & Agreements Navigation Card
+                    Column(
+                        modifier = Modifier
+                            .padding(horizontal = PAGTheme.spacing.md)
+                            .fillMaxWidth()
+                            .background(PAGTheme.colors.surfacePrimary, PAGTheme.radius.md)
+                            .border(1.dp, PAGTheme.colors.borderDefault, PAGTheme.radius.md)
+                            .clickable { currentSubRoute = ProfileSubRoute.LEGAL_SETTINGS }
+                            .padding(PAGTheme.spacing.md),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Sözleşmeler ve İzinler",
+                                style = PAGTheme.typography.heading,
+                                color = PAGTheme.colors.textPrimary
+                            )
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = PAGTheme.colors.textSecondary
+                            )
+                        }
+                        Text(
+                            text = "Yasal metinler, onaylar ve iletişim tercihleri",
+                            style = PAGTheme.typography.caption,
+                            color = PAGTheme.colors.textMuted
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(PAGTheme.spacing.md))
 
                     // Sign Out Button
                     Button(

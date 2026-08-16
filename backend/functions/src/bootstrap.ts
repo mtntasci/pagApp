@@ -1,5 +1,7 @@
 import * as admin from 'firebase-admin';
 import * as functions from 'firebase-functions';
+import { evaluateUserLegalConsentStatus, LegalDocument, CommunicationPreferences } from './legal';
+import { calculateAgeFromBirthDate } from './profile';
 
 export interface BootstrapDeviceInput {
   deviceId: string;
@@ -27,6 +29,13 @@ export interface PAGUserResponse {
   ibanVerified?: boolean;
   activeDeviceId: string | null;
   registeredAt?: string;
+  // Legal Consent & Preferences
+  legalConsentRequired: boolean;
+  missingDocumentIds: string[];
+  missingDocuments: LegalDocument[];
+  communicationPreferences: CommunicationPreferences;
+  isUnderage: boolean;
+  underageBlocked: boolean;
 }
 
 function parseSignInProvider(providerId?: string): string {
@@ -91,7 +100,18 @@ export const bootstrapCurrentUserHandler = async (
     phoneVerified: phoneVerified,
     emailVerified: emailVerified,
     kycStatus: 'NOT_STARTED',
-    activeDeviceId: deviceId
+    activeDeviceId: deviceId,
+    legalConsentRequired: true,
+    missingDocumentIds: [],
+    missingDocuments: [],
+    communicationPreferences: {
+      pushMarketing: false,
+      smsMarketing: false,
+      emailMarketing: false,
+      phoneMarketing: false
+    },
+    isUnderage: false,
+    underageBlocked: false
   };
 
   await db.runTransaction(async (transaction) => {
@@ -118,7 +138,14 @@ export const bootstrapCurrentUserHandler = async (
         phoneVerified: phoneVerified,
         emailVerified: emailVerified,
         kycStatus: 'NOT_STARTED',
-        activeDeviceId: deviceId
+        activeDeviceId: deviceId,
+        communicationPreferences: {
+          pushMarketing: false,
+          smsMarketing: false,
+          emailMarketing: false,
+          phoneMarketing: false,
+          updatedAt: now
+        }
       };
 
       transaction.set(userRef, newUserData);
@@ -136,7 +163,18 @@ export const bootstrapCurrentUserHandler = async (
         phoneVerified: phoneVerified,
         emailVerified: emailVerified,
         kycStatus: 'NOT_STARTED',
-        activeDeviceId: deviceId
+        activeDeviceId: deviceId,
+        legalConsentRequired: true,
+        missingDocumentIds: [],
+        missingDocuments: [],
+        communicationPreferences: {
+          pushMarketing: false,
+          smsMarketing: false,
+          emailMarketing: false,
+          phoneMarketing: false
+        },
+        isUnderage: false,
+        underageBlocked: false
       };
     } else {
       // Existing User Document: Protect registeredAt, profileScore, status, kycStatus
@@ -182,7 +220,18 @@ export const bootstrapCurrentUserHandler = async (
         iban: existing.iban ?? null,
         tckn: existing.tckn ?? null,
         ibanVerified: existing.ibanVerified ?? false,
-        activeDeviceId: deviceId
+        activeDeviceId: deviceId,
+        legalConsentRequired: true,
+        missingDocumentIds: [],
+        missingDocuments: [],
+        communicationPreferences: existing.communicationPreferences || {
+          pushMarketing: false,
+          smsMarketing: false,
+          emailMarketing: false,
+          phoneMarketing: false
+        },
+        isUnderage: existing.status === 'UNDERAGE' || existing.status === 'SUSPENDED_UNDERAGE',
+        underageBlocked: existing.status === 'UNDERAGE' || existing.status === 'SUSPENDED_UNDERAGE'
       };
     }
 
@@ -216,16 +265,40 @@ export const bootstrapCurrentUserHandler = async (
 
   functions.logger.info(`USER_BOOTSTRAPPED: userId=${uid}, deviceId=${deviceId}`);
 
-  // Read Basic Profile for firstName/lastName
+  // Read Basic Profile for firstName/lastName and 18+ check
   try {
     const basicProfileSnap = await db.collection('users').doc(uid).collection('profile').doc('basic').get();
     if (basicProfileSnap.exists) {
       const bData = basicProfileSnap.data();
       if (bData?.firstName) userSummary.firstName = bData.firstName;
       if (bData?.lastName) userSummary.lastName = bData.lastName;
+      if (bData?.birthDetails?.birthDate) {
+        const computedAge = calculateAgeFromBirthDate(bData.birthDetails.birthDate);
+        if (computedAge !== null && computedAge < 18) {
+          userSummary.isUnderage = true;
+          userSummary.underageBlocked = true;
+          // Suspend underage account
+          await db.collection('users').doc(uid).update({
+            status: 'SUSPENDED_UNDERAGE',
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          });
+          userSummary.status = 'SUSPENDED_UNDERAGE';
+        }
+      }
     }
   } catch (bpErr) {
     functions.logger.warn(`Failed to read basic profile during bootstrap:`, bpErr);
+  }
+
+  // Evaluate Legal Consent Status
+  try {
+    const consentStatus = await evaluateUserLegalConsentStatus(uid, db);
+    userSummary.legalConsentRequired = consentStatus.consentRequired;
+    userSummary.missingDocumentIds = consentStatus.missingDocumentIds;
+    userSummary.missingDocuments = consentStatus.missingDocuments;
+    userSummary.communicationPreferences = consentStatus.communicationPreferences;
+  } catch (cErr) {
+    functions.logger.error('Failed to evaluate legal consent status:', cErr);
   }
 
   return {

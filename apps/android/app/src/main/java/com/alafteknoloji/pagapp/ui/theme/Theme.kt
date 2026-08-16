@@ -30,7 +30,10 @@ data class PAGColors(
     val success: Color,
     val warning: Color,
     val error: Color,
-    val info: Color
+    val info: Color,
+
+    val brandOrange: Color = warning,
+    val border: Color = borderDefault
 )
 
 val LocalPAGColors = staticCompositionLocalOf {

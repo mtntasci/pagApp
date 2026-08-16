@@ -60,6 +60,39 @@ public final class UserService: ObservableObject {
                let success = responseData["success"] as? Bool, success,
                let userData = responseData["data"] as? [String: Any] {
                 
+                let commPrefsData = userData["communicationPreferences"] as? [String: Any] ?? [:]
+                let commPrefs = CommunicationPreferences(
+                    pushMarketing: commPrefsData["pushMarketing"] as? Bool ?? false,
+                    smsMarketing: commPrefsData["smsMarketing"] as? Bool ?? false,
+                    emailMarketing: commPrefsData["emailMarketing"] as? Bool ?? false,
+                    phoneMarketing: commPrefsData["phoneMarketing"] as? Bool ?? false
+                )
+                
+                let missingDocsData = userData["missingDocuments"] as? [[String: Any]] ?? []
+                let missingDocs = missingDocsData.compactMap { d -> LegalDocument? in
+                    guard let docId = d["documentId"] as? String,
+                          let type = d["type"] as? String,
+                          let version = d["version"] as? String,
+                          let title = d["title"] as? String,
+                          let url = d["url"] as? String,
+                          let hash = d["contentHash"] as? String else {
+                        return nil
+                    }
+                    return LegalDocument(
+                        documentId: docId,
+                        type: type,
+                        version: version,
+                        title: title,
+                        url: url,
+                        contentHash: hash,
+                        isRequired: d["isRequired"] as? Bool ?? true,
+                        isActive: d["isActive"] as? Bool ?? true,
+                        requiresReacceptance: d["requiresReacceptance"] as? Bool ?? false
+                    )
+                }
+
+                let isUnderage = userData["isUnderage"] as? Bool ?? (userData["status"] as? String == "SUSPENDED_UNDERAGE" || userData["status"] as? String == "UNDERAGE")
+                
                 let user = PAGUser(
                     userId: userData["userId"] as? String ?? "",
                     email: userData["email"] as? String,
@@ -76,7 +109,13 @@ public final class UserService: ObservableObject {
                     iban: userData["iban"] as? String,
                     tckn: userData["tckn"] as? String,
                     ibanVerified: userData["ibanVerified"] as? Bool ?? false,
-                    activeDeviceId: userData["activeDeviceId"] as? String
+                    activeDeviceId: userData["activeDeviceId"] as? String,
+                    legalConsentRequired: userData["legalConsentRequired"] as? Bool ?? false,
+                    missingDocumentIds: userData["missingDocumentIds"] as? [String] ?? [],
+                    missingDocuments: missingDocs,
+                    communicationPreferences: commPrefs,
+                    isUnderage: isUnderage,
+                    underageBlocked: isUnderage
                 )
                 
                 self.currentUser = user
@@ -105,7 +144,12 @@ public final class UserService: ObservableObject {
                 phoneVerified: firebaseUser.phoneNumber != nil,
                 emailVerified: firebaseUser.isEmailVerified,
                 kycStatus: "NOT_STARTED",
-                activeDeviceId: deviceId
+                activeDeviceId: deviceId,
+                legalConsentRequired: true,
+                missingDocumentIds: ["TERMS", "KVKK_NOTICE", "REWARD_TERMS"],
+                communicationPreferences: CommunicationPreferences(),
+                isUnderage: false,
+                underageBlocked: false
             )
             self.currentUser = fallbackUser
             self.isBootstrapping = false
@@ -197,6 +241,23 @@ public final class UserService: ObservableObject {
             print("submitKyc error: \(error.localizedDescription)")
         }
         return false
+    }
+
+    public func completeLegalConsent(preferences: CommunicationPreferences) {
+        if var user = currentUser {
+            user.legalConsentRequired = false
+            user.missingDocumentIds = []
+            user.missingDocuments = []
+            user.communicationPreferences = preferences
+            self.currentUser = user
+        }
+    }
+    
+    public func updateCommunicationPreferencesState(preferences: CommunicationPreferences) {
+        if var user = currentUser {
+            user.communicationPreferences = preferences
+            self.currentUser = user
+        }
     }
 
     public func clearUserSession() {

@@ -275,6 +275,12 @@ public struct BasicProfileView: View {
                 inlineErrorMessage = "Lütfen doğum tarihinizi seçiniz."
                 return
             }
+            let birthDate = dateFromString(draftProfile.birthDetails.birthDate)
+            let age = Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year ?? 0
+            if age < 18 {
+                inlineErrorMessage = "PAG yalnızca 18 yaş ve üzeri bireyler içindir."
+                return
+            }
             if draftProfile.birthDetails.cityId.isEmpty {
                 inlineErrorMessage = "Lütfen doğum yeri ilini seçiniz."
                 return

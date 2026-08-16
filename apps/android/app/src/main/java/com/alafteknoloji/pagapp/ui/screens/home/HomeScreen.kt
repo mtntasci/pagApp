@@ -181,7 +181,7 @@ fun HomeScreen(
                                         fontWeight = FontWeight.Bold
                                     )
                                     Icon(
-                                        imageVector = Icons.Filled.ArrowForward,
+                                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                         contentDescription = null,
                                         tint = PAGTheme.colors.brandMidnight
                                     )

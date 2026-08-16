@@ -74,4 +74,8 @@ public enum PAGTheme {
     public static let warning = Color(hex: "#F59E0B")
     public static let error   = Color(hex: "#DC2626")
     public static let info    = Color(hex: "#3977F6")
+    
+    // Convenience Aliases
+    public static let borderColor = borderDefault
+    public static let brandOrange = warning
 }
