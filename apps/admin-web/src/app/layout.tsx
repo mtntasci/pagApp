@@ -72,7 +72,8 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
         { href: '/organizations', label: 'Firma Listesi', icon: '🏢' },
         { href: '/applications', label: 'Başvurular', icon: '📥' },
         { href: '/verification-campaigns', label: 'Kalite Doğrulama', icon: '🛡️' },
-        { href: '/users', label: 'Kullanıcı Listesi (+)', icon: '👥' }
+        { href: '/users', label: 'Kullanıcı Listesi', icon: '👥' },
+        { href: '/roles', label: 'Yetki Yönetimi', icon: '🔐' }
       ]
     },
     {
