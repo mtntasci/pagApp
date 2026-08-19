@@ -62,106 +62,29 @@ export default function OrganizationsPage() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations & Auto-merge Approved Applications (Instant Firestore Direct Read)
+  // 1. Fetch Organizations (Instant Firestore Direct Read)
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
     try {
-      let orgsList: OrganizationItem[] = [];
-      let applicationsList: any[] = [];
-
-      // 1. Instant Direct Firestore Read (~40ms)
-      try {
-        const [orgsSnap, appsSnap] = await Promise.all([
-          getDocs(collection(db, 'organizations')).catch(() => null),
-          getDocs(collection(db, 'companyApplications')).catch(() => null)
-        ]);
-
-        if (orgsSnap && !orgsSnap.empty) {
-          orgsSnap.forEach(d => {
-            const data = d.data();
-            const oId = data.organizationId || d.id;
-            orgsList.push({
-              id: d.id,
-              organizationId: oId,
-              name: data.name || d.id,
-              sector: data.sector || 'Genel',
-              contactEmail: data.contactEmail || null,
-              contactPhone: data.contactPhone || null,
-              status: data.status || 'ACTIVE',
-              isVerificationAuthorized: data.isVerificationAuthorized === true,
-              surveyCount: 0,
-              portalUserCount: 0,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null
-            });
-          });
-        }
-
-        if (appsSnap && !appsSnap.empty) {
-          appsSnap.forEach(d => {
-            applicationsList.push({
-              applicationId: d.id,
-              ...d.data()
-            });
-          });
-        }
-      } catch (fsErr) {
-        console.warn('Direct Firestore organizations read error:', fsErr);
-      }
-
-
-      // 3. Auto-sync approved applications into the list & persist missing to Firestore
-      if (applicationsList.length > 0) {
-        const existingOrgIds = new Set(orgsList.map(o => o.organizationId));
-        const existingNames = new Set(orgsList.map(o => (o.name || '').toLowerCase().trim()));
-
-        for (const app of applicationsList) {
-          if (app.status === 'APPROVED') {
-            const name = (app.companyName || app.name || 'Firma').trim();
-            const cleanSlug = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 30);
-            const orgId = app.createdOrganizationId || `org_${cleanSlug}`;
-
-            if (!existingOrgIds.has(orgId) && !existingNames.has(name.toLowerCase())) {
-              const newOrgItem: OrganizationItem = {
-                id: orgId,
-                organizationId: orgId,
-                name: name,
-                sector: app.sector || 'Genel',
-                contactEmail: app.contactEmail || null,
-                contactPhone: app.contactPhone || null,
-                status: 'ACTIVE',
-                isVerificationAuthorized: true,
-                surveyCount: 0,
-                portalUserCount: 0,
-                createdAt: app.createdAt || new Date().toISOString()
-              };
-              orgsList.push(newOrgItem);
-              existingOrgIds.add(orgId);
-              existingNames.add(name.toLowerCase());
-
-              // Persist directly to Firestore
-              try {
-                await setDoc(doc(db, 'organizations', orgId), {
-                  organizationId: orgId,
-                  name: name,
-                  sector: app.sector || 'Genel',
-                  contactName: app.contactName || null,
-                  contactEmail: app.contactEmail || null,
-                  contactPhone: app.contactPhone || null,
-                  website: app.website || null,
-                  status: 'ACTIVE',
-                  isVerificationAuthorized: true,
-                  sourceApplicationId: app.applicationId || null,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString()
-                }, { merge: true });
-              } catch (setErr) {
-                // background fallback
-              }
-            }
-          }
-        }
-      }
-
+      const snap = await getDocs(collection(db, 'organizations'));
+      const orgsList: OrganizationItem[] = [];
+      snap.forEach(d => {
+        const data = d.data();
+        const oId = data.organizationId || d.id;
+        orgsList.push({
+          id: d.id,
+          organizationId: oId,
+          name: data.name || d.id,
+          sector: data.sector || 'Genel',
+          contactEmail: data.contactEmail || null,
+          contactPhone: data.contactPhone || null,
+          status: data.status || 'ACTIVE',
+          isVerificationAuthorized: data.isVerificationAuthorized === true,
+          surveyCount: 0,
+          portalUserCount: 0,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null
+        });
+      });
       setOrganizations(orgsList);
     } catch (err: any) {
       console.error('Fetch Organizations Error:', err);

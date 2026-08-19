@@ -593,24 +593,16 @@ export const listVerificationCampaignsHandler = async (
   }
 
   const snap = await query.orderBy('createdAt', 'desc').get();
-  const campaigns: any[] = [];
-
-  for (const docSnap of snap.docs) {
+  
+  // Fast map without N+1 sequential blocking queries
+  const campaigns = snap.docs.map((docSnap) => {
     const cData = docSnap.data();
-    // Fetch master survey title
-    let masterSurveyTitle = 'Anket';
-    if (cData.masterSurveyId) {
-      const msDoc = await db.collection('surveys').doc(cData.masterSurveyId).get();
-      if (msDoc.exists) {
-        masterSurveyTitle = msDoc.data()?.title || 'Anket';
-      }
-    }
-
-    campaigns.push({
+    return {
       ...cData,
-      masterSurveyTitle
-    });
-  }
+      id: docSnap.id,
+      masterSurveyTitle: cData.masterSurveyTitle || 'Anket'
+    };
+  });
 
   return {
     success: true,
@@ -749,69 +741,76 @@ export const listVerificationAssignmentsForAgentHandler = async (
 
   const snap = await query.orderBy('createdAt', 'desc').limit(200).get();
 
-  // Cache survey titles, rewards, and verification questions
+  // 1. Collect all unique survey IDs
+  const masterSurveyIds = Array.from(new Set(snap.docs.map(d => d.data().masterSurveyId).filter(Boolean)));
+  const verificationSurveyIds = Array.from(new Set(snap.docs.map(d => d.data().verificationSurveyId).filter(Boolean)));
+  const allSurveyIds = Array.from(new Set([...masterSurveyIds, ...verificationSurveyIds]));
+
+  // 2. Fetch all survey documents in parallel in 1 roundtrip
+  const surveyDocs = await Promise.all(allSurveyIds.map(sId => db.collection('surveys').doc(sId).get()));
+  const surveyDocMap = new Map<string, any>();
+  surveyDocs.forEach(sDoc => {
+    if (sDoc.exists) surveyDocMap.set(sDoc.id, sDoc.data());
+  });
+
+  // 3. Pre-compute cached metadata
   const surveyCache = new Map<string, { title: string; rewardSummary: string; questionText: string; questionOptions: string[] }>();
+  for (const masterSurveyId of masterSurveyIds) {
+    const msData = surveyDocMap.get(masterSurveyId);
+    let vQuestion = 'Katıldığınız anket deneyimini ve doğruluğunu nasıl değerlendirirsiniz?';
+    let vOptions = ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
 
-  const assignments = await Promise.all(
-    snap.docs.map(async (dSnap) => {
-      const a = dSnap.data() as SurveyVerificationAssignment;
-      let cached = surveyCache.get(a.masterSurveyId);
-      if (!cached) {
-        const msDoc = await db.collection('surveys').doc(a.masterSurveyId).get();
-        const msData = msDoc.exists ? msDoc.data() : null;
-
-        let vQuestion = 'Katıldığınız anket deneyimini ve doğruluğunu nasıl değerlendirirsiniz?';
-        let vOptions = ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
-
-        if (a.verificationSurveyId) {
-          const vsDoc = await db.collection('surveys').doc(a.verificationSurveyId).get();
-          if (vsDoc.exists) {
-            const vsData = vsDoc.data();
-            if (vsData?.questions?.[0]?.text) {
-              vQuestion = vsData.questions[0].text;
-            }
-            if (Array.isArray(vsData?.questions?.[0]?.options)) {
-              vOptions = vsData.questions[0].options.map((o: any) => typeof o === 'string' ? o : o.label || o.text);
-            }
-          }
-        } else if (msData?.verificationConfig?.questionText) {
-          vQuestion = msData.verificationConfig.questionText;
-          if (Array.isArray(msData.verificationConfig.options)) {
-            vOptions = msData.verificationConfig.options;
-          }
-        }
-
-        cached = {
-          title: msData?.title || 'Anket',
-          rewardSummary: msData?.verificationConfig?.rewardDefinition?.voucherPoolName || msData?.verificationConfig?.verificationRewardSummary || '250 TL Hediye Çeki',
-          questionText: vQuestion,
-          questionOptions: vOptions
-        };
-        surveyCache.set(a.masterSurveyId, cached);
+    if (msData?.verificationQuestion) {
+      vQuestion = msData.verificationQuestion;
+      if (Array.isArray(msData.verificationOptions)) {
+        vOptions = msData.verificationOptions;
       }
+    } else if (msData?.verificationConfig?.questionText) {
+      vQuestion = msData.verificationConfig.questionText;
+      if (Array.isArray(msData.verificationConfig.options)) {
+        vOptions = msData.verificationConfig.options;
+      }
+    }
 
-      // STRICT PII SANITIZATION: Never return phone, email, TCKN, IBAN, KYC, or survey answers
-      return {
-        id: a.id,
-        verificationCampaignId: a.verificationCampaignId,
-        masterSurveyId: a.masterSurveyId,
-        masterSurveyTitle: cached.title,
-        verificationSurveyId: a.verificationSurveyId,
-        verificationRewardSummary: cached.rewardSummary,
-        verificationQuestionText: cached.questionText,
-        verificationQuestionOptions: cached.questionOptions,
-        userDisplayName: a.userDisplayName || 'PAG Kullanıcısı', // Ad + Soyad
-        selectionSource: a.selectionSource,
-        status: a.status,
-        assignedAgentId: a.assignedAgentId,
-        callStartedAt: a.callStartedAt || null,
-        callEndedAt: a.callEndedAt || null,
-        agentNote: a.agentNote || null,
-        createdAt: a.createdAt || null,
-        updatedAt: a.updatedAt || null
-      };
-    })
-  );
+    surveyCache.set(masterSurveyId, {
+      title: msData?.title || 'Anket',
+      rewardSummary: msData?.verificationRewardSummary || msData?.verificationConfig?.verificationRewardSummary || '250 TL Hediye Çeki',
+      questionText: vQuestion,
+      questionOptions: vOptions
+    });
+  }
+
+  // 4. Instant synchronous mapping
+  const assignments = snap.docs.map((dSnap) => {
+    const a = dSnap.data() as SurveyVerificationAssignment;
+    const cached = surveyCache.get(a.masterSurveyId) || {
+      title: 'Anket',
+      rewardSummary: '250 TL Hediye Çeki',
+      questionText: 'Katıldığınız anket deneyimini ve doğruluğunu nasıl değerlendirirsiniz?',
+      questionOptions: ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz']
+    };
+
+    // STRICT PII SANITIZATION: Never return phone, email, TCKN, IBAN, KYC, or survey answers
+    return {
+      id: a.id,
+      verificationCampaignId: a.verificationCampaignId,
+      masterSurveyId: a.masterSurveyId,
+      masterSurveyTitle: cached.title,
+      verificationSurveyId: a.verificationSurveyId,
+      verificationRewardSummary: cached.rewardSummary,
+      verificationQuestionText: cached.questionText,
+      verificationQuestionOptions: cached.questionOptions,
+      userDisplayName: a.userDisplayName || 'PAG Kullanıcısı', // Ad + Soyad
+      selectionSource: a.selectionSource,
+      status: a.status,
+      assignedAgentId: a.assignedAgentId,
+      callStartedAt: a.callStartedAt || null,
+      callEndedAt: a.callEndedAt || null,
+      agentNote: a.agentNote || null,
+      createdAt: a.createdAt || null,
+      updatedAt: a.updatedAt || null
+    };
+  });
 
   return {
     success: true,

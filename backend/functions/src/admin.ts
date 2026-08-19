@@ -1434,7 +1434,6 @@ export const listPortalUsersAdminHandler = async (
 ) => {
   const adminUser = await verifyAdminUser(context);
   const db = admin.firestore();
-  const auth = admin.auth();
   const { role, organizationId, search } = data || {};
 
   try {
@@ -1450,13 +1449,9 @@ export const listPortalUsersAdminHandler = async (
     }
 
     const snap = await query.get();
-    const existingUids = new Set<string>();
-    const existingEmails = new Set<string>();
 
     let users = snap.docs.map((doc) => {
       const d = doc.data();
-      existingUids.add(doc.id);
-      if (d.email) existingEmails.add(d.email.toLowerCase().trim());
       return {
         uid: doc.id,
         email: d.email || '',
@@ -1467,55 +1462,6 @@ export const listPortalUsersAdminHandler = async (
         createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || null
       };
     });
-
-    // If Super Admin / Staff, also sync from Firebase Auth to ensure no call center agents / admins are missed
-    if (adminUser.role === 'SUPER_ADMIN' || adminUser.role === 'PAG_STAFF') {
-      try {
-        const authUsersRes = await auth.listUsers(100);
-        for (const u of authUsersRes.users) {
-          const uEmail = (u.email || '').toLowerCase().trim();
-          if (uEmail && !existingEmails.has(uEmail) && !existingUids.has(u.uid)) {
-            const inferredRole = (u.customClaims?.role as string) || (
-              uEmail.includes('agent') || uEmail.includes('cagri') || uEmail.includes('call')
-                ? 'CALL_CENTER_AGENT'
-                : (uEmail.includes('org') || uEmail.includes('firma') ? 'ORGANIZATION_USER' : 'PAG_STAFF')
-            );
-
-            const newUserItem = {
-              uid: u.uid,
-              email: uEmail,
-              role: inferredRole,
-              organizationId: (u.customClaims?.organizationId as string) || null,
-              status: u.disabled ? 'DISABLED' : 'ACTIVE',
-              displayName: u.displayName || null,
-              createdAt: u.metadata?.creationTime || new Date().toISOString()
-            };
-
-            if (!role || role === 'ALL' || newUserItem.role === role) {
-              users.push(newUserItem);
-              existingUids.add(u.uid);
-              existingEmails.add(uEmail);
-            }
-
-            try {
-              await db.collection('portalUsers').doc(u.uid).set({
-                uid: u.uid,
-                email: uEmail,
-                role: newUserItem.role,
-                organizationId: newUserItem.organizationId,
-                status: newUserItem.status,
-                createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-              }, { merge: true });
-            } catch (syncErr) {
-              // ignore
-            }
-          }
-        }
-      } catch (authErr) {
-        // ignore auth listing if unsupported in emulator/mock
-      }
-    }
 
     if (search && typeof search === 'string') {
       const q = search.trim().toLowerCase();
@@ -1585,9 +1531,11 @@ export const listOrganizationsAdminHandler = async (
 
   const organizations: any[] = [];
   try {
-    const orgsSnap = await db.collection('organizations').get();
-    const surveysSnap = await db.collection('surveys').get();
-    const usersSnap = await db.collection('portalUsers').get();
+    const [orgsSnap, surveysSnap, usersSnap] = await Promise.all([
+      db.collection('organizations').get(),
+      db.collection('surveys').get(),
+      db.collection('portalUsers').get()
+    ]);
 
     const surveyCountByOrg: Record<string, number> = {};
     surveysSnap.docs.forEach(doc => {
@@ -1626,66 +1574,11 @@ export const listOrganizationsAdminHandler = async (
         updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
       });
     });
-
-    // Also check companyApplications for any APPROVED applications not yet indexed
-    if (adminUser.role !== 'ORGANIZATION_USER') {
-      const appsSnap = await db.collection('companyApplications').where('status', '==', 'APPROVED').get();
-      const existingOrgIds = new Set(organizations.map(o => o.organizationId));
-      const existingOrgNames = new Set(organizations.map(o => (o.name || '').toLowerCase().trim()));
-
-      for (const aDoc of appsSnap.docs) {
-        const aData = aDoc.data() || {};
-        const appCompanyName = (aData.companyName || 'Firma').trim();
-        const appOrgId = aData.createdOrganizationId || `org_${appCompanyName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
-
-        if (!existingOrgIds.has(appOrgId) && !existingOrgNames.has(appCompanyName.toLowerCase())) {
-          const synthesizedOrg = {
-            id: appOrgId,
-            organizationId: appOrgId,
-            name: appCompanyName,
-            sector: aData.sector || 'Genel',
-            contactEmail: aData.contactEmail || null,
-            contactPhone: aData.contactPhone || null,
-            status: 'ACTIVE',
-            isVerificationAuthorized: false,
-            surveyCount: surveyCountByOrg[appOrgId] || 0,
-            portalUserCount: userCountByOrg[appOrgId] || 0,
-            createdAt: aData.createdAt?.toDate ? aData.createdAt.toDate().toISOString() : new Date().toISOString(),
-            updatedAt: aData.updatedAt?.toDate ? aData.updatedAt.toDate().toISOString() : new Date().toISOString()
-          };
-          organizations.push(synthesizedOrg);
-          existingOrgIds.add(appOrgId);
-          existingOrgNames.add(appCompanyName.toLowerCase());
-
-          // Persist to organizations collection
-          try {
-            await db.collection('organizations').doc(appOrgId).set({
-              organizationId: appOrgId,
-              name: appCompanyName,
-              sector: aData.sector || 'Genel',
-              contactName: aData.contactName || null,
-              contactEmail: aData.contactEmail || null,
-              contactPhone: aData.contactPhone || null,
-              status: 'ACTIVE',
-              isVerificationAuthorized: false,
-              sourceApplicationId: aDoc.id,
-              createdAt: admin.firestore.FieldValue.serverTimestamp(),
-              updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-          } catch (sErr) {
-            // ignore
-          }
-        }
-      }
-    }
   } catch (err: any) {
     if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
   }
 
-  return {
-    success: true,
-    data: { organizations }
-  };
+  return { success: true, data: { organizations } };
 };
 
 export const createOrUpdateOrganizationAdminHandler = async (
