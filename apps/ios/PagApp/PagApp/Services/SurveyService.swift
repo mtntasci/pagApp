@@ -76,98 +76,52 @@ public class SurveyService: ObservableObject {
             self.eligibleSurveys = []
             self.isLoading = false
         }
-            self.isLoading = false
-        }
     }
 
     public func fetchCompletedSurveys() async {
         do {
-            let result = try await Functions.functions().httpsCallable("getCompletedSurveys").call()
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success,
-                  let dataDict = dict["data"] as? [String: Any],
-                  let rawSurveys = dataDict["surveys"] as? [[String: Any]] else {
+            if let response = try? await PAGApiClient.shared.get(endpoint: "/surveys/completed"),
+               let success = response["success"] as? Bool, success,
+               let data = response["data"] as? [String: Any],
+               let rawSurveys = data["completedSurveys"] as? [[String: Any]] {
+                
+                var parsedList: [PAGSurvey] = []
+                for item in rawSurveys {
+                    if let surveyId = item["surveyId"] as? String ?? item["id"] as? String,
+                       let title = item["title"] as? String {
+                        let survey = PAGSurvey(
+                            surveyId: surveyId,
+                            ownerType: item["ownerType"] as? String ?? "PAG",
+                            organizationId: item["organizationId"] as? String,
+                            surveyType: item["surveyType"] as? String ?? "PAG",
+                            title: title,
+                            description: item["description"] as? String ?? "",
+                            status: "COMPLETED",
+                            questionCount: item["questionCount"] as? Int ?? 3,
+                            profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
+                            isCompleted: true
+                        )
+                        parsedList.append(survey)
+                    }
+                }
+                self.completedSurveys = parsedList
                 return
             }
-            
-            var parsedList: [PAGSurvey] = []
-            for item in rawSurveys {
-                if let surveyId = item["surveyId"] as? String,
-                   let title = item["title"] as? String,
-                   let description = item["description"] as? String {
-                    let survey = PAGSurvey(
-                        surveyId: surveyId,
-                        ownerType: item["ownerType"] as? String ?? "PAG",
-                        organizationId: item["organizationId"] as? String,
-                        surveyType: item["surveyType"] as? String ?? "PAG",
-                        title: title,
-                        description: description,
-                        status: "COMPLETED",
-                        questionCount: item["questionCount"] as? Int ?? 3,
-                        profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
-                        isCompleted: true
-                    )
-                    parsedList.append(survey)
-                }
-            }
-            
-            self.completedSurveys = parsedList
+            self.completedSurveys = []
         } catch {
             print("[SurveyService] Fetch completed surveys error: \(error.localizedDescription)")
+            self.completedSurveys = []
         }
     }
     
     public func fetchSurveyDetail(surveyId: String) async throws -> PAGSurvey {
-        let result = try await Functions.functions().httpsCallable("getSurveyDetail").call(["surveyId": surveyId])
-        guard let dict = result.data as? [String: Any],
-              let success = dict["success"] as? Bool, success,
-              let dataDict = dict["data"] as? [String: Any] else {
-            throw NSError(domain: "SurveyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Anket bulunamadı veya pasif durumda."])
+        if let found = eligibleSurveys.first(where: { $0.surveyId == surveyId }) {
+            return found
         }
-        
-        let id = dataDict["surveyId"] as? String ?? surveyId
-        let title = dataDict["title"] as? String ?? "Anket"
-        let description = dataDict["description"] as? String ?? ""
-        let ownerType = dataDict["ownerType"] as? String ?? "PAG"
-        let orgId = dataDict["organizationId"] as? String
-        let surveyType = dataDict["surveyType"] as? String ?? "PAG"
-        let isCompleted = dataDict["isCompleted"] as? Bool ?? false
-        let reward = dataDict["profileScoreReward"] as? Int ?? 50
-        
-        var questions: [PAGQuestion] = []
-        if let rawQuestions = dataDict["questions"] as? [[String: Any]] {
-            for q in rawQuestions {
-                let qId = q["questionId"] as? String ?? UUID().uuidString
-                let text = q["text"] as? String ?? ""
-                let order = q["order"] as? Int ?? 1
-                let type = q["type"] as? String ?? "SINGLE_SELECT"
-                
-                var options: [PAGQuestionOption] = []
-                if let rawOpts = q["options"] as? [[String: Any]] {
-                    for opt in rawOpts {
-                        let optId = opt["optionId"] as? String ?? UUID().uuidString
-                        let label = opt["label"] as? String ?? ""
-                        let optOrder = opt["order"] as? Int ?? 1
-                        options.append(PAGQuestionOption(optionId: optId, label: label, order: optOrder))
-                    }
-                }
-                questions.append(PAGQuestion(questionId: qId, order: order, type: type, text: text, options: options))
-            }
+        if let found = SurveyService.previewDemoSurveys.first(where: { $0.surveyId == surveyId }) {
+            return found
         }
-        
-        return PAGSurvey(
-            surveyId: id,
-            ownerType: ownerType,
-            organizationId: orgId,
-            surveyType: surveyType,
-            title: title,
-            description: description,
-            status: "ACTIVE",
-            questionCount: questions.count,
-            questions: Array(questions.prefix(3)),
-            profileScoreReward: reward,
-            isCompleted: isCompleted
-        )
+        throw NSError(domain: "SurveyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Anket bulunamadı veya pasif durumda."])
     }
     
     public func submitSurveyResponse(surveyId: String, answers: [PAGAnswerInput], isProfile: Bool = false) async throws -> PAGSurveyCompletionResult {

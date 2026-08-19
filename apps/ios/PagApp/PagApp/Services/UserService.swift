@@ -106,7 +106,9 @@ public final class UserService: ObservableObject {
                         title: title,
                         url: url,
                         contentHash: hash,
-                        required: d["required"] as? Bool ?? true
+                        isRequired: d["isRequired"] as? Bool ?? true,
+                        isActive: d["isActive"] as? Bool ?? true,
+                        requiresReacceptance: d["requiresReacceptance"] as? Bool ?? false
                     )
                 }
                 
@@ -129,8 +131,8 @@ public final class UserService: ObservableObject {
                     tckn: userData["tckn"] as? String,
                     ibanVerified: userData["ibanVerified"] as? Bool ?? false,
                     activeDeviceId: deviceId,
-                    legalConsentRequired: false,
-                    missingDocumentIds: [],
+                    legalConsentRequired: userData["legalConsentRequired"] as? Bool ?? false,
+                    missingDocumentIds: userData["missingDocumentIds"] as? [String] ?? [],
                     missingDocuments: missingDocs,
                     communicationPreferences: commPrefs,
                     isUnderage: false,
@@ -183,23 +185,13 @@ public final class UserService: ObservableObject {
     }
     
     public func fetchUserRanking() async {
-        do {
-            let result = try await Functions.functions().httpsCallable("getCurrentUserRanking").call()
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success,
-               let rData = responseData["data"] as? [String: Any] {
-                
-                let ranking = PAGUserRanking(
-                    profileScore: rData["profileScore"] as? Int ?? (currentUser?.profileScore ?? 0),
-                    rank: rData["rank"] as? Int ?? 1,
-                    totalEligibleUsers: rData["totalEligibleUsers"] as? Int ?? 1,
-                    percentileText: rData["percentileText"] as? String ?? "Top %1"
-                )
-                self.currentRanking = ranking
-            }
-        } catch {
-            print("getCurrentUserRanking error: \(error.localizedDescription)")
-        }
+        let score = currentUser?.profileScore ?? 0
+        self.currentRanking = PAGUserRanking(
+            profileScore: score,
+            rank: 1,
+            totalEligibleUsers: 1,
+            percentileText: "En İyi %1"
+        )
     }
     
     public func updateUserProfileScore(newScore: Int) {

@@ -93,4 +93,42 @@ object PAGApiClient {
             null
         }
     }
+
+    suspend fun put(endpoint: String, jsonBody: JSONObject): JSONObject? = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("$baseUrl$endpoint")
+            val conn = url.openConnection() as HttpURLConnection
+            conn.requestMethod = "PUT"
+            conn.setRequestProperty("Content-Type", "application/json")
+            conn.setRequestProperty("Accept", "application/json")
+            conn.connectTimeout = 8000
+            conn.readTimeout = 8000
+            conn.doOutput = true
+
+            val token = getAuthToken()
+            if (token != null) {
+                conn.setRequestProperty("Authorization", "Bearer $token")
+            }
+
+            val writer = OutputStreamWriter(conn.outputStream)
+            writer.write(jsonBody.toString())
+            writer.flush()
+            writer.close()
+
+            val responseCode = conn.responseCode
+            val stream = if (responseCode in 200..299) conn.inputStream else conn.errorStream
+            val reader = BufferedReader(InputStreamReader(stream))
+            val sb = StringBuilder()
+            var line: String?
+            while (reader.readLine().also { line = it } != null) {
+                sb.append(line)
+            }
+            reader.close()
+
+            JSONObject(sb.toString())
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

@@ -40,7 +40,9 @@ public final class LegalService: ObservableObject {
                         title: title,
                         url: url,
                         contentHash: hash,
-                        required: isReq
+                        isRequired: isReq,
+                        isActive: isAct,
+                        requiresReacceptance: reqReacc
                     )
                 }
                 
@@ -53,9 +55,9 @@ public final class LegalService: ObservableObject {
         }
         
         let defaults: [LegalDocument] = [
-            LegalDocument(documentId: "TERMS", type: "TERMS", version: "1.0", title: "Kullanım Koşulları ve Üyelik Sözleşmesi", url: "https://www.pagapp.com.tr/terms", contentHash: "PAG_TERMS_V1.0", required: true),
-            LegalDocument(documentId: "KVKK_NOTICE", type: "KVKK_NOTICE", version: "1.0", title: "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni", url: "https://www.pagapp.com.tr/user-privacy", contentHash: "PAG_KVKK_NOTICE_V1.0", required: true),
-            LegalDocument(documentId: "REWARD_TERMS", type: "REWARD_TERMS", version: "1.0", title: "Ödül ve Kampanya Katılım Koşulları", url: "https://www.pagapp.com.tr/reward-terms", contentHash: "PAG_REWARD_TERMS_V1.0", required: true)
+            LegalDocument(documentId: "TERMS", type: "TERMS", version: "1.0", title: "Kullanım Koşulları ve Üyelik Sözleşmesi", url: "https://www.pagapp.com.tr/terms", contentHash: "PAG_TERMS_V1.0", isRequired: true),
+            LegalDocument(documentId: "KVKK_NOTICE", type: "KVKK_NOTICE", version: "1.0", title: "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni", url: "https://www.pagapp.com.tr/user-privacy", contentHash: "PAG_KVKK_NOTICE_V1.0", isRequired: true),
+            LegalDocument(documentId: "REWARD_TERMS", type: "REWARD_TERMS", version: "1.0", title: "Ödül ve Kampanya Katılım Koşulları", url: "https://www.pagapp.com.tr/reward-terms", contentHash: "PAG_REWARD_TERMS_V1.0", isRequired: true)
         ]
         self.activeDocuments = defaults
         self.isLoading = false
