@@ -448,7 +448,10 @@ export const createOrUpdateSurveyAdminHandler = async (
     rewardDefinition,
     storyConfig,
     inlineVoucherCodes,
-    isHighlighted
+    isHighlighted,
+    isVerificationEnabled,
+    verificationConfig,
+    verificationInlineVoucherCodes
   } = normalizedData;
 
   if (!title || typeof title !== 'string') {
@@ -585,7 +588,7 @@ export const createOrUpdateSurveyAdminHandler = async (
     }
   }
 
-  // Inline Voucher Pool Handling
+  // Inline Voucher Pool Handling (Main Survey)
   let boundVoucherPoolId: string | null = null;
   if (normalizedReward.rewardType === 'VOUCHER' && Array.isArray(inlineVoucherCodes) && inlineVoucherCodes.length > 0) {
     boundVoucherPoolId = targetSurveyId;
@@ -619,6 +622,106 @@ export const createOrUpdateSurveyAdminHandler = async (
     }
   }
 
+  // Quality Verification Configuration & Sub-Survey Voucher Pool Handling
+  const isVerEnabled = isVerificationEnabled === true || verificationConfig?.enabled === true;
+  let normalizedVerificationConfig: any = { enabled: false };
+  let boundVerificationVoucherPoolId: string | null = null;
+
+  if (isVerEnabled) {
+    const vConfig = verificationConfig || {};
+    const vQuestionText = (vConfig.questionText || '').trim() || 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?';
+    let vOptions = Array.isArray(vConfig.options) ? vConfig.options : [];
+    if (typeof vConfig.options === 'string') {
+      vOptions = vConfig.options.split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+    if (vOptions.length === 0) {
+      vOptions = ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
+    }
+
+    const vPagTargetCount = Number(vConfig.pagTargetCount) || 50;
+    const vOrgSelectionQuota = Number(vConfig.orgSelectionQuota) || 20;
+    const vProfileScoreReward = typeof vConfig.profileScoreReward === 'number' ? vConfig.profileScoreReward : 25;
+    const vRewardType = vConfig.rewardType || vConfig.rewardDefinition?.rewardType || 'NONE';
+
+    let vRewardDef: any = { rewardType: vRewardType };
+
+    if (vRewardType === 'MONEY') {
+      vRewardDef.totalBudget = Number(vConfig.rewardDefinition?.totalBudget) || Number(vConfig.moneyBudget) || 0;
+      vRewardDef.distributionModel = vConfig.rewardDefinition?.distributionModel || 'EQUAL';
+      vRewardDef.remainingPoolAmountPerUser = Number(vConfig.rewardDefinition?.remainingPoolAmountPerUser) || 50;
+    } else if (vRewardType === 'VOUCHER') {
+      const vPoolName = vConfig.rewardDefinition?.voucherPoolName || vConfig.voucherName || `${title} Kalite Doğrulama Hediye Çeki`;
+      const vValueAmount = Number(vConfig.rewardDefinition?.voucherValueAmount) || Number(vConfig.voucherValueAmount) || 250;
+      vRewardDef.voucherPoolName = vPoolName;
+      vRewardDef.voucherValueAmount = vValueAmount;
+
+      const rawVCodes = vConfig.inlineVoucherCodes || verificationInlineVoucherCodes || vConfig.voucherCodes;
+      const vCodes = Array.isArray(rawVCodes)
+        ? rawVCodes.map((s: any) => String(s).trim()).filter(Boolean)
+        : (typeof vConfig.voucherCodesText === 'string'
+            ? vConfig.voucherCodesText.split('\n').map((s: string) => s.trim()).filter(Boolean)
+            : []);
+
+      if (vCodes.length > 0) {
+        boundVerificationVoucherPoolId = `${targetSurveyId}_verification`;
+        vRewardDef.voucherPoolId = boundVerificationVoucherPoolId;
+        const vPoolRef = db.collection('voucherPools').doc(boundVerificationVoucherPoolId);
+        try {
+          await vPoolRef.set({
+            poolId: boundVerificationVoucherPoolId,
+            surveyId: targetSurveyId,
+            name: vPoolName,
+            orgId: resolvedOrgId || 'PAG',
+            createdAt: serverNow
+          }, { merge: true });
+
+          const vBatch = db.batch();
+          vCodes.forEach((code: string, idx: number) => {
+            const vId = `v_ver_${Date.now()}_${idx}`;
+            const voucherDocRef = vPoolRef.collection('vouchers').doc(vId);
+            vBatch.set(voucherDocRef, {
+              voucherId: vId,
+              poolId: boundVerificationVoucherPoolId as string,
+              code: code,
+              valueAmount: vValueAmount,
+              title: vPoolName,
+              status: 'AVAILABLE',
+              assignedUserId: null,
+              createdAt: serverNow
+            });
+          });
+          await vBatch.commit();
+        } catch (vErr: any) {
+          if (vErr?.code !== 7 && !vErr?.message?.includes('PERMISSION_DENIED')) throw vErr;
+        }
+      }
+    }
+
+    let vRewardSummary = vConfig.verificationRewardSummary || '';
+    if (!vRewardSummary) {
+      if (vRewardType === 'VOUCHER') {
+        vRewardSummary = `${vRewardDef.voucherValueAmount || 250} TL Hediye Çeki`;
+      } else if (vRewardType === 'MONEY') {
+        vRewardSummary = `${vRewardDef.totalBudget || 500} TL Nakit Ödül`;
+      } else {
+        vRewardSummary = `${vProfileScoreReward} Profil Puanı`;
+      }
+    }
+
+    normalizedVerificationConfig = {
+      enabled: true,
+      questionText: vQuestionText,
+      options: vOptions,
+      pagTargetCount: vPagTargetCount,
+      orgSelectionQuota: vOrgSelectionQuota,
+      profileScoreReward: vProfileScoreReward,
+      rewardType: vRewardType,
+      rewardDefinition: vRewardDef,
+      verificationRewardSummary: vRewardSummary,
+      boundVoucherPoolId: boundVerificationVoucherPoolId || vConfig.boundVoucherPoolId || null
+    };
+  }
+
   const rawPayload: Record<string, any> = {
     surveyId: targetSurveyId,
     ownerType: resolvedOwnerType,
@@ -637,6 +740,9 @@ export const createOrUpdateSurveyAdminHandler = async (
     profileScoreReward: typeof profileScoreReward === 'number' ? profileScoreReward : 50,
     rewardDefinition: normalizedReward,
     boundVoucherPoolId: boundVoucherPoolId || normalizedReward?.voucherPoolId || null,
+    isVerificationEnabled: isVerEnabled,
+    verificationConfig: isVerEnabled ? normalizedVerificationConfig : { enabled: false },
+    boundVerificationVoucherPoolId: boundVerificationVoucherPoolId || (isVerEnabled ? normalizedVerificationConfig.boundVoucherPoolId : null),
     storyConfig: storyConfig ? removeUndefinedFields(storyConfig) : { showInStory: false },
     isHighlighted: Boolean(isHighlighted),
     updatedAt: serverNow

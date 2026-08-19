@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { httpsCallable } from 'firebase/functions';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
@@ -51,7 +52,7 @@ export interface CampaignStats {
 }
 
 export default function VerificationCampaignsPage() {
-  const { isAdmin, isOrgUser } = useAuth();
+  const { isAdmin, isOrgUser, portalUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'CREATE_CAMPAIGN'>('CAMPAIGNS');
 
   // Campaigns List
@@ -92,14 +93,14 @@ export default function VerificationCampaignsPage() {
     try {
       const snap = await getDocs(collection(db, 'surveyVerificationCampaigns'));
       if (!snap.empty) {
-        const list = snap.docs.map(docSnap => {
+        let list = snap.docs.map(docSnap => {
           const d = docSnap.data();
           return {
             id: docSnap.id,
             masterSurveyId: d.masterSurveyId || '',
             masterSurveyTitle: d.masterSurveyTitle || '',
             organizationId: d.organizationId || null,
-            status: d.status || 'PENDING_AGENT_CALLS',
+            status: d.status || 'ACTIVE',
             requestedCount: d.pagTargetCount || d.requestedCount || 0,
             customerSelectedCount: d.customerSelectedCount || 0,
             randomSelectedCount: d.randomSelectedCount || 0,
@@ -108,6 +109,12 @@ export default function VerificationCampaignsPage() {
             createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || ''
           } as VerificationCampaign;
         });
+
+        // Tenant isolation for org user
+        if (isOrgUser && portalUser?.organizationId) {
+          list = list.filter(c => c.organizationId === portalUser.organizationId);
+        }
+
         setCampaigns(list);
       }
     } catch (fsErr) {
@@ -121,25 +128,44 @@ export default function VerificationCampaignsPage() {
       const listFn = httpsCallable(functions, 'listVerificationCampaigns');
       const res: any = await listFn({});
       if (res.data?.success && Array.isArray(res.data.data?.campaigns) && res.data.data.campaigns.length > 0) {
-        setCampaigns(res.data.data.campaigns);
+        let list = res.data.data.campaigns;
+        if (isOrgUser && portalUser?.organizationId) {
+          list = list.filter((c: any) => c.organizationId === portalUser.organizationId);
+        }
+        setCampaigns(list);
       }
     } catch (err) {
       // background fallback
     }
-  }, []);
+  }, [isOrgUser, portalUser]);
 
-  // 2. Fetch available surveys for selection (Instant Direct Firestore Read ~40ms)
+  // 2. Fetch available surveys for selection (Filtered by Quality Verification enabled)
   const fetchSurveys = useCallback(async () => {
     try {
       const snap = await getDocs(collection(db, 'surveys'));
       if (!snap.empty) {
-        const list = snap.docs.map(docSnap => ({
+        let list = snap.docs.map(docSnap => ({
           ...docSnap.data(),
           surveyId: docSnap.id
-        }));
+        } as any));
+
+        // Filter only surveys where verification is enabled
+        list = list.filter(s => s.isVerificationEnabled === true || s.verificationConfig?.enabled === true || s.verificationConfig?.questionText);
+
+        // Tenant isolation for org user
+        if (isOrgUser && portalUser?.organizationId) {
+          list = list.filter(s => s.organizationId === portalUser.organizationId);
+        }
+
         setAvailableSurveys(list);
         if (list.length > 0 && !selectedSurveyId) {
           setSelectedSurveyId(list[0].surveyId);
+          const vConfig = list[0].verificationConfig || {};
+          setSurveyMetadata({
+            pagTargetCount: vConfig.pagTargetCount || 50,
+            orgSelectionQuota: vConfig.orgSelectionQuota || 20,
+            verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
+          });
         }
       }
     } catch (fsErr) {
@@ -150,16 +176,40 @@ export default function VerificationCampaignsPage() {
       const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
       const res: any = await listSurveysFn({});
       if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
-        const list = res.data.data.surveys;
+        let list = res.data.data.surveys;
+        list = list.filter((s: any) => s.isVerificationEnabled === true || s.verificationConfig?.enabled === true || s.verificationConfig?.questionText);
+        if (isOrgUser && portalUser?.organizationId) {
+          list = list.filter((s: any) => s.organizationId === portalUser.organizationId);
+        }
         setAvailableSurveys(list);
         if (list.length > 0 && !selectedSurveyId) {
           setSelectedSurveyId(list[0].surveyId);
+          const vConfig = list[0].verificationConfig || {};
+          setSurveyMetadata({
+            pagTargetCount: vConfig.pagTargetCount || 50,
+            orgSelectionQuota: vConfig.orgSelectionQuota || 20,
+            verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
+          });
         }
       }
     } catch (err) {
       // background
     }
-  }, [selectedSurveyId]);
+  }, [selectedSurveyId, isOrgUser, portalUser]);
+
+  const handleSelectSurvey = (sId: string) => {
+    setSelectedSurveyId(sId);
+    setSelectedUserIds([]);
+    const found = availableSurveys.find(s => s.surveyId === sId);
+    if (found) {
+      const vConfig = found.verificationConfig || {};
+      setSurveyMetadata({
+        pagTargetCount: vConfig.pagTargetCount || 50,
+        orgSelectionQuota: vConfig.orgSelectionQuota || 20,
+        verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
+      });
+    }
+  };
 
   // 3. Load respondents with filters
   const loadRespondents = useCallback(async (surveyId: string) => {
@@ -389,6 +439,26 @@ export default function VerificationCampaignsPage() {
                     >
                       📊 Canlı Rapor & Detay
                     </button>
+                    <Link
+                      href={`/verification-calls?campaignId=${c.id}`}
+                      style={{
+                        flex: 1,
+                        padding: '9px',
+                        backgroundColor: 'var(--brand-lime)',
+                        color: 'var(--brand-midnight)',
+                        borderRadius: '6px',
+                        fontWeight: 800,
+                        fontSize: '12.5px',
+                        textAlign: 'center',
+                        textDecoration: 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      📞 Çağrı Portalı
+                    </Link>
                   </div>
                 </div>
               ))}
@@ -414,13 +484,13 @@ export default function VerificationCampaignsPage() {
             gap: '16px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-              <div style={{ flex: 1, minWidth: '280px' }}>
+              <div style={{ flex: 1, minWidth: '300px' }}>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
                   1. Doğrulanacak Anketi Seçin *
                 </label>
                 <select
                   value={selectedSurveyId}
-                  onChange={(e) => setSelectedSurveyId(e.target.value)}
+                  onChange={(e) => handleSelectSurvey(e.target.value)}
                   style={{
                     width: '100%',
                     padding: '10px 14px',
@@ -428,16 +498,23 @@ export default function VerificationCampaignsPage() {
                     border: '1px solid var(--border-color)',
                     backgroundColor: 'var(--bg-surface-secondary)',
                     color: 'var(--text-primary)',
-                    fontSize: '14px',
+                    fontSize: '13.5px',
                     fontWeight: 700,
                     cursor: 'pointer'
                   }}
                 >
-                  {availableSurveys.map((s) => (
-                    <option key={s.surveyId} value={s.surveyId}>
-                      {s.title} ({s.completedCount || s.responseCount || 0} Katılımcı)
-                    </option>
-                  ))}
+                  {availableSurveys.map((s) => {
+                    const orgLabel = s.ownerType === 'ORGANIZATION' ? `[Kurum: ${s.organizationId || 'Müşteri'}]` : '[PAG]';
+                    const statusLabel = s.status === 'APPROVED' ? '✓ Onaylandı' : (s.status === 'ACTIVE' ? '🟢 Yayında' : (s.status === 'DRAFT' ? '📝 Taslak' : s.status));
+                    return (
+                      <option key={s.surveyId} value={s.surveyId}>
+                        {orgLabel} {s.title} — {statusLabel}
+                      </option>
+                    );
+                  })}
+                  {availableSurveys.length === 0 && (
+                    <option value="" disabled>Kalite Doğrulama tanımlı anket bulunamadı</option>
+                  )}
                 </select>
               </div>
 

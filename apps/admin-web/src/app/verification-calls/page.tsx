@@ -13,6 +13,8 @@ export interface VerificationAssignmentItem {
   masterSurveyTitle: string;
   verificationSurveyId: string;
   verificationRewardSummary: string;
+  verificationQuestionText?: string;
+  verificationQuestionOptions?: string[];
   userDisplayName: string;
   organizationId?: string | null;
   selectionSource: 'CUSTOMER' | 'RANDOM';
@@ -37,6 +39,16 @@ export default function VerificationCallsPage() {
   const [callNote, setCallNote] = useState('');
   const [isSubmittingResult, setIsSubmittingResult] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const cId = params.get('campaignId');
+      if (cId) {
+        setSelectedCampaignId(cId);
+      }
+    }
+  }, []);
 
   // 1. Fetch campaigns & organizations (Instant Direct Firestore Read ~30ms)
   const fetchData = useCallback(async () => {
@@ -472,6 +484,51 @@ export default function VerificationCallsPage() {
                 Katılmak ister misiniz?&rdquo;
               </p>
             </div>
+
+            {/* Verification Single-Select Question Context */}
+            {activeCallAssignment.verificationQuestionText && (
+              <div style={{
+                padding: '14px 16px',
+                backgroundColor: 'var(--bg-surface-secondary)',
+                borderRadius: '10px',
+                border: '1px solid var(--border-color)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--brand-navy)', textTransform: 'uppercase' }}>
+                  🎯 Doğrulama Sorusu (Tek Seçenekli):
+                </span>
+                <p style={{ fontSize: '13.5px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                  {activeCallAssignment.verificationQuestionText}
+                </p>
+                {activeCallAssignment.verificationQuestionOptions && activeCallAssignment.verificationQuestionOptions.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
+                    {activeCallAssignment.verificationQuestionOptions.map((opt, oIdx) => (
+                      <button
+                        key={oIdx}
+                        type="button"
+                        onClick={() => {
+                          setCallNote(prev => prev ? `${prev} [Cevap: ${opt}]` : `[Cevap: ${opt}]`);
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border-highlight)',
+                          backgroundColor: 'var(--bg-surface)',
+                          color: 'var(--text-primary)',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Note Textarea */}
             <div>

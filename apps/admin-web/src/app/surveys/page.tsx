@@ -198,7 +198,13 @@ export default function SurveysPage() {
   const [formVerificationOptionsText, setFormVerificationOptionsText] = useState('Çok Olumlu, Olumlu, Nötr, Olumsuz');
   const [formPagTargetCount, setFormPagTargetCount] = useState(50);
   const [formOrgSelectionQuota, setFormOrgSelectionQuota] = useState(20);
-  const [formVerificationReward, setFormVerificationReward] = useState('250 TL Hediye Çeki');
+  const [formVerificationScoreReward, setFormVerificationScoreReward] = useState(25);
+  const [formVerificationRewardType, setFormVerificationRewardType] = useState<'NONE' | 'MONEY' | 'VOUCHER'>('VOUCHER');
+  const [formVerificationMoneyBudget, setFormVerificationMoneyBudget] = useState(500);
+  const [formVerificationMoneyPerUser, setFormVerificationMoneyPerUser] = useState(50);
+  const [formVerificationVoucherName, setFormVerificationVoucherName] = useState('250 TL Kalite Doğrulama Hediye Çeki');
+  const [formVerificationVoucherAmount, setFormVerificationVoucherAmount] = useState(250);
+  const [formVerificationVoucherCodesText, setFormVerificationVoucherCodesText] = useState('');
   const [formStartAt, setFormStartAt] = useState('2026-08-15T10:00');
   const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
   const [formIsHighlighted, setFormIsHighlighted] = useState(false);
@@ -520,7 +526,13 @@ export default function SurveysPage() {
     setFormVerificationOptionsText('Çok Olumlu, Olumlu, Nötr, Olumsuz');
     setFormPagTargetCount(50);
     setFormOrgSelectionQuota(20);
-    setFormVerificationReward('250 TL Hediye Çeki');
+    setFormVerificationScoreReward(25);
+    setFormVerificationRewardType('VOUCHER');
+    setFormVerificationMoneyBudget(500);
+    setFormVerificationMoneyPerUser(50);
+    setFormVerificationVoucherName('250 TL Kalite Doğrulama Hediye Çeki');
+    setFormVerificationVoucherAmount(250);
+    setFormVerificationVoucherCodesText('');
     setFormStartAt('2026-08-15T10:00');
     setFormEndAt('2026-08-30T23:59');
     setFormIsHighlighted(false);
@@ -574,7 +586,21 @@ export default function SurveysPage() {
     setFormVerificationOptionsText(Array.isArray(vConfig.options) ? vConfig.options.join(', ') : 'Çok Olumlu, Olumlu, Nötr, Olumsuz');
     setFormPagTargetCount(vConfig.pagTargetCount || 50);
     setFormOrgSelectionQuota(vConfig.orgSelectionQuota || 20);
-    setFormVerificationReward(vConfig.verificationRewardSummary || '250 TL Hediye Çeki');
+    setFormVerificationScoreReward(typeof vConfig.profileScoreReward === 'number' ? vConfig.profileScoreReward : 25);
+
+    const vRewardDef = vConfig.rewardDefinition || {};
+    const vType = vConfig.rewardType || vRewardDef.rewardType || (vConfig.verificationRewardSummary?.includes('Nakit') ? 'MONEY' : (vConfig.verificationRewardSummary ? 'VOUCHER' : 'NONE'));
+    setFormVerificationRewardType(vType);
+    setFormVerificationMoneyBudget(vRewardDef.totalBudget || 500);
+    setFormVerificationMoneyPerUser(vRewardDef.remainingPoolAmountPerUser || 50);
+    setFormVerificationVoucherName(vRewardDef.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Kalite Doğrulama Hediye Çeki');
+    setFormVerificationVoucherAmount(vRewardDef.voucherValueAmount || 250);
+
+    if (Array.isArray(vConfig.inlineVoucherCodes)) {
+      setFormVerificationVoucherCodesText(vConfig.inlineVoucherCodes.join('\n'));
+    } else {
+      setFormVerificationVoucherCodesText('');
+    }
 
     if (Array.isArray(survey.questions) && survey.questions.length > 0) {
       setFormQuestions(survey.questions.map((q: any, idx: number) => ({
@@ -660,6 +686,28 @@ export default function SurveysPage() {
         ? formVoucherCodesText.split('\n').map(s => s.trim()).filter(Boolean)
         : undefined;
 
+      const vRewardDef: any = {
+        rewardType: formVerificationRewardType
+      };
+      if (formVerificationRewardType === 'MONEY') {
+        vRewardDef.totalBudget = Number(formVerificationMoneyBudget) || 0;
+        vRewardDef.distributionModel = 'EQUAL';
+        vRewardDef.remainingPoolAmountPerUser = Number(formVerificationMoneyPerUser) || 50;
+      } else if (formVerificationRewardType === 'VOUCHER') {
+        vRewardDef.voucherPoolName = formVerificationVoucherName || `${formTitle} Kalite Doğrulama Hediye Çeki`;
+        vRewardDef.voucherValueAmount = Number(formVerificationVoucherAmount) || 250;
+      }
+
+      const verificationInlineVoucherCodes = formVerificationEnabled && formVerificationRewardType === 'VOUCHER' && formVerificationVoucherCodesText
+        ? formVerificationVoucherCodesText.split('\n').map(s => s.trim()).filter(Boolean)
+        : undefined;
+
+      const verificationRewardSummary = formVerificationRewardType === 'VOUCHER'
+        ? `${formVerificationVoucherAmount || 250} TL Hediye Çeki`
+        : (formVerificationRewardType === 'MONEY'
+            ? `${formVerificationMoneyBudget || 500} TL Nakit Ödül`
+            : `${formVerificationScoreReward || 25} Profil Puanı`);
+
       const rawPayload = {
         surveyId: editingSurveyId || undefined,
         ownerType: formOwnerType,
@@ -694,14 +742,19 @@ export default function SurveysPage() {
         isVerificationEnabled: formVerificationEnabled,
         verificationConfig: formVerificationEnabled ? {
           enabled: true,
-          questionText: formVerificationQuestion,
+          questionText: formVerificationQuestion.trim(),
           options: formVerificationOptionsText.split(',').map(s => s.trim()).filter(Boolean),
           pagTargetCount: Number(formPagTargetCount) || 50,
           orgSelectionQuota: Number(formOrgSelectionQuota) || 20,
-          verificationRewardSummary: formVerificationReward || '250 TL Hediye Çeki'
+          profileScoreReward: Number(formVerificationScoreReward) || 25,
+          rewardType: formVerificationRewardType,
+          rewardDefinition: vRewardDef,
+          verificationRewardSummary: verificationRewardSummary,
+          inlineVoucherCodes: verificationInlineVoucherCodes
         } : {
           enabled: false
-        }
+        },
+        verificationInlineVoucherCodes: verificationInlineVoucherCodes
       };
 
       // Sanitize payload: guaranteed recursive removal of any undefined properties
@@ -930,9 +983,9 @@ export default function SurveysPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div>
                 <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                  {editingSurveyId ? 'Anket Düzenle' : 'Kampanya Hazırlama Sihirbazı'} (Adım {wizardStep} / 10)
+                  {editingSurveyId ? 'Anket Düzenle' : 'Kampanya Hazırlama Sihirbazı'} (Adım {wizardStep} / 12)
                 </h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Uçtan Uca Kampanya Konfigürasyonu</p>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Uçtan Uca Kampanya & Doğrulama Konfigürasyonu</p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
@@ -955,9 +1008,9 @@ export default function SurveysPage() {
               </div>
             </div>
 
-            {/* 10-Step Touch-Scrollable Indicator */}
+            {/* 12-Step Touch-Scrollable Indicator */}
             <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '20px', paddingBottom: '4px' }}>
-              {Array.from({ length: 10 }).map((_, i) => {
+              {Array.from({ length: 12 }).map((_, i) => {
                 const stepNum = i + 1;
                 const isCurrent = wizardStep === stepNum;
                 const isPast = wizardStep > stepNum;
@@ -1160,10 +1213,10 @@ export default function SurveysPage() {
               </div>
             )}
 
-            {/* Step 4: Rewards */}
+            {/* Step 4: Main Survey Score & Reward Type */}
             {wizardStep === 4 && (
               <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>4. Adım: Profil Puanı & Ödül</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>4. Adım: Profil Puanı & Ana Finansal Ödül</h4>
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Profil Puanı Ödülü (Profile Score)</label>
                   <input
@@ -1172,7 +1225,7 @@ export default function SurveysPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Finansal Ödül Tipi</label>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Ana Anket Finansal Ödül Tipi</label>
                   <select
                     value={formFinancialReward} onChange={(e) => setFormFinancialReward(e.target.value as any)}
                     style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
@@ -1185,10 +1238,10 @@ export default function SurveysPage() {
               </div>
             )}
 
-            {/* Step 5: Money / Voucher */}
+            {/* Step 5: Main Survey Reward Detail */}
             {wizardStep === 5 && (
               <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>5. Adım: Ödül Detay Konfigürasyonu</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>5. Adım: Ana Anket Ödül Detay Konfigürasyonu</h4>
                 {formFinancialReward === 'MONEY' && (
                   <div>
                     <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
@@ -1272,7 +1325,7 @@ export default function SurveysPage() {
                     </div>
 
                     {/* Live Visual Story Card Preview */}
-                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '12px', border: '1px stroke var(--border-color)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                    <div style={{ padding: '20px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '20px' }}>
                       <div style={{
                         width: '72px',
                         height: '72px',
@@ -1309,11 +1362,11 @@ export default function SurveysPage() {
               </div>
             )}
 
-            {/* Step 7: Questions */}
+            {/* Step 7: Main Survey Questions (Max 3) */}
             {wizardStep === 7 && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>7. Adım: Sorular (Max 3 / Mevcut: {formQuestions.length})</h4>
+                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>7. Adım: Ana Anket Soruları (Max 3 / Mevcut: {formQuestions.length})</h4>
                   <button onClick={handleAddQuestion} disabled={formQuestions.length >= 3} style={{ padding: '8px 14px', backgroundColor: formQuestions.length >= 3 ? 'var(--bg-surface-secondary)' : 'var(--brand-navy)', color: formQuestions.length >= 3 ? 'var(--text-muted)' : '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '12px' }}>+ Soru Ekle</button>
                 </div>
                 {formQuestions.map((q, idx) => (
@@ -1346,92 +1399,212 @@ export default function SurveysPage() {
                     </div>
                   </div>
                 ))}
-
-                {/* Kalite Doğrulama Yapılandırması */}
-                <div style={{ marginTop: '20px', padding: '18px', backgroundColor: 'rgba(57, 119, 246, 0.06)', border: '1.5px solid rgba(57, 119, 246, 0.25)', borderRadius: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-                    <input
-                      type="checkbox"
-                      id="enableVerification"
-                      checked={formVerificationEnabled}
-                      onChange={(e) => setFormVerificationEnabled(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="enableVerification" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brand-navy)', cursor: 'pointer' }}>
-                      🛡️ Bu Ankette Kalite Doğrulama Hizmeti Uygulansın
-                    </label>
-                  </div>
-
-                  {formVerificationEnabled && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px' }}>
-                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
-                        Çağrı merkezi personeli anketi tamamlayan kullanıcıları arayarak tek soruluk doğrulama anketi yönlendirecektir.
-                      </p>
-
-                      <div>
-                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Sorusu Metni *</label>
-                        <input
-                          type="text"
-                          value={formVerificationQuestion}
-                          onChange={(e) => setFormVerificationQuestion(e.target.value)}
-                          placeholder="Örn: Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?"
-                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Cevap Seçenekleri (Virgülle ayırın) *</label>
-                        <input
-                          type="text"
-                          value={formVerificationOptionsText}
-                          onChange={(e) => setFormVerificationOptionsText(e.target.value)}
-                          placeholder="Çok Olumlu, Olumlu, Nötr, Olumsuz"
-                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
-                        />
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                        <div>
-                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>PAG Toplam Arama Adedi</label>
-                          <input
-                            type="number"
-                            value={formPagTargetCount}
-                            onChange={(e) => setFormPagTargetCount(Number(e.target.value))}
-                            placeholder="50"
-                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Firma Katılımcı Kotası</label>
-                          <input
-                            type="number"
-                            value={formOrgSelectionQuota}
-                            onChange={(e) => setFormOrgSelectionQuota(Number(e.target.value))}
-                            placeholder="20"
-                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
-                          />
-                        </div>
-                        <div>
-                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Ödülü / Hediyesi</label>
-                          <input
-                            type="text"
-                            value={formVerificationReward}
-                            onChange={(e) => setFormVerificationReward(e.target.value)}
-                            placeholder="250 TL Hediye Çeki"
-                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
               </div>
             )}
 
-            {/* Step 8: Schedule */}
+            {/* Step 8 (NEW): Kalite Doğrulama Hizmeti */}
             {wizardStep === 8 && (
               <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>8. Adım: Yayın Tarihi & Saat</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>
+                  8. Adım: 🛡️ Kalite Doğrulama Hizmeti
+                </h4>
+
+                <div style={{ padding: '16px', backgroundColor: formVerificationEnabled ? 'rgba(57, 119, 246, 0.06)' : 'var(--bg-surface-secondary)', border: formVerificationEnabled ? '1.5px solid rgba(57, 119, 246, 0.35)' : '1px solid var(--border-color)', borderRadius: '12px', marginBottom: '18px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: 800, color: 'var(--brand-navy)', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      id="enableVerificationToggle"
+                      checked={formVerificationEnabled}
+                      onChange={(e) => setFormVerificationEnabled(e.target.checked)}
+                      style={{ width: '20px', height: '20px', accentColor: 'var(--brand-navy)', cursor: 'pointer' }}
+                    />
+                    🛡️ Bu Ankette Kalite Doğrulama Hizmeti Uygulansın
+                  </label>
+                  <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '6px 0 0 32px' }}>
+                    İşaretlenirse, çağrı merkezi personeli anketi tamamlayan kullanıcıları arayarak tek soruluk doğrulama anketi yönlendirecektir.
+                  </p>
+                </div>
+
+                {formVerificationEnabled ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Sorusu Metni *</label>
+                      <input
+                        type="text"
+                        value={formVerificationQuestion}
+                        onChange={(e) => setFormVerificationQuestion(e.target.value)}
+                        placeholder="Örn: Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?"
+                        style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Cevap Seçenekleri (Virgülle ayırın) *</label>
+                      <input
+                        type="text"
+                        value={formVerificationOptionsText}
+                        onChange={(e) => setFormVerificationOptionsText(e.target.value)}
+                        placeholder="Çok Olumlu, Olumlu, Nötr, Olumsuz"
+                        style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+                      <div>
+                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>PAG Toplam Arama Adedi</label>
+                        <input
+                          type="number"
+                          value={formPagTargetCount}
+                          onChange={(e) => setFormPagTargetCount(Number(e.target.value))}
+                          placeholder="50"
+                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Firma Katılımcı Kotası</label>
+                        <input
+                          type="number"
+                          value={formOrgSelectionQuota}
+                          onChange={(e) => setFormOrgSelectionQuota(Number(e.target.value))}
+                          placeholder="20"
+                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Profil Puanı</label>
+                        <input
+                          type="number"
+                          value={formVerificationScoreReward}
+                          onChange={(e) => setFormVerificationScoreReward(Number(e.target.value))}
+                          placeholder="25"
+                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Finansal Ödül Türü</label>
+                      <select
+                        value={formVerificationRewardType}
+                        onChange={(e) => setFormVerificationRewardType(e.target.value as any)}
+                        style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                      >
+                        <option value="VOUCHER">🎁 Hediye Çeki (Kupon Havuzu)</option>
+                        <option value="MONEY">💵 Nakit TL Ödülü</option>
+                        <option value="NONE">🚫 Ek Finansal Ödül Yok (Yalnızca Profil Puanı)</option>
+                      </select>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ padding: '24px', textAlign: 'center', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: 0, fontSize: '13px' }}>
+                      Bu anket için Kalite Doğrulama Hizmeti uygulanmayacaktır. Bir sonraki adıma geçebilirsiniz.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 9 (NEW): Kalite Doğrulama Ödül Konfigürasyonu */}
+            {wizardStep === 9 && (
+              <div>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>
+                  9. Adım: 🎁 Kalite Doğrulama Ödül Havuzu Konfigürasyonu
+                </h4>
+
+                {!formVerificationEnabled ? (
+                  <div style={{ padding: '24px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                    <p style={{ margin: 0, fontSize: '13px' }}>
+                      Kalite Doğrulama Hizmeti aktif edilmediği için bu adımda ödül konfigürasyonu gerekmemektedir. Sonraki adıma geçebilirsiniz.
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    {formVerificationRewardType === 'VOUCHER' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '16px' }}>
+                          <div>
+                            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Doğrulama Kupon Havuzu Adı</label>
+                            <input
+                              type="text"
+                              value={formVerificationVoucherName}
+                              onChange={(e) => setFormVerificationVoucherName(e.target.value)}
+                              placeholder="Örn: 250 TL Hediye Çeki"
+                              style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kupon Başı Değer (TL)</label>
+                            <input
+                              type="number"
+                              value={formVerificationVoucherAmount}
+                              onChange={(e) => setFormVerificationVoucherAmount(Number(e.target.value))}
+                              placeholder="250"
+                              style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Toplu Doğrulama Kupon Kodları (Her satırda 1 kod)</label>
+                            <span style={{ fontSize: '12px', color: 'var(--brand-navy)', fontWeight: 700 }}>
+                              {formVerificationVoucherCodesText.split('\n').filter(s => s.trim()).length} Adet Kod Girildi
+                            </span>
+                          </div>
+                          <textarea
+                            rows={5}
+                            value={formVerificationVoucherCodesText}
+                            onChange={(e) => setFormVerificationVoucherCodesText(e.target.value)}
+                            placeholder={"DOG-250-CODE-001\nDOG-250-CODE-002\nDOG-250-CODE-003"}
+                            style={{ width: '100%', padding: '12px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontFamily: 'monospace', fontSize: '13px' }}
+                          />
+                          <p style={{ fontSize: '11.5px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                            Doğrulama anketini tamamlayan katılımcılara bu kod havuzundan anında tekil bir kod tahsis edilir.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {formVerificationRewardType === 'MONEY' && (
+                      <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Toplam Doğrulama Nakit Bütçesi (TL)</label>
+                          <input
+                            type="number"
+                            value={formVerificationMoneyBudget}
+                            onChange={(e) => setFormVerificationMoneyBudget(Number(e.target.value))}
+                            style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kişi Başı Sabit Nakit Ödülü (TL)</label>
+                          <input
+                            type="number"
+                            value={formVerificationMoneyPerUser}
+                            onChange={(e) => setFormVerificationMoneyPerUser(Number(e.target.value))}
+                            style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {formVerificationRewardType === 'NONE' && (
+                      <div style={{ padding: '18px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', color: 'var(--text-secondary)' }}>
+                        <p style={{ margin: 0, fontSize: '13px' }}>
+                          Doğrulama anketi için ek finansal ödül tanımlanmamıştır. Katılımcılara yalnızca <strong>+{formVerificationScoreReward} Profil Puanı</strong> verilecektir.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 10: Schedule */}
+            {wizardStep === 10 && (
+              <div>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>10. Adım: Yayın Tarihi & Saat</h4>
                 <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <div>
                     <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Başlangıç Tarihi</label>
@@ -1445,25 +1618,54 @@ export default function SurveysPage() {
               </div>
             )}
 
-            {/* Step 9: Preview */}
-            {wizardStep === 9 && (
+            {/* Step 11: Preview & Summary */}
+            {wizardStep === 11 && (
               <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>9. Adım: Önizleme & Konfigürasyon Özeti</h4>
-                <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
-                  <p><strong>Sahip:</strong> {formOwnerType} {formOrgId && `(${formOrgId})`}</p>
-                  <p><strong>Başlık:</strong> {formTitle || 'Başlık Girilmedi'}</p>
-                  <p><strong>Hedef Kitle:</strong> {formTargeting}</p>
-                  <p><strong>Profil Puanı:</strong> +{formScoreReward} Puan</p>
-                  <p><strong>Finansal Ödül:</strong> {formFinancialReward} {formFinancialReward === 'MONEY' && `(Bütçe: ${formMoneyBudget} TL)`}</p>
-                  <p><strong>Soru Sayısı:</strong> {formQuestions.length} / 3</p>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '14px' }}>11. Adım: Önizleme & Konfigürasyon Özeti</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Ana Anket Özeti */}
+                  <div style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', borderRadius: '10px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, color: 'var(--brand-navy)', fontSize: '14px' }}>📋 Ana Kampanya Anketi</span>
+                      {formIsHighlighted && <span style={{ padding: '2px 8px', backgroundColor: '#FEF3C7', color: '#B45309', borderRadius: '4px', fontWeight: 700, fontSize: '11px' }}>⭐ Öne Çıkarılan</span>}
+                    </div>
+                    <p><strong>Sahip:</strong> {formOwnerType} {formOrgId && `(${formOrgId})`}</p>
+                    <p><strong>Başlık:</strong> {formTitle || 'Başlık Girilmedi'}</p>
+                    <p><strong>Kategori:</strong> {formCategory}</p>
+                    <p><strong>Hedef Kitle:</strong> {formTargeting}</p>
+                    <p><strong>Profil Puanı:</strong> +{formScoreReward} Puan</p>
+                    <p><strong>Finansal Ödül:</strong> {formFinancialReward} {formFinancialReward === 'MONEY' && `(Bütçe: ${formMoneyBudget} TL)`}</p>
+                    <p><strong>Soru Sayısı:</strong> {formQuestions.length} / 3</p>
+                  </div>
+
+                  {/* Kalite Doğrulama Alt Anket Özeti */}
+                  <div style={{ padding: '16px', backgroundColor: formVerificationEnabled ? 'rgba(57, 119, 246, 0.06)' : 'var(--bg-surface-secondary)', border: formVerificationEnabled ? '1.5px solid rgba(57, 119, 246, 0.3)' : '1px solid var(--border-color)', borderRadius: '10px', fontSize: '13px', display: 'flex', flexDirection: 'column', gap: '8px', color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontWeight: 800, color: 'var(--brand-navy)', fontSize: '14px' }}>🛡️ Kalite Doğrulama Alt Anketi</span>
+                      <span style={{ padding: '2px 8px', backgroundColor: formVerificationEnabled ? '#D1FAE5' : '#F3F4F6', color: formVerificationEnabled ? '#065F46' : '#6B7280', borderRadius: '4px', fontWeight: 700, fontSize: '11px' }}>
+                        {formVerificationEnabled ? 'AKTİF' : 'PASİF'}
+                      </span>
+                    </div>
+                    {formVerificationEnabled ? (
+                      <>
+                        <p><strong>Doğrulama Sorusu:</strong> {formVerificationQuestion}</p>
+                        <p><strong>Cevap Seçenekleri:</strong> {formVerificationOptionsText}</p>
+                        <p><strong>Arama / Katılımcı Kotası:</strong> PAG: {formPagTargetCount} kişi / Firma Kotası: {formOrgSelectionQuota} kişi</p>
+                        <p><strong>Doğrulama Ödülü:</strong> {formVerificationRewardType === 'VOUCHER' ? `${formVerificationVoucherName} (${formVerificationVoucherAmount} TL) — [${formVerificationVoucherCodesText.split('\n').filter(s => s.trim()).length} Kupon Kodu]` : (formVerificationRewardType === 'MONEY' ? `${formVerificationMoneyBudget} TL Nakit Bütçe` : 'Yalnızca Profil Puanı')}</p>
+                        <p><strong>Doğrulama Profil Puanı:</strong> +{formVerificationScoreReward} Puan</p>
+                      </>
+                    ) : (
+                      <p style={{ color: 'var(--text-muted)', margin: 0 }}>Bu anket için kalite doğrulama hizmeti uygulanmayacaktır.</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Step 10: Submit & Approve */}
-            {wizardStep === 10 && (
+            {/* Step 12: Submit & Approve */}
+            {wizardStep === 12 && (
               <div>
-                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>10. Adım: Onaya Gönder & Yayınla</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '10px' }}>12. Adım: Onaya Gönder & Yayınla</h4>
                 <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
                   Süper Admin onayı alındıktan sonra anket verileri kilitlenecek ve soru snapshot'ı oluşturulacaktır.
                 </p>
@@ -1489,7 +1691,7 @@ export default function SurveysPage() {
             {/* Modal Controls */}
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
               <button onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, opacity: wizardStep === 1 ? 0.5 : 1 }}>Önceki</button>
-              <button onClick={() => setWizardStep(Math.min(10, wizardStep + 1))} disabled={wizardStep === 10} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', opacity: wizardStep === 10 ? 0.5 : 1 }}>Sonraki</button>
+              <button onClick={() => setWizardStep(Math.min(12, wizardStep + 1))} disabled={wizardStep === 12} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', opacity: wizardStep === 12 ? 0.5 : 1 }}>Sonraki</button>
             </div>
           </div>
         </div>

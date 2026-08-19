@@ -294,4 +294,48 @@ describe('PAG Admin Backend Survey Write & Authorization Unit Tests', () => {
     expect(res.success).toBe(true);
     expect(res.data.mustChangePassword).toBe(false);
   });
+
+  test('Save survey with Quality Verification enabled & voucher pool configuration persists cleanly', async () => {
+    const res: any = await createOrUpdateSurveyAdminHandler({
+      surveyId: 'srv_online_alisveris_2026',
+      title: 'Online Alışveriş Tercihleri',
+      ownerType: 'ORGANIZATION',
+      organizationId: 'org_trendyol_01',
+      surveyType: 'ORGANIZATION',
+      status: 'DRAFT',
+      questions: [
+        {
+          questionId: 'q1',
+          order: 1,
+          type: 'SINGLE_SELECT',
+          text: 'Hangi sıklıkla online alışveriş yaparsınız?',
+          options: [{ optionId: 'opt_1', label: 'Her gün', order: 1 }]
+        }
+      ],
+      isVerificationEnabled: true,
+      verificationConfig: {
+        enabled: true,
+        questionText: 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?',
+        options: ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'],
+        pagTargetCount: 50,
+        orgSelectionQuota: 20,
+        profileScoreReward: 25,
+        rewardType: 'VOUCHER',
+        rewardDefinition: {
+          rewardType: 'VOUCHER',
+          voucherPoolName: '250 TL Hediye Çeki',
+          voucherValueAmount: 250
+        },
+        inlineVoucherCodes: ['VER-250-CODE-1', 'VER-250-CODE-2']
+      }
+    }, fakeSuperAdminContext);
+
+    expect(res.success).toBe(true);
+    expect(res.data.survey.isVerificationEnabled).toBe(true);
+    expect(res.data.survey.verificationConfig.enabled).toBe(true);
+    expect(res.data.survey.verificationConfig.pagTargetCount).toBe(50);
+    expect(res.data.survey.verificationConfig.orgSelectionQuota).toBe(20);
+    expect(res.data.survey.verificationConfig.rewardType).toBe('VOUCHER');
+    expect(res.data.survey.boundVerificationVoucherPoolId).toBe('srv_online_alisveris_2026_verification');
+  });
 });
