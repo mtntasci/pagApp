@@ -49,6 +49,7 @@ import com.alafteknoloji.pagapp.services.ProfileSurveyService
 import com.alafteknoloji.pagapp.services.StoryService
 import com.alafteknoloji.pagapp.services.SurveyService
 import com.alafteknoloji.pagapp.services.UserService
+import com.alafteknoloji.pagapp.services.VerificationService
 import com.alafteknoloji.pagapp.ui.components.PAGBadge
 import com.alafteknoloji.pagapp.ui.components.PAGBadgeStyle
 import com.alafteknoloji.pagapp.ui.components.PAGCard
@@ -68,15 +69,18 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val profileSurveyService = remember { ProfileSurveyService.getInstance(context) }
+    val verificationService = remember { VerificationService.getInstance() }
 
     val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
     val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()
     val fetchedStories: List<StoryMock> by storyService.stories.collectAsState()
     val isLoadingSurveys by surveyService.isLoading.collectAsState()
     val hasPromotedQuestion by profileSurveyService.hasPromotedQuestion.collectAsState()
+    val pendingVerification by verificationService.pendingVerification.collectAsState()
     val userProfile = UserProfileMock.sample
 
     LaunchedEffect(Unit) {
+        verificationService.checkPendingVerification()
         storyService.fetchStories()
         surveyService.fetchEligibleSurveys()
         profileSurveyService.fetchProfileQuestions(3)
@@ -86,6 +90,14 @@ fun HomeScreen(
     val activeStoryList: List<StoryMock> = if (fetchedStories.isNotEmpty()) fetchedStories else StoryMock.sampleList
     val sortedStories = activeStoryList.filter { it.isActive }.sortedBy { it.position }
     storyItems.addAll(sortedStories.map { StoryItemType.Story(it) })
+
+    pendingVerification?.let { pending ->
+        PendingVerificationScreen(
+            pending = pending,
+            onDismiss = { verificationService.dismissForNow() }
+        )
+        return
+    }
 
     if (appState.homeRoute == HomeRoute.EARN_PROFILE_SCORE) {
         EarnProfileScoreScreen(

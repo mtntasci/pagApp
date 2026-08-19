@@ -459,47 +459,14 @@ fun ProfileScreen(
                     }
 
                     if (showIbanDialog) {
-                        AlertDialog(
-                            onDismissRequest = { showIbanDialog = false },
-                            title = { Text("IBAN Doğrulama (+200 PP)", color = PAGTheme.colors.textPrimary, fontWeight = FontWeight.Bold) },
-                            text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text("Nakit ödül transferleri için TC Kimlik No ve IBAN bilgilerinizi giriniz.", style = PAGTheme.typography.caption, color = PAGTheme.colors.textMuted)
-                                    OutlinedTextField(
-                                        value = tcknInput,
-                                        onValueChange = { if (it.length <= 11) tcknInput = it.filter { c -> c.isDigit() } },
-                                        label = { Text("TC Kimlik No (11 Hane)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                    OutlinedTextField(
-                                        value = ibanInput,
-                                        onValueChange = { ibanInput = it },
-                                        label = { Text("IBAN (TR...)") },
-                                        singleLine = true,
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                            },
-                            confirmButton = {
-                                Button(
-                                    onClick = {
-                                        scope.launch {
-                                            isSubmitting = true
-                                            userService?.submitIbanAndTckn(ibanInput, tcknInput)
-                                            isSubmitting = false
-                                            showIbanDialog = false
-                                        }
-                                    },
-                                    enabled = !isSubmitting && tcknInput.length == 11 && ibanInput.length > 15,
-                                    colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime)
-                                ) {
-                                    Text("IBAN Doğrula & +200 PP Kazan", color = PAGTheme.colors.brandMidnight, fontWeight = FontWeight.Bold)
-                                }
-                            },
-                            dismissButton = {
-                                TextButton(onClick = { showIbanDialog = false }) {
-                                    Text("Vazgeç", color = Color.White)
+                        IbanVerificationDialog(
+                            initialIban = ibanInput,
+                            initialTckn = tcknInput,
+                            userService = userService,
+                            onDismiss = { showIbanDialog = false },
+                            onSuccess = {
+                                scope.launch {
+                                    userService?.bootstrapCurrentUser()
                                 }
                             }
                         )

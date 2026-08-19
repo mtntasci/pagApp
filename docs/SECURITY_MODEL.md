@@ -145,3 +145,17 @@ service cloud.firestore {
 1. **Voucher Codes**: Voucher codes are encrypted at rest in Firestore using AES-256 (`packages/shared-config` crypto utility). Codes are decrypted ONLY when delivered to the authenticated code owner in `GET /api/v1/user/vouchers`.
 2. **KYC Information**: Identity verification payloads are processed via dedicated server-to-server webhook integration. Plaintext identity numbers (TCKN) are NEVER stored in standard user Firestore documents.
 3. **Log Sanitization**: Application logger redacts patterns matching IBANs, phone numbers, auth tokens, and voucher codes before writing to Cloud Logging.
+
+---
+
+## 5. Quality Verification (Kalite Doğrulama) Security & Privacy Model
+
+1. **Role-Based Access Control (RBAC)**:
+   - `CALL_CENTER_AGENT`: Can view ONLY assigned verification campaigns and respondent greeting names (`userDisplayName` = First Name + Last Name).
+   - `CALL_CENTER_AGENT` **CANNOT** view: Phone numbers, emails, KYC info, TCKN, IBAN, master survey answers, verification survey answers, or unauthorized organization reports.
+   - `ORGANIZATION_USER`: Can view verification progress metrics for own surveys only. Can select completed respondents using anonymous references (e.g. `Katılımcı #A82F1`). **CANNOT** view participant real names, phone numbers, or emails.
+2. **Master Survey Data Integrity**:
+   - Master survey responses, reward assignments, Profile Score, and statistics are immutable. Call center verification outcomes (`DECLINED`, `NO_ANSWER`, `CALL_BACK_LATER`, `WRONG_PERSON_OR_ISSUE`) never delete, invalidate, or mutate master survey records.
+3. **Audit Trail**:
+   - Every telephony call event (`CALL_STARTED`, `RESULT_SUBMITTED`) creates an immutable audit record in `verificationCallAuditLogs` with authoritative server timestamps.
+

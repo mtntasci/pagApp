@@ -40,9 +40,9 @@ describe('Profile Surveys & Gender Targeting Engine Unit Tests', () => {
 
   describe('Default Profile Categories', () => {
     it('should contain default seed categories', () => {
-      expect(DEFAULT_PROFILE_CATEGORIES.length).toBeGreaterThanOrEqual(5);
-      expect(DEFAULT_PROFILE_CATEGORIES.some(c => c.id === 'cat_lifestyle')).toBe(true);
-      expect(DEFAULT_PROFILE_CATEGORIES.some(c => c.id === 'cat_tech')).toBe(true);
+      expect(DEFAULT_PROFILE_CATEGORIES.length).toBeGreaterThanOrEqual(13);
+      expect(DEFAULT_PROFILE_CATEGORIES.some(c => c.id === 'yasam-tarzi')).toBe(true);
+      expect(DEFAULT_PROFILE_CATEGORIES.some(c => c.id === 'teknoloji-kullanimi')).toBe(true);
     });
   });
 });

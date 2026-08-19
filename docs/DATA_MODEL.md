@@ -1186,3 +1186,49 @@ SECURITY_MODEL.md
 API_CONTRACTS.md
 
 before privileged backend endpoints are broadly implemented.
+
+---
+
+## 41. QUALITY VERIFICATION (KALİTE DOĞRULAMA) DATA MODEL
+
+### surveyVerificationCampaigns/{campaignId}
+- `id` (string): Unique campaign identifier.
+- `masterSurveyId` (string): ID of the master survey being verified.
+- `masterSurveyTitle` (string): Denormalized title of the master survey.
+- `organizationId` (string | null): Tenant ID owning the survey or null for PAG.
+- `status` (string): `'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED'`.
+- `requestedCount` (number): Total verification sample size.
+- `customerSelectedCount` (number): Number of customer/organization selected respondents.
+- `randomSelectedCount` (number): Number of PAG server-random selected respondents.
+- `verificationSurveyId` (string): ID of the 1-question linked verification survey.
+- `verificationRewardSummary` (string): User-facing reward description (e.g. "250 TL Hediye Çeki").
+- `createdBy` (string): UID of the admin/customer user.
+- `createdAt` (string/Timestamp): Creation ISO timestamp.
+
+### surveyVerificationAssignments/{assignmentId}
+- `id` (string): Unique assignment identifier.
+- `verificationCampaignId` (string): Ref to parent verification campaign.
+- `masterSurveyId` (string): Master survey ID.
+- `masterSurveyTitle` (string): Master survey title.
+- `verificationSurveyId` (string): Verification survey ID.
+- `verificationRewardSummary` (string): Verification reward text.
+- `userId` (string): Target user UID.
+- `userDisplayName` (string): User's First Name + Last Name (Ad + Soyad) for Call Center Agent greeting.
+- `selectionSource` (string): `'CUSTOMER' | 'RANDOM'`.
+- `status` (string): `'QUEUED' | 'ASSIGNED' | 'CALLING' | 'ACCEPTED' | 'DECLINED' | 'NO_ANSWER' | 'CALL_BACK_LATER' | 'WRONG_PERSON_OR_ISSUE' | 'PUSH_SENT' | 'VERIFICATION_COMPLETED'`.
+- `assignedAgentId` (string | null): UID of the agent who claimed/processed the call.
+- `callStartedAt` (string | null): ISO timestamp when call started.
+- `callEndedAt` (string | null): ISO timestamp when call outcome was recorded.
+- `agentNote` (string | null): Internal notes left by the call center agent.
+- `createdAt` (string/Timestamp): Creation timestamp.
+
+### verificationCallAuditLogs/{logId}
+- `id` (string): Audit log ID.
+- `assignmentId` (string): Related assignment ID.
+- `campaignId` (string): Campaign ID.
+- `agentId` (string): Agent UID.
+- `action` (string): `'CALL_STARTED' | 'RESULT_SUBMITTED'`.
+- `previousStatus` (string): Status before action.
+- `newStatus` (string): Status after action.
+- `agentNote` (string | null): Note.
+- `timestamp` (string/Timestamp): Authoritative server timestamp.

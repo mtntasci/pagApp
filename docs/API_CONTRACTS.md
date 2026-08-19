@@ -459,3 +459,98 @@
   }
   ```
 - **Security Check**: Backend verifies user belongs to `org_ford_turkey` via `organizations/org_ford_turkey/members/{userId}`. Returns `TENANT_ACCESS_DENIED` (403) if member belongs to a different tenant.
+
+---
+
+## 5. Quality Verification (Kalite Doğrulama) API Contracts
+
+### 5.1 `getCompletedRespondentsForVerification`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`, `ORGANIZATION_USER` (for own survey).
+- **Request**: `{ surveyId: string }`
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "surveyId": "srv_123",
+      "totalCompleted": 150,
+      "respondents": [
+        { "userId": "usr_abc", "anonymousRef": "Katılımcı #A82F1", "completedAt": "2026-08-18T10:00:00Z" }
+      ]
+    }
+  }
+  ```
+- **Privacy Rule**: Zero PII (no names, phones, emails).
+
+### 5.2 `createVerificationCampaign`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`, `ORGANIZATION_USER`.
+- **Request**:
+  ```json
+  {
+    "masterSurveyId": "srv_123",
+    "customerSelectedUserIds": ["usr_abc"],
+    "randomSelectedCount": 10,
+    "verificationRewardSummary": "250 TL Hediye Çeki"
+  }
+  ```
+- **Behavior**: Creates 1-question verification survey (`surveyType = 'VERIFICATION'`), registers campaign and creates assignment records with `userDisplayName`.
+
+### 5.3 `listVerificationAssignmentsForAgent`
+- **Actor**: `CALL_CENTER_AGENT`, `SUPER_ADMIN`, `PAG_STAFF`.
+- **Request**: `{ campaignId?: string }`
+- **Response**: List of assignments containing `userDisplayName`, `masterSurveyTitle`, `verificationRewardSummary`, `status`, `agentNote`. (PII strictly omitted: NO phone numbers or emails).
+
+### 5.4 `startVerificationCall`
+- **Actor**: `CALL_CENTER_AGENT`.
+- **Request**: `{ assignmentId: string }`
+- **Behavior**: Transitions assignment to `CALLING`, logs audit record.
+
+### 5.5 `submitVerificationCallResult`
+- **Actor**: `CALL_CENTER_AGENT`.
+- **Request**:
+  ```json
+  {
+    "assignmentId": "asg_123",
+    "result": "ACCEPTED | DECLINED | NO_ANSWER | CALL_BACK_LATER | WRONG_PERSON_OR_ISSUE",
+    "agentNote": "string"
+  }
+  ```
+- **Behavior**: If `ACCEPTED`, marks assignment for verification survey access and sends push/mobile cue. Master survey answers and rewards are never invalidated.
+
+### 5.6 `getPendingVerificationSurvey`
+- **Actor**: Authenticated Mobile End-User (`context.auth.uid`).
+- **Request**: `{}`
+- **Response**: Returns pending verification survey question and details if user has an accepted assignment.
+
+---
+
+## 6. ORGANIZATION MANAGEMENT & MULTI-STAGE APPROVAL
+
+### 6.1 `listOrganizationsAdmin`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`, `ORGANIZATION_USER` (tenant-scoped).
+- **Response**: List of registered organizations with `isVerificationAuthorized`, `surveyCount`, and `portalUserCount`.
+
+### 6.2 `createOrUpdateOrganizationAdmin`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`.
+- **Request**: `{ name: string, sector?: string, contactEmail?: string, contactPhone?: string, isVerificationAuthorized?: boolean }`
+
+### 6.3 `toggleOrganizationVerificationAuthAdmin`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`.
+- **Request**: `{ organizationId: string, isVerificationAuthorized: boolean }`
+
+### 6.4 `listOrganizationUsersAdmin`
+- **Actor**: `SUPER_ADMIN`, `PAG_STAFF`, `ORGANIZATION_USER`.
+- **Request**: `{ organizationId: string }`
+- **Response**: List of portal users assigned to the specified organization.
+
+### 6.5 `approveSurveyByOrg`
+- **Actor**: `ORGANIZATION_USER`, `SUPER_ADMIN`.
+- **Request**: `{ surveyId: string }`
+- **Behavior**: Transitions survey status from `PENDING_ORG_APPROVAL` to `PENDING_ADMIN_APPROVAL` (sets `orgApprovedAt`, `orgApprovedBy`).
+
+### 6.6 `finalApproveSurveyAdmin`
+- **Actor**: `SUPER_ADMIN` (`admin@pagapp.com.tr`).
+- **Request**: `{ surveyId: string }`
+- **Behavior**: Transitions survey status from `PENDING_ADMIN_APPROVAL` to `ACTIVE` (sets `adminApprovedAt`, `adminApprovedBy`).
+
+

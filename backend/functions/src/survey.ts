@@ -528,6 +528,13 @@ export const submitSurveyResponseHandler = async (
     };
     transaction.set(responseRef, responsePayload);
 
+    // Atomically increment completedCount & responseCount on the Survey document
+    transaction.set(surveyDoc.ref, {
+      completedCount: admin.firestore.FieldValue.increment(1),
+      responseCount: admin.firestore.FieldValue.increment(1),
+      updatedAt: serverNow
+    }, { merge: true });
+
     // If this is a Quality Verification Survey, mark assignment as VERIFICATION_COMPLETED
     if (verificationAssignRef) {
       transaction.update(verificationAssignRef, {

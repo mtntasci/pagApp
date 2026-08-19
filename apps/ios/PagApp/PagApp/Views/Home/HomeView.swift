@@ -6,6 +6,7 @@ public struct HomeView: View {
     @StateObject private var profileSurveyService = ProfileSurveyService.shared
     @StateObject private var basicProfileService = BasicProfileService.shared
     @StateObject private var storyService = StoryService.shared
+    @StateObject private var verificationService = VerificationService.shared
     @State private var navPath = NavigationPath()
     @State private var targetFlowSurvey: PAGSurvey? = nil
     public var onNavigateToSurveys: (() -> Void)? = nil
@@ -25,10 +26,16 @@ public struct HomeView: View {
     }
     
     public var body: some View {
-        NavigationStack(path: $navPath) {
-            ZStack {
-                PAGTheme.backgroundPrimary
-                    .ignoresSafeArea()
+        Group {
+            if let pending = verificationService.pendingVerification {
+                PendingVerificationView(pending: pending) {
+                    verificationService.dismissForNow()
+                }
+            } else {
+                NavigationStack(path: $navPath) {
+                    ZStack {
+                        PAGTheme.backgroundPrimary
+                            .ignoresSafeArea()
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
@@ -174,6 +181,7 @@ public struct HomeView: View {
                 }
             }
             .task {
+                await verificationService.checkPendingVerification()
                 await basicProfileService.fetchBasicProfile()
                 await storyService.fetchStories()
                 await surveyService.fetchEligibleSurveys()
@@ -181,6 +189,8 @@ public struct HomeView: View {
             }
         }
     }
+}
+}
 }
 
 #Preview {

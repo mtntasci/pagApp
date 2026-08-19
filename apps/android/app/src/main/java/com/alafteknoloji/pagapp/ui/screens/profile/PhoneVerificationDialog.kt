@@ -22,17 +22,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-fun formatTRPhone(raw: String): String {
-    val digits = raw.filter { it.isDigit() }
+fun formatTRStandardPhone(raw: String): String {
+    var digits = raw.filter { it.isDigit() }
+    if (digits.isEmpty()) return ""
+    if (!digits.startsWith("0")) {
+        digits = "0$digits"
+    }
     val sb = StringBuilder()
     for (i in digits.indices) {
-        if (i == 4 || i == 7 || i == 9) sb.append(" ")
+        if (i == 1 || i == 4 || i == 7 || i == 9) sb.append(" ")
         sb.append(digits[i])
-        if (sb.length >= 14) break
+        if (sb.length >= 15) break
     }
     return sb.toString()
+}
+
+enum class PhoneVerificationUiState {
+    IDLE,
+    CHECKING,
+    SUCCESS,
+    ERROR
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,67 +55,103 @@ fun PhoneVerificationDialog(
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
-    var rawPhone by remember { mutableStateOf(initialPhone.filter { it.isDigit() }) }
+    var rawPhone by remember {
+        val filtered = initialPhone.filter { it.isDigit() }
+        mutableStateOf(if (filtered.isNotEmpty() && !filtered.startsWith("0")) "0$filtered" else filtered)
+    }
     var isCodeSent by remember { mutableStateOf(false) }
     var otpDigits by remember { mutableStateOf(listOf("", "", "", "")) }
-    var isSubmitting by remember { mutableStateOf(false) }
+    var uiState by remember { mutableStateOf(PhoneVerificationUiState.IDLE) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     val focusRequesters = remember { List(4) { FocusRequester() } }
 
     val handleOtpVerify = { fullCode: String ->
-        // TEMP DEV TEST BYPASS: 1111
-        if (fullCode == "1111") {
-            errorMessage = null
-            isSubmitting = true
-            scope.launch {
+        errorMessage = null
+        uiState = PhoneVerificationUiState.CHECKING
+
+        scope.launch {
+            delay(700) // Simulated realistic verification delay
+            if (fullCode == "1111") {
                 val ok = userService?.verifyPhone(rawPhone) ?: false
-                isSubmitting = false
                 if (ok) {
+                    uiState = PhoneVerificationUiState.SUCCESS
+                    delay(1200)
                     onSuccess()
                     onDismiss()
                 } else {
+                    uiState = PhoneVerificationUiState.ERROR
                     errorMessage = "Telefon doğrulama servisi yanıt vermedi."
                 }
+            } else {
+                uiState = PhoneVerificationUiState.ERROR
+                errorMessage = "Kod Yanlış! Lütfen SMS ile iletilen 4 haneli kodu giriniz."
+                otpDigits = listOf("", "", "", "")
+                focusRequesters[0].requestFocus()
             }
-        } else {
-            errorMessage = "Doğrulama kodu hatalı. Lütfen tekrar deneyiniz."
         }
     }
 
     AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Telefon Doğrulama (+200 PP)", color = PAGTheme.colors.textPrimary, fontWeight = FontWeight.Bold) },
+        onDismissRequest = {
+            if (uiState != PhoneVerificationUiState.CHECKING) onDismiss()
+        },
+        title = {
+            Text(
+                "Telefon Doğrulama",
+                color = PAGTheme.colors.textPrimary,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp
+            )
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 if (!isCodeSent) {
                     Text(
-                        "Telefon numaranızı onaylayarak +200 Profil Puanı kazanın.",
+                        "Numaranızı onaylayarak hesabınızı güvenceye alın ve anında +200 Profil Puanı kazanın.",
                         style = PAGTheme.typography.caption,
-                        color = PAGTheme.colors.textMuted
+                        color = PAGTheme.colors.textSecondary,
+                        textAlign = TextAlign.Center
                     )
 
                     OutlinedTextField(
-                        value = formatTRPhone(rawPhone),
+                        value = formatTRStandardPhone(rawPhone),
                         onValueChange = { newValue ->
                             val clean = newValue.filter { it.isDigit() }
-                            if (clean.length <= 11) rawPhone = clean
+                            if (clean.length <= 11) {
+                                rawPhone = if (clean.isNotEmpty() && !clean.startsWith("0")) "0$clean" else clean
+                            }
                         },
-                        label = { Text("Telefon Numarası") },
+                        label = { Text("0 5XX XXX XX XX") },
+                        placeholder = { Text("0 5XX XXX XX XX") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth()
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = PAGTheme.colors.brandLime,
+                            unfocusedBorderColor = PAGTheme.colors.borderDefault
+                        )
                     )
 
                     if (errorMessage != null) {
-                        Text(errorMessage!!, style = PAGTheme.typography.caption, color = PAGTheme.colors.error)
+                        Text(
+                            errorMessage!!,
+                            style = PAGTheme.typography.caption,
+                            color = PAGTheme.colors.error,
+                            textAlign = TextAlign.Center
+                        )
                     }
                 } else {
                     Text(
-                        "${formatTRPhone(rawPhone)} numaralı telefonunuza gönderilen 4 haneli doğrulama kodunu giriniz.",
+                        "${formatTRStandardPhone(rawPhone)} numaralı telefonunuza gönderilen 4 haneli SMS doğrulama kodunu giriniz.",
                         style = PAGTheme.typography.bodySmall,
-                        color = PAGTheme.colors.textSecondary
+                        color = PAGTheme.colors.textSecondary,
+                        textAlign = TextAlign.Center
                     )
 
                     // 4 Separate OTP Boxes
@@ -140,9 +188,14 @@ fun PhoneVerificationDialog(
                                 },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                textStyle = LocalTextStyle.current.copy(fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center),
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontSize = 22.sp,
+                                    fontWeight = FontWeight.Black,
+                                    textAlign = TextAlign.Center
+                                ),
+                                enabled = uiState != PhoneVerificationUiState.CHECKING && uiState != PhoneVerificationUiState.SUCCESS,
                                 modifier = Modifier
-                                    .size(52.dp)
+                                    .size(54.dp)
                                     .focusRequester(focusRequesters[i])
                                     .onKeyEvent { event ->
                                         if (event.key == Key.Backspace && otpDigits[i].isEmpty() && i > 0) {
@@ -154,22 +207,61 @@ fun PhoneVerificationDialog(
                         }
                     }
 
-                    if (isSubmitting) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp).align(Alignment.CenterHorizontally), color = PAGTheme.colors.brandLime)
-                    }
-
-                    if (errorMessage != null) {
-                        Text(errorMessage!!, style = PAGTheme.typography.caption, color = PAGTheme.colors.error, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    if (uiState == PhoneVerificationUiState.CHECKING) {
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                color = PAGTheme.colors.brandLime,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Kontrol ediliyor... Lütfen bekleyiniz.",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.brandLime,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else if (uiState == PhoneVerificationUiState.SUCCESS) {
+                        Text(
+                            "✅ Onaylandı! (+200 PP)",
+                            style = PAGTheme.typography.bodySmall,
+                            color = Color(0xFF10B981),
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    } else if (errorMessage != null) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                "⚠️ $errorMessage",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.error,
+                                textAlign = TextAlign.Center,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Test Doğrulama Kodu: 1111",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textMuted,
+                                fontSize = 11.sp
+                            )
+                        }
                     }
 
                     TextButton(
                         onClick = {
                             isCodeSent = false
                             otpDigits = listOf("", "", "", "")
+                            uiState = PhoneVerificationUiState.IDLE
                             errorMessage = null
-                        }
+                        },
+                        enabled = uiState != PhoneVerificationUiState.CHECKING
                     ) {
-                        Text("Numarayı Değiştir", color = PAGTheme.colors.textMuted, fontSize = 12.sp)
+                        Text("Numarayı Değiştir", color = PAGTheme.colors.brandLime, fontSize = 12.sp)
                     }
                 }
             }
@@ -178,11 +270,11 @@ fun PhoneVerificationDialog(
             if (!isCodeSent) {
                 Button(
                     onClick = {
-                        if (rawPhone.length >= 10) {
+                        if (rawPhone.length >= 11) {
                             errorMessage = null
                             isCodeSent = true
                         } else {
-                            errorMessage = "Lütfen geçerli bir telefon numarası giriniz."
+                            errorMessage = "Lütfen 11 haneli geçerli telefon numaranızı giriniz (0 5XX...)."
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime)
@@ -192,15 +284,12 @@ fun PhoneVerificationDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = onDismiss,
+                enabled = uiState != PhoneVerificationUiState.CHECKING
+            ) {
                 Text("Kapat", color = Color.White)
             }
         }
     )
-
-    LaunchedEffect(isCodeSent) {
-        if (isCodeSent) {
-            focusRequesters[0].requestFocus()
-        }
-    }
 }

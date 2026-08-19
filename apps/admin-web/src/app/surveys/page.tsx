@@ -155,7 +155,7 @@ const STORY_CATEGORY_IMAGES: Record<string, { id: string; name: string; images: 
 };
 
 export default function SurveysPage() {
-  const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PENDING' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'ARCHIVED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PENDING' | 'PENDING_ADMIN_APPROVAL' | 'PENDING_ORG_APPROVAL' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'ARCHIVED'>('ALL');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -705,6 +705,38 @@ export default function SurveysPage() {
     }
   };
 
+  const handleFinalApproveSurveyAdmin = async (surveyId: string) => {
+    try {
+      const approveFn = httpsCallable(functions, 'finalApproveSurveyAdmin');
+      const res: any = await approveFn({ surveyId });
+      if (res.data?.success) {
+        alert('Anket süper admin onayıyla canlı yayına alındı! 🚀');
+        await fetchSurveys();
+      } else {
+        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
+      }
+    } catch (err: any) {
+      console.error('Final Approve Survey Error:', err);
+      alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
+
+  const handleApproveSurveyByOrg = async (surveyId: string) => {
+    try {
+      const approveFn = httpsCallable(functions, 'approveSurveyByOrg');
+      const res: any = await approveFn({ surveyId });
+      if (res.data?.success) {
+        alert('Anket firma tarafından onaylandı ve PAG Admin son onayına iletildi! ✅');
+        await fetchSurveys();
+      } else {
+        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
+      }
+    } catch (err: any) {
+      console.error('Org Approve Survey Error:', err);
+      alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
+    }
+  };
+
   const handleToggleHighlight = async (survey: any) => {
     try {
       const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
@@ -729,7 +761,9 @@ export default function SurveysPage() {
     if (activeTab === 'ARCHIVED') return s.isArchived;
     if (s.isArchived) return false;
     if (activeTab === 'DRAFT') return s.status === 'DRAFT';
-    if (activeTab === 'PENDING') return s.status === 'PENDING_APPROVAL';
+    if (activeTab === 'PENDING') return s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL';
+    if (activeTab === 'PENDING_ADMIN_APPROVAL') return s.status === 'PENDING_ADMIN_APPROVAL';
+    if (activeTab === 'PENDING_ORG_APPROVAL') return s.status === 'PENDING_ORG_APPROVAL';
     if (activeTab === 'SCHEDULED') return s.status === 'SCHEDULED';
     if (activeTab === 'ACTIVE') return s.status === 'ACTIVE';
     if (activeTab === 'ENDED') return s.status === 'ENDED';
@@ -790,12 +824,13 @@ export default function SurveysPage() {
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
         {[
           { key: 'ALL', label: 'Tüm Aktifler' },
-          { key: 'DRAFT', label: 'Taslaklar' },
-          { key: 'PENDING', label: 'Onay Bekleyenler' },
-          { key: 'SCHEDULED', label: 'Planlananlar' },
-          { key: 'ACTIVE', label: 'Canlı Anketler' },
-          { key: 'ENDED', label: 'Tamamlananlar' },
-          { key: 'ARCHIVED', label: 'Arşiv' }
+          { key: 'ACTIVE', label: '🟢 Canlı Anketler' },
+          { key: 'PENDING_ADMIN_APPROVAL', label: '👑 Admin Onayı Bekleyenler' },
+          { key: 'PENDING_ORG_APPROVAL', label: '🏢 Firma Onayı Bekleyenler' },
+          { key: 'DRAFT', label: '📝 Taslaklar' },
+          { key: 'SCHEDULED', label: '⏰ Planlananlar' },
+          { key: 'ENDED', label: '🏁 Tamamlananlar' },
+          { key: 'ARCHIVED', label: '📦 Arşiv' }
         ].map(t => (
           <button
             key={t.key}
@@ -1345,6 +1380,7 @@ export default function SurveysPage() {
                   <th style={{ padding: '14px 16px' }}>Başlık</th>
                   <th style={{ padding: '14px 16px' }}>Sahip</th>
                   <th style={{ padding: '14px 16px' }}>Durum</th>
+                  <th style={{ padding: '14px 16px' }}>Cevaplanan / Katılımcı</th>
                   <th style={{ padding: '14px 16px' }}>Sorular</th>
                   <th style={{ padding: '14px 16px' }}>Ödül</th>
                   <th style={{ padding: '14px 16px' }}>Aksiyonlar</th>
@@ -1353,40 +1389,47 @@ export default function SurveysPage() {
               <tbody>
                 {filteredSurveys.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    <td colSpan={8} style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
                       Bu filtreye uygun anket bulunamadı.
                     </td>
                   </tr>
                 ) : (
                   filteredSurveys.map((s) => (
                     <tr key={s.surveyId} style={{ borderBottom: '1px solid var(--border-color)', fontSize: '14px', color: 'var(--text-primary)' }}>
-                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{s.surveyId}</td>
+                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', color: 'var(--text-secondary)', fontSize: '12px' }}>{s.surveyId}</td>
                       <td style={{ padding: '14px 16px', fontWeight: 700 }}>{s.title}</td>
-                      <td style={{ padding: '14px 16px' }}>{s.ownerType}</td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-surface-secondary)', fontWeight: 600 }}>
+                          {s.ownerType} {s.organizationId ? `(${s.organizationId})` : ''}
+                        </span>
+                      </td>
                       <td style={{ padding: '14px 16px' }}>
                         <span style={{
                           padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700,
-                          backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
-                          color: s.status === 'ACTIVE' ? 'var(--success-color)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
-                          border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : s.status === 'PENDING_APPROVAL' ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
+                          backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
+                          color: s.status === 'ACTIVE' ? 'var(--success-color)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
+                          border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
                         }}>
-                          {s.status}
+                          {s.status === 'PENDING_ADMIN_APPROVAL' ? '👑 Admin Onayı Bekliyor' : s.status === 'PENDING_ORG_APPROVAL' ? '🏢 Firma Onayı Bekliyor' : s.status}
                         </span>
+                      </td>
+                      <td style={{ padding: '14px 16px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+                        👥 {s.completedCount ?? s.responseCount ?? 0} Yanıt
                       </td>
                       <td style={{ padding: '14px 16px' }}>{s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</td>
                       <td style={{ padding: '14px 16px' }}>+{s.profileScoreReward || 0} Puan</td>
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           <button
                             onClick={() => handleToggleHighlight(s)}
                             title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
                             style={{
-                              padding: '6px 12px',
+                              padding: '6px 10px',
                               backgroundColor: s.isHighlighted ? '#FEF3C7' : 'var(--bg-surface-secondary)',
                               color: s.isHighlighted ? '#D97706' : 'var(--text-secondary)',
                               border: s.isHighlighted ? '1px solid #F59E0B' : '1px solid var(--border-color)',
                               borderRadius: '6px',
-                              fontSize: '12px',
+                              fontSize: '11px',
                               fontWeight: 700,
                               cursor: 'pointer'
                             }}
@@ -1395,17 +1438,27 @@ export default function SurveysPage() {
                           </button>
                           <button
                             onClick={() => handleOpenEditWizard(s)}
-                            style={{ padding: '6px 12px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}
+                            style={{ padding: '6px 10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
                           >
                             Düzenle
                           </button>
+                          {s.status === 'PENDING_ADMIN_APPROVAL' && (
+                            <button onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 800, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>
+                              👑 Yayına Onayla
+                            </button>
+                          )}
+                          {s.status === 'PENDING_ORG_APPROVAL' && (
+                            <button onClick={() => handleApproveSurveyByOrg(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: '#059669', color: '#FFFFFF', fontWeight: 800, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>
+                              ✓ Firma Onayı Ver
+                            </button>
+                          )}
                           {s.status === 'PENDING_APPROVAL' && (
-                            <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '12px' }}>Onayla</button>
+                            <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>Onayla</button>
                           )}
                           {!s.isArchived ? (
-                            <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '6px 12px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>Arşivle</button>
+                            <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '6px 10px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Arşivle</button>
                           ) : (
-                            <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '6px 12px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '6px', fontSize: '12px', fontWeight: 600 }}>Geri Al</button>
+                            <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '6px 10px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Geri Al</button>
                           )}
                         </div>
                       </td>
@@ -1438,30 +1491,37 @@ export default function SurveysPage() {
                     <h4 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)' }}>{s.title}</h4>
                     <span style={{
                       padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-                      backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
-                      color: s.status === 'ACTIVE' ? 'var(--success-color)' : s.status === 'PENDING_APPROVAL' ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
-                      border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : s.status === 'PENDING_APPROVAL' ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
+                      backgroundColor: s.status === 'ACTIVE' ? 'var(--success-bg)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? 'var(--warning-bg)' : s.status === 'SCHEDULED' ? 'var(--info-bg)' : 'var(--bg-surface-secondary)',
+                      color: s.status === 'ACTIVE' ? 'var(--success-color)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? 'var(--warning-color)' : s.status === 'SCHEDULED' ? 'var(--info-color)' : 'var(--text-secondary)',
+                      border: s.status === 'ACTIVE' ? '1px solid var(--success-border)' : (s.status === 'PENDING_APPROVAL' || s.status === 'PENDING_ADMIN_APPROVAL' || s.status === 'PENDING_ORG_APPROVAL') ? '1px solid var(--warning-border)' : s.status === 'SCHEDULED' ? '1px solid var(--info-border)' : '1px solid var(--border-color)'
                     }}>
-                      {s.status}
+                      {s.status === 'PENDING_ADMIN_APPROVAL' ? '👑 Admin Onayı' : s.status === 'PENDING_ORG_APPROVAL' ? '🏢 Firma Onayı' : s.status}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    <div><strong>Sahip:</strong> {s.ownerType}</div>
+                    <div><strong>Sahip:</strong> {s.ownerType} {s.organizationId ? `(${s.organizationId})` : ''}</div>
+                    <div style={{ fontWeight: 800, color: 'var(--brand-navy)' }}><strong>Cevaplanan / Katılımcı:</strong> 👥 {s.completedCount ?? s.responseCount ?? 0} Yanıt</div>
                     <div><strong>Soru Sayısı:</strong> {s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</div>
                     <div><strong>Profil Puanı:</strong> +{s.profileScoreReward || 0} Puan</div>
                     <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>ID: {s.surveyId}</div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
                     <button
                       onClick={() => handleOpenEditWizard(s)}
                       style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
                     >
                       Düzenle
                     </button>
+                    {s.status === 'PENDING_ADMIN_APPROVAL' && (
+                      <button onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 800, borderRadius: '8px', fontSize: '13px', border: 'none' }}>👑 Yayına Onayla</button>
+                    )}
+                    {s.status === 'PENDING_ORG_APPROVAL' && (
+                      <button onClick={() => handleApproveSurveyByOrg(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: '#059669', color: '#FFFFFF', fontWeight: 800, borderRadius: '8px', fontSize: '13px', border: 'none' }}>✓ Firma Onayı</button>
+                    )}
                     {s.status === 'PENDING_APPROVAL' && (
-                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', fontSize: '13px' }}>Onayla</button>
+                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none' }}>Onayla</button>
                     )}
                     {!s.isArchived ? (
                       <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>Arşivle</button>

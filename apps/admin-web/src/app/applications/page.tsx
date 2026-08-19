@@ -25,6 +25,14 @@ export default function ApplicationsPage() {
   const [selectedApp, setSelectedApp] = useState<CompanyApplication | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
+  // Portal User Creation Modal
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'CALL_CENTER_AGENT' | 'ORGANIZATION_USER' | 'PAG_STAFF' | 'SUPER_ADMIN'>('CALL_CENTER_AGENT');
+  const [newUserOrgId, setNewUserOrgId] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
   const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     try {
@@ -63,6 +71,45 @@ export default function ApplicationsPage() {
     }
   };
 
+  const handleCreatePortalUser = async () => {
+    if (!newUserEmail || !newUserEmail.includes('@')) {
+      alert('Lütfen geçerli bir e-posta adresi girin.');
+      return;
+    }
+    if (!newUserPassword || newUserPassword.length < 6) {
+      alert('Geçici şifre en az 6 karakter olmalıdır.');
+      return;
+    }
+    if (newUserRole === 'ORGANIZATION_USER' && !newUserOrgId) {
+      alert('Firma Temsilcisi rolü için Organization ID zorunludur.');
+      return;
+    }
+
+    setIsCreatingUser(true);
+    try {
+      const createFn = httpsCallable(functions, 'createPortalUserAdmin');
+      const res: any = await createFn({
+        email: newUserEmail.trim(),
+        temporaryPassword: newUserPassword,
+        role: newUserRole,
+        organizationId: newUserRole === 'ORGANIZATION_USER' ? newUserOrgId.trim() : null
+      });
+
+      if (res.data?.success) {
+        alert(`Kullanıcı (${newUserRole}) başarıyla oluşturuldu!\nE-posta: ${newUserEmail}\nGeçici Şifre: ${newUserPassword}`);
+        setIsCreateUserModalOpen(false);
+        setNewUserEmail('');
+        setNewUserPassword('');
+        setNewUserOrgId('');
+      }
+    } catch (err: any) {
+      console.error('Create User Error:', err);
+      alert('Kullanıcı oluşturulurken hata: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsCreatingUser(false);
+    }
+  };
+
   const filteredApplications = applications.filter(app => {
     if (activeTab === 'ALL') return true;
     return app.status === activeTab;
@@ -70,13 +117,34 @@ export default function ApplicationsPage() {
 
   return (
     <div>
-      <header style={{ marginBottom: '24px' }}>
-        <h2 className="admin-header-title" style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-          Firma Başvuruları
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
-          www.pagapp.com.tr Kurumsal İş Ortaklığı ve Müşteri Başvuruları
-        </p>
+      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h2 className="admin-header-title" style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+            Firma Başvuruları & Kullanıcı Yönetimi
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
+            Kurumsal Müşteri Başvuruları ve Portal Personel Yetkilendirme
+          </p>
+        </div>
+
+        <button
+          onClick={() => setIsCreateUserModalOpen(true)}
+          style={{
+            padding: '10px 18px',
+            backgroundColor: 'var(--brand-navy)',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontSize: '13px',
+            borderRadius: '8px',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          👤 Yeni Portal Kullanıcısı Ekle
+        </button>
       </header>
 
       {/* Filter Tabs */}
@@ -322,6 +390,118 @@ export default function ApplicationsPage() {
                 style={{ flex: 1, minWidth: '100px', padding: '12px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
               >
                 Kapat
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Portal User Modal */}
+      {isCreateUserModalOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '500px', backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px',
+            boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+                👤 Yeni Portal Kullanıcısı Ekle
+              </h3>
+              <button
+                onClick={() => setIsCreateUserModalOpen(false)}
+                style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Kullanıcı Rolü:
+              </label>
+              <select
+                value={newUserRole}
+                onChange={(e) => setNewUserRole(e.target.value as any)}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600
+                }}
+              >
+                <option value="CALL_CENTER_AGENT">📞 CALL_CENTER_AGENT (Çağrı Merkezi Personeli)</option>
+                <option value="ORGANIZATION_USER">🏢 ORGANIZATION_USER (Firma Temsilcisi)</option>
+                <option value="PAG_STAFF">⭐ PAG_STAFF (PAG Operasyon Ekibi)</option>
+                <option value="SUPER_ADMIN">👑 SUPER_ADMIN (Süper Yönetici)</option>
+              </select>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                E-posta Adresi:
+              </label>
+              <input
+                type="email"
+                placeholder="ornek@callcenter.pagapp.com"
+                value={newUserEmail}
+                onChange={(e) => setNewUserEmail(e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px'
+                }}
+              />
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Geçici Şifre:
+              </label>
+              <input
+                type="text"
+                placeholder="En az 6 karakter"
+                value={newUserPassword}
+                onChange={(e) => setNewUserPassword(e.target.value)}
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px'
+                }}
+              />
+            </div>
+
+            {newUserRole === 'ORGANIZATION_USER' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Firma / Organization ID:
+                </label>
+                <input
+                  type="text"
+                  placeholder="org_mcdonalds"
+                  value={newUserOrgId}
+                  onChange={(e) => setNewUserOrgId(e.target.value)}
+                  style={{
+                    width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px'
+                  }}
+                />
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
+              <button
+                onClick={() => setIsCreateUserModalOpen(false)}
+                style={{ padding: '10px 16px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleCreatePortalUser}
+                disabled={isCreatingUser}
+                style={{ padding: '10px 20px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '8px', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {isCreatingUser ? 'Oluşturuluyor...' : 'Kullanıcıyı Oluştur'}
               </button>
             </div>
           </div>

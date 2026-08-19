@@ -119,8 +119,16 @@ export const getCompletedRespondentsForVerificationHandler = async (
   }
 
   const survey = surveyDoc.data();
-  if (adminUser.role === 'ORGANIZATION_USER' && survey?.organizationId !== adminUser.organizationId) {
-    throw new functions.https.HttpsError('permission-denied', 'Cross-tenant survey access is denied.');
+  if (adminUser.role === 'ORGANIZATION_USER') {
+    if (survey?.organizationId !== adminUser.organizationId) {
+      throw new functions.https.HttpsError('permission-denied', 'Cross-tenant survey access is denied.');
+    }
+    if (adminUser.organizationId) {
+      const orgDoc = await db.collection('organizations').doc(adminUser.organizationId).get();
+      if (orgDoc.exists && orgDoc.data()?.isVerificationAuthorized === false) {
+        throw new functions.https.HttpsError('permission-denied', 'Firmanız için Kalite Doğrulama yetkisi aktif değildir.');
+      }
+    }
   }
 
   // Fetch completed responses for this survey

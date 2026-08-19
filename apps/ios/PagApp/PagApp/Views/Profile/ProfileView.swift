@@ -466,33 +466,17 @@ public struct ProfileView: View {
                 }
             }
             .sheet(isPresented: $showIbanSheet) {
-                NavigationStack {
-                    VStack(alignment: .leading, spacing: PAGSpacing.md) {
-                        Text("Nakit ödül transferleri için TC Kimlik No ve IBAN bilgilerinizi giriniz.")
-                            .font(PAGTypography.body)
-                            .foregroundColor(PAGTheme.textSecondary)
-
-                        TextField("TC Kimlik No (11 Hane)", text: $tcknInput)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                        TextField("IBAN (TR...)", text: $ibanInput)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-
-                        Spacer()
-
-                        PAGButton(title: "IBAN Doğrula & +200 PP Kazan", iconName: "creditcard.fill", style: .primary) {
-                            Task {
-                                isSubmitting = true
-                                _ = await userService.submitIbanAndTckn(iban: ibanInput, tckn: tcknInput)
-                                isSubmitting = false
-                                showIbanSheet = false
-                            }
+                IbanVerificationSheetView(
+                    ibanInput: $ibanInput,
+                    tcknInput: $tcknInput,
+                    isPresented: $showIbanSheet,
+                    onSuccess: {
+                        // Refresh user profile after IBAN verified
+                        Task {
+                            await userService.bootstrapCurrentUser()
                         }
                     }
-                    .padding()
-                    .navigationTitle("IBAN Doğrulama (+200 PP)")
-                    .navigationBarTitleDisplayMode(.inline)
-                }
+                )
             }
         }
     }

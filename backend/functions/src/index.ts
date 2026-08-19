@@ -29,7 +29,13 @@ import {
   manageSurveyCategoriesAdminHandler,
   seedCategoriesAdminHandler,
   cleanSurveyDataAdminHandler,
-  getEligibleStoriesHandler
+  getEligibleStoriesHandler,
+  listOrganizationsAdminHandler,
+  createOrUpdateOrganizationAdminHandler,
+  toggleOrganizationVerificationAuthAdminHandler,
+  listOrganizationUsersAdminHandler,
+  approveSurveyByOrgHandler,
+  finalApproveSurveyAdminHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -158,5 +164,16 @@ export const listVerificationAssignmentsForAgent = functions.https.onCall(listVe
 export const startVerificationCall = functions.https.onCall(startVerificationCallHandler);
 export const submitVerificationCallResult = functions.https.onCall(submitVerificationCallResultHandler);
 export const getPendingVerificationSurvey = functions.https.onCall(getPendingVerificationSurveyHandler);
+
+/**
+ * Organization Management & Multi-Stage Survey Approval Callables.
+ */
+export const listOrganizationsAdmin = functions.https.onCall(listOrganizationsAdminHandler);
+export const createOrUpdateOrganizationAdmin = functions.https.onCall(createOrUpdateOrganizationAdminHandler);
+export const toggleOrganizationVerificationAuthAdmin = functions.https.onCall(toggleOrganizationVerificationAuthAdminHandler);
+export const listOrganizationUsersAdmin = functions.https.onCall(listOrganizationUsersAdminHandler);
+export const approveSurveyByOrg = functions.https.onCall(approveSurveyByOrgHandler);
+export const finalApproveSurveyAdmin = functions.https.onCall(finalApproveSurveyAdminHandler);
+
 
 

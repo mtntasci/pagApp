@@ -31,13 +31,14 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
     // SUPER_ADMIN / PAG_STAFF
     navItems = [
       { href: '/', label: 'Dashboard', icon: '📊' },
+      { href: '/organizations', label: 'Firmalar & Kurumlar', icon: '🏢' },
       { href: '/surveys', label: 'Anket Yönetimi', icon: '📝' },
       { href: '/verification-campaigns', label: 'Kalite Doğrulama', icon: '🛡️' },
       { href: '/verification-calls', label: 'Arama Portalı', icon: '📞' },
       { href: '/profile-surveys', label: 'Profil Anketleri', icon: '❓' },
       { href: '/categories', label: 'Kategori Yönetimi', icon: '🏷️' },
       { href: '/stories', label: 'Story Bar', icon: '⭐' },
-      { href: '/applications', label: 'Firma & Kullanıcılar', icon: '🏢' }
+      { href: '/applications', label: 'Başvurular & Kullanıcılar', icon: '👥' }
     ];
   }
 

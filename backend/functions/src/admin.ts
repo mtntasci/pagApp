@@ -212,6 +212,18 @@ export const getAdminDashboardMetricsHandler = async (
   }> = [];
 
   try {
+    const responsesSnap = await db.collection('surveyResponses').get();
+    totalResponses = responsesSnap.docs.length;
+
+    const responseCountsBySurvey: Record<string, number> = {};
+    responsesSnap.docs.forEach((rDoc) => {
+      const rData = rDoc.data();
+      const sId = rData?.surveyId;
+      if (sId) {
+        responseCountsBySurvey[sId] = (responseCountsBySurvey[sId] || 0) + 1;
+      }
+    });
+
     const surveysSnap = await db.collection('surveys').get();
     surveysSnap.docs.forEach((doc) => {
       const s = doc.data();
@@ -221,6 +233,8 @@ export const getAdminDashboardMetricsHandler = async (
         return;
       }
 
+      const realResponseCount = responseCountsBySurvey[doc.id] ?? s.completedCount ?? s.responseCount ?? 0;
+
       if (s.surveyType === 'PROFILE') {
         if (s.status === 'ACTIVE') activeProfileSurveys++;
       } else {
@@ -229,7 +243,7 @@ export const getAdminDashboardMetricsHandler = async (
           activeSurveysList.push({
             surveyId: doc.id,
             title: s.title || 'İsimsiz Anket',
-            responseCount: s.responseCount || 0
+            responseCount: realResponseCount
           });
         }
       }
@@ -238,7 +252,11 @@ export const getAdminDashboardMetricsHandler = async (
         case 'SCHEDULED': scheduledSurveys++; break;
         case 'ENDED': endedSurveys++; break;
         case 'DRAFT': draftSurveys++; break;
-        case 'PENDING_APPROVAL': pendingSurveys++; break;
+        case 'PENDING_APPROVAL':
+        case 'PENDING_ADMIN_APPROVAL':
+        case 'PENDING_ORG_APPROVAL':
+          pendingSurveys++;
+          break;
       }
     });
 
@@ -267,9 +285,6 @@ export const getAdminDashboardMetricsHandler = async (
       }
     });
     activePushUsers = activeDeviceUserIds.size > 0 ? activeDeviceUserIds.size : totalUsers;
-
-    const responsesSnap = await db.collection('surveyResponses').get();
-    totalResponses = responsesSnap.docs.length;
 
     const scoreLedgersSnap = await db.collectionGroup('profileScoreLedgers').get();
     scoreLedgersSnap.docs.forEach((doc) => {
@@ -574,15 +589,28 @@ export const listSurveysAdminHandler = async (
 
   const surveys: any[] = [];
   try {
+    const responsesSnap = await db.collection('surveyResponses').get();
+    const responseCountsBySurvey: Record<string, number> = {};
+    responsesSnap.docs.forEach((rDoc) => {
+      const rData = rDoc.data();
+      const sId = rData?.surveyId;
+      if (sId) {
+        responseCountsBySurvey[sId] = (responseCountsBySurvey[sId] || 0) + 1;
+      }
+    });
+
     const snap = await db.collection('surveys').get();
     snap.docs.forEach((doc) => {
       const d = doc.data();
       if (adminUser.role === 'ORGANIZATION_USER' && d.organizationId !== adminUser.organizationId) {
         return;
       }
+      const realCount = responseCountsBySurvey[doc.id] ?? d.completedCount ?? d.responseCount ?? 0;
       surveys.push({
         ...d,
         surveyId: doc.id,
+        completedCount: realCount,
+        responseCount: realCount,
         startAt: d.startAt?.toDate ? d.startAt.toDate().toISOString() : d.startAt,
         endAt: d.endAt?.toDate ? d.endAt.toDate().toISOString() : d.endAt,
         createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
@@ -1151,6 +1179,284 @@ export const updateCompanyApplicationStatusAdminHandler = async (
   return { success: true, data: { applicationId, status } };
 };
 
+export const cleanSurveyDataAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  await verifyAdminUser(context);
+  const db = admin.firestore();
+
+  const collectionsToWipe = ['surveys', 'profileQuestions', 'surveyResponses', 'userProfileAnswers'];
+  let deletedCount = 0;
+
+  try {
+    for (const collName of collectionsToWipe) {
+      const snap = await db.collection(collName).get();
+      const batchSize = 100;
+      let docs = snap.docs;
+      while (docs.length > 0) {
+        const batch = db.batch();
+        const chunk = docs.splice(0, batchSize);
+        chunk.forEach((doc) => {
+          batch.delete(doc.ref);
+          deletedCount++;
+        });
+        await batch.commit();
+      }
+    }
+
+    return {
+      success: true,
+      data: {
+        surveysCleaned: true,
+        profileQuestionsCleaned: true,
+        responsesCleaned: true,
+        deletedCount
+      }
+    };
+  } catch (err: any) {
+    if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
+    return { success: true, data: { deletedCount: 0 } };
+  }
+};
+
+// --------------------------------------------------
+// 10. ORGANIZATION MANAGEMENT & APPROVAL FLOW
+// --------------------------------------------------
+
+export const listOrganizationsAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  const db = admin.firestore();
+
+  const organizations: any[] = [];
+  try {
+    const orgsSnap = await db.collection('organizations').get();
+    const surveysSnap = await db.collection('surveys').get();
+    const usersSnap = await db.collection('portalUsers').get();
+
+    const surveyCountByOrg: Record<string, number> = {};
+    surveysSnap.docs.forEach(doc => {
+      const s = doc.data();
+      if (s.organizationId) {
+        surveyCountByOrg[s.organizationId] = (surveyCountByOrg[s.organizationId] || 0) + 1;
+      }
+    });
+
+    const userCountByOrg: Record<string, number> = {};
+    usersSnap.docs.forEach(doc => {
+      const u = doc.data();
+      if (u.organizationId) {
+        userCountByOrg[u.organizationId] = (userCountByOrg[u.organizationId] || 0) + 1;
+      }
+    });
+
+    orgsSnap.docs.forEach(doc => {
+      const d = doc.data();
+      // If organization user, only show their own organization
+      if (adminUser.role === 'ORGANIZATION_USER' && doc.id !== adminUser.organizationId) {
+        return;
+      }
+      organizations.push({
+        id: doc.id,
+        organizationId: doc.id,
+        name: d.name || doc.id,
+        sector: d.sector || 'Genel',
+        contactEmail: d.contactEmail || null,
+        contactPhone: d.contactPhone || null,
+        status: d.status || 'ACTIVE',
+        isVerificationAuthorized: d.isVerificationAuthorized === true,
+        surveyCount: surveyCountByOrg[doc.id] || 0,
+        portalUserCount: userCountByOrg[doc.id] || 0,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt,
+        updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
+      });
+    });
+  } catch (err: any) {
+    if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
+  }
+
+  return {
+    success: true,
+    data: { organizations }
+  };
+};
+
+export const createOrUpdateOrganizationAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  if (adminUser.role !== 'SUPER_ADMIN' && adminUser.role !== 'PAG_STAFF') {
+    throw new functions.https.HttpsError('permission-denied', 'Sadece PAG Yöneticileri firma oluşturabilir.');
+  }
+
+  const { organizationId, name, sector, contactEmail, contactPhone, isVerificationAuthorized, status } = data || {};
+  if (!name || typeof name !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'Firma adı zorunludur.');
+  }
+
+  const db = admin.firestore();
+  const orgId = organizationId ? organizationId.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_') : `org_${name.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+  const orgRef = db.collection('organizations').doc(orgId);
+
+  const existingDoc = await orgRef.get();
+  const serverNow = admin.firestore.FieldValue.serverTimestamp();
+
+  const payload: any = {
+    organizationId: orgId,
+    name: name.trim(),
+    sector: sector || 'Genel',
+    contactEmail: contactEmail || null,
+    contactPhone: contactPhone || null,
+    status: status || 'ACTIVE',
+    isVerificationAuthorized: typeof isVerificationAuthorized === 'boolean' ? isVerificationAuthorized : false,
+    updatedAt: serverNow
+  };
+
+  if (!existingDoc.exists) {
+    payload.createdAt = serverNow;
+  }
+
+  await orgRef.set(payload, { merge: true });
+
+  return {
+    success: true,
+    data: { organizationId: orgId, ...payload }
+  };
+};
+
+export const toggleOrganizationVerificationAuthAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  if (adminUser.role !== 'SUPER_ADMIN' && adminUser.role !== 'PAG_STAFF') {
+    throw new functions.https.HttpsError('permission-denied', 'Sadece PAG Yöneticileri yetki değiştirebilir.');
+  }
+
+  const { organizationId, isVerificationAuthorized } = data || {};
+  if (!organizationId) {
+    throw new functions.https.HttpsError('invalid-argument', 'organizationId is required.');
+  }
+
+  const db = admin.firestore();
+  const orgRef = db.collection('organizations').doc(organizationId);
+  await orgRef.update({
+    isVerificationAuthorized: Boolean(isVerificationAuthorized),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return {
+    success: true,
+    data: { organizationId, isVerificationAuthorized: Boolean(isVerificationAuthorized) }
+  };
+};
+
+export const listOrganizationUsersAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  const { organizationId } = data || {};
+  const targetOrgId = adminUser.role === 'ORGANIZATION_USER' ? adminUser.organizationId : organizationId;
+
+  if (!targetOrgId) {
+    throw new functions.https.HttpsError('invalid-argument', 'organizationId is required.');
+  }
+
+  const db = admin.firestore();
+  const snap = await db.collection('portalUsers').where('organizationId', '==', targetOrgId).get();
+  const users = snap.docs.map(doc => {
+    const d = doc.data();
+    return {
+      uid: doc.id,
+      email: d.email,
+      role: d.role,
+      status: d.status,
+      createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt
+    };
+  });
+
+  return {
+    success: true,
+    data: { users }
+  };
+};
+
+export const approveSurveyByOrgHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  const { surveyId } = data || {};
+  if (!surveyId) {
+    throw new functions.https.HttpsError('invalid-argument', 'surveyId is required.');
+  }
+
+  const db = admin.firestore();
+  const surveyRef = db.collection('surveys').doc(surveyId);
+  const surveySnap = await surveyRef.get();
+
+  if (!surveySnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Anket bulunamadı.');
+  }
+
+  const s = surveySnap.data() as any;
+  if (adminUser.role === 'ORGANIZATION_USER' && s.organizationId !== adminUser.organizationId) {
+    throw new functions.https.HttpsError('permission-denied', 'Bu anketi onaylama yetkiniz bulunmuyor.');
+  }
+
+  await surveyRef.update({
+    status: 'PENDING_ADMIN_APPROVAL',
+    orgApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+    orgApprovedBy: adminUser.uid,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return {
+    success: true,
+    data: { surveyId, status: 'PENDING_ADMIN_APPROVAL' }
+  };
+};
+
+export const finalApproveSurveyAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  if (adminUser.role !== 'SUPER_ADMIN' && adminUser.role !== 'PAG_STAFF') {
+    throw new functions.https.HttpsError('permission-denied', 'Sadece PAG Yöneticileri (admin@pagapp.com.tr) son onayı verebilir.');
+  }
+
+  const { surveyId } = data || {};
+  if (!surveyId) {
+    throw new functions.https.HttpsError('invalid-argument', 'surveyId is required.');
+  }
+
+  const db = admin.firestore();
+  const surveyRef = db.collection('surveys').doc(surveyId);
+  const surveySnap = await surveyRef.get();
+
+  if (!surveySnap.exists) {
+    throw new functions.https.HttpsError('not-found', 'Anket bulunamadı.');
+  }
+
+  await surveyRef.update({
+    status: 'ACTIVE',
+    adminApprovedAt: admin.firestore.FieldValue.serverTimestamp(),
+    adminApprovedBy: adminUser.uid,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return {
+    success: true,
+    data: { surveyId, status: 'ACTIVE' }
+  };
+};
+
 export const createPortalUserAdminHandler = async (
   data: any,
   context: functions.https.CallableContext
@@ -1432,41 +1738,5 @@ export const getEligibleStoriesHandler = async (
   return {
     success: true,
     data: { stories }
-  };
-};
-
-export const cleanSurveyDataAdminHandler = async (
-  data: any,
-  context: functions.https.CallableContext
-) => {
-  await verifyAdminUser(context);
-  const db = admin.firestore();
-
-  const collectionsToWipe = ['surveys', 'profileQuestions', 'surveyResponses', 'userProfileAnswers'];
-  let deletedCount = 0;
-
-  for (const collName of collectionsToWipe) {
-    const snap = await db.collection(collName).get();
-    const batchSize = 100;
-    let docs = snap.docs;
-    while (docs.length > 0) {
-      const batch = db.batch();
-      const chunk = docs.splice(0, batchSize);
-      chunk.forEach((doc) => {
-        batch.delete(doc.ref);
-        deletedCount++;
-      });
-      await batch.commit();
-    }
-  }
-
-  return {
-    success: true,
-    data: {
-      surveysCleaned: true,
-      profileQuestionsCleaned: true,
-      responsesCleaned: true,
-      deletedCount
-    }
   };
 };
