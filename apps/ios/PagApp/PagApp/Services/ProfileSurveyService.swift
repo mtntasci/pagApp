@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import FirebaseFunctions
 
 public struct PAGProfileQuestionOption: Identifiable, Codable {
     public var id: String { optionId }
@@ -54,18 +53,15 @@ public class ProfileSurveyService: ObservableObject {
         self.errorMessage = nil
         
         do {
-            let result = try await Functions.functions().httpsCallable("getProfileQuestions").call(["batchSize": batchSize])
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success,
-                  let dataDict = dict["data"] as? [String: Any] else {
+            let json = try await PAGApiClient.shared.get(endpoint: "/profile-questions")
+            guard let success = json["success"] as? Bool, success,
+                  let dataDict = json["data"] as? [String: Any] else {
                 throw NSError(domain: "ProfileSurveyService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Profil soruları alınamadı."])
             }
             
             self.availableScoreX = dataDict["availableScoreX"] as? Int ?? 0
-            self.hasPromotedQuestion = dataDict["hasPromotedQuestion"] as? Bool ?? false
-            self.hasMoreUnanswered = dataDict["hasMoreUnanswered"] as? Bool ?? false
             
-            var parsedQuestions: [PAGProfileQuestion] = []
+            var parsedUnanswered: [PAGProfileQuestion] = []
             if let rawArr = dataDict["unansweredQuestions"] as? [[String: Any]] {
                 for item in rawArr {
                     var opts: [PAGProfileQuestionOption] = []
@@ -79,7 +75,7 @@ public class ProfileSurveyService: ObservableObject {
                         }
                     }
                     
-                    parsedQuestions.append(PAGProfileQuestion(
+                    parsedUnanswered.append(PAGProfileQuestion(
                         id: item["id"] as? String ?? "",
                         questionText: item["questionText"] as? String ?? "",
                         categoryId: item["categoryId"] as? String ?? "",
@@ -92,60 +88,6 @@ public class ProfileSurveyService: ObservableObject {
                     ))
                 }
             }
-            
-            self.unansweredQuestions = parsedQuestions
-            self.isLoading = false
-        } catch {
-            print("[ProfileSurveyService] Fetch questions error: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
-            self.isLoading = false
-        }
-    }
-    
-    public func submitBatchAnswers(answers: [String: String]) async -> Bool {
-        guard !answers.isEmpty else { return false }
-        self.isSubmitting = true
-        self.errorMessage = nil
-        
-        var payloadArr: [[String: String]] = []
-        for (qId, optId) in answers {
-            payloadArr.append(["questionId": qId, "optionId": optId])
-        }
-        
-        do {
-            let result = try await Functions.functions().httpsCallable("submitProfileQuestionAnswers").call(["answers": payloadArr])
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success,
-                  let dataDict = dict["data"] as? [String: Any] else {
-                throw NSError(domain: "ProfileSurveyService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Cevaplar kaydedilemedi."])
-            }
-            
-            self.lastBatchScoreAwarded = dataDict["batchScoreAwarded"] as? Int ?? 0
-            _ = dataDict["currentProfileScore"] as? Int ?? 0
-            
-            // Update RewardService profile score
-            await RewardService.shared.fetchUserRewards()
-            
-            // Re-fetch remaining questions & answered list
-            await fetchProfileQuestions(batchSize: 3)
-            await fetchAnsweredQuestions()
-            
-            self.isSubmitting = false
-            return true
-        } catch {
-            print("[ProfileSurveyService] Submit batch error: \(error.localizedDescription)")
-            self.errorMessage = "Cevaplar gönderilirken hata oluştu."
-            self.isSubmitting = false
-            return false
-        }
-    }
-    
-    public func fetchAnsweredQuestions() async {
-        do {
-            let result = try await Functions.functions().httpsCallable("getAnsweredProfileQuestions").call()
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success,
-                  let dataDict = dict["data"] as? [String: Any] else { return }
             
             var parsedAnswered: [PAGProfileQuestionAnswer] = []
             if let rawArr = dataDict["answeredQuestions"] as? [[String: Any]] {
@@ -174,23 +116,63 @@ public class ProfileSurveyService: ObservableObject {
                 }
             }
             
+            self.unansweredQuestions = parsedUnanswered
             self.answeredQuestions = parsedAnswered
+            self.isLoading = false
         } catch {
-            print("[ProfileSurveyService] Fetch answered error: \(error.localizedDescription)")
+            print("[ProfileSurveyService] Fetch questions error: \(error.localizedDescription)")
+            self.errorMessage = error.localizedDescription
+            self.isLoading = false
         }
+    }
+    
+    public func submitBatchAnswers(answers: [String: String]) async -> Bool {
+        guard !answers.isEmpty else { return false }
+        self.isSubmitting = true
+        self.errorMessage = nil
+        
+        var payloadArr: [[String: String]] = []
+        for (qId, optId) in answers {
+            payloadArr.append(["questionId": qId, "optionId": optId])
+        }
+        
+        do {
+            let json = try await PAGApiClient.shared.post(endpoint: "/profile-questions", body: ["answers": payloadArr])
+            guard let success = json["success"] as? Bool, success,
+                  let dataDict = json["data"] as? [String: Any] else {
+                throw NSError(domain: "ProfileSurveyService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Cevaplar kaydedilemedi."])
+            }
+            
+            self.lastBatchScoreAwarded = dataDict["batchScoreAwarded"] as? Int ?? 0
+            
+            // Reload user profile to update score in UI
+            await UserService.shared.bootstrapCurrentUser()
+            
+            // Re-fetch remaining questions & answered list
+            await fetchProfileQuestions()
+            
+            self.isSubmitting = false
+            return true
+        } catch {
+            print("[ProfileSurveyService] Submit batch error: \(error.localizedDescription)")
+            self.errorMessage = "Cevaplar gönderilirken hata oluştu."
+            self.isSubmitting = false
+            return false
+        }
+    }
+    
+    public func fetchAnsweredQuestions() async {
+        await fetchProfileQuestions()
     }
     
     public func updateAnswer(questionId: String, selectedOptionId: String) async -> Bool {
         do {
-            let result = try await Functions.functions().httpsCallable("updateProfileQuestionAnswer").call([
-                "questionId": questionId,
-                "selectedOptionId": selectedOptionId
+            let json = try await PAGApiClient.shared.post(endpoint: "/profile-questions", body: [
+                "answers": [["questionId": questionId, "optionId": selectedOptionId]]
             ])
+            guard let success = json["success"] as? Bool, success else { return false }
             
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success else { return false }
-            
-            await fetchAnsweredQuestions()
+            await fetchProfileQuestions()
             return true
         } catch {
             print("[ProfileSurveyService] Update answer error: \(error.localizedDescription)")

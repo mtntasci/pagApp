@@ -1,11 +1,11 @@
 package com.alafteknoloji.pagapp.services
 
 import android.content.Context
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
 
 data class PAGProfileQuestionOption(
     val optionId: String = "",
@@ -17,7 +17,7 @@ data class PAGProfileQuestion(
     val id: String = "",
     val questionText: String = "",
     val categoryId: String = "",
-    val categoryName: String = "Genel",
+    val categoryName: String = "",
     val targetingGender: String = "ALL",
     val options: List<PAGProfileQuestionOption> = emptyList(),
     val profileScoreReward: Int = 10,
@@ -29,7 +29,7 @@ data class PAGProfileQuestionAnswer(
     val questionId: String = "",
     val questionText: String = "",
     val categoryId: String = "",
-    val categoryName: String = "Genel",
+    val categoryName: String = "",
     val options: List<PAGProfileQuestionOption> = emptyList(),
     val selectedOptionId: String = "",
     val selectedOptionLabel: String = "",
@@ -37,8 +37,6 @@ data class PAGProfileQuestionAnswer(
 )
 
 class ProfileSurveyService private constructor(context: Context) {
-
-    private val functions = FirebaseFunctions.getInstance()
 
     private val _unansweredQuestions = MutableStateFlow<List<PAGProfileQuestion>>(emptyList())
     val unansweredQuestions: StateFlow<List<PAGProfileQuestion>> = _unansweredQuestions.asStateFlow()
@@ -72,51 +70,78 @@ class ProfileSurveyService private constructor(context: Context) {
         _errorMessage.value = null
 
         try {
-            val payload = hashMapOf("batchSize" to batchSize)
-            val result = functions.getHttpsCallable("getProfileQuestions").call(payload).await()
-            val responseMap = result.getData() as? Map<*, *> ?: return
+            val apiRes = PAGApiClient.get("/profile-questions")
+            if (apiRes.optBoolean("success")) {
+                val dataObj = apiRes.optJSONObject("data") ?: JSONObject()
+                _availableScoreX.value = dataObj.optInt("availableScoreX", 0)
 
-            if (responseMap["success"] == true) {
-                val dataMap = responseMap["data"] as? Map<*, *> ?: return
-                _availableScoreX.value = (dataMap["availableScoreX"] as? Number)?.toInt() ?: 0
-                _hasPromotedQuestion.value = dataMap["hasPromotedQuestion"] as? Boolean ?: false
-                _hasMoreUnanswered.value = dataMap["hasMoreUnanswered"] as? Boolean ?: false
+                val unansweredArr = dataObj.optJSONArray("unansweredQuestions") ?: JSONArray()
+                val parsedUnanswered = mutableListOf<PAGProfileQuestion>()
 
-                val rawList = dataMap["unansweredQuestions"] as? List<*> ?: emptyList<Any>()
-                val parsed = mutableListOf<PAGProfileQuestion>()
-
-                for (item in rawList) {
-                    if (item is Map<*, *>) {
-                        val rawOpts = item["options"] as? List<*> ?: emptyList<Any>()
-                        val opts = mutableListOf<PAGProfileQuestionOption>()
-                        for (o in rawOpts) {
-                            if (o is Map<*, *>) {
-                                opts.add(
-                                    PAGProfileQuestionOption(
-                                        optionId = o["optionId"] as? String ?: "",
-                                        label = o["label"] as? String ?: "",
-                                        order = (o["order"] as? Number)?.toInt() ?: 1
-                                    )
-                                )
-                            }
-                        }
-
-                        parsed.add(
-                            PAGProfileQuestion(
-                                id = item["id"] as? String ?: "",
-                                questionText = item["questionText"] as? String ?: "",
-                                categoryId = item["categoryId"] as? String ?: "",
-                                categoryName = item["categoryName"] as? String ?: "Genel",
-                                targetingGender = item["targetingGender"] as? String ?: "ALL",
-                                options = opts,
-                                profileScoreReward = (item["profileScoreReward"] as? Number)?.toInt() ?: 10,
-                                status = item["status"] as? String ?: "ACTIVE",
-                                showOnHome = item["showOnHome"] as? Boolean ?: false
+                for (i in 0 until unansweredArr.length()) {
+                    val item = unansweredArr.optJSONObject(i) ?: continue
+                    val optsArr = item.optJSONArray("options") ?: JSONArray()
+                    val opts = mutableListOf<PAGProfileQuestionOption>()
+                    for (j in 0 until optsArr.length()) {
+                        val o = optsArr.optJSONObject(j) ?: continue
+                        opts.add(
+                            PAGProfileQuestionOption(
+                                optionId = o.optString("optionId"),
+                                label = o.optString("label"),
+                                order = o.optInt("order", j + 1)
                             )
                         )
                     }
+
+                    parsedUnanswered.add(
+                        PAGProfileQuestion(
+                            id = item.optString("id"),
+                            questionText = item.optString("questionText"),
+                            categoryId = item.optString("categoryId", "Genel"),
+                            categoryName = item.optString("categoryName", "Genel"),
+                            targetingGender = item.optString("targetingGender", "ALL"),
+                            options = opts,
+                            profileScoreReward = item.optInt("profileScoreReward", 10),
+                            status = item.optString("status", "ACTIVE"),
+                            showOnHome = item.optBoolean("showOnHome", false)
+                        )
+                    )
                 }
-                _unansweredQuestions.value = parsed
+
+                val answeredArr = dataObj.optJSONArray("answeredQuestions") ?: JSONArray()
+                val parsedAnswered = mutableListOf<PAGProfileQuestionAnswer>()
+
+                for (i in 0 until answeredArr.length()) {
+                    val item = answeredArr.optJSONObject(i) ?: continue
+                    val optsArr = item.optJSONArray("options") ?: JSONArray()
+                    val opts = mutableListOf<PAGProfileQuestionOption>()
+                    for (j in 0 until optsArr.length()) {
+                        val o = optsArr.optJSONObject(j) ?: continue
+                        opts.add(
+                            PAGProfileQuestionOption(
+                                optionId = o.optString("optionId"),
+                                label = o.optString("label"),
+                                order = o.optInt("order", j + 1)
+                            )
+                        )
+                    }
+
+                    parsedAnswered.add(
+                        PAGProfileQuestionAnswer(
+                            questionId = item.optString("questionId"),
+                            questionText = item.optString("questionText"),
+                            categoryId = item.optString("categoryId", "Genel"),
+                            categoryName = item.optString("categoryName", "Genel"),
+                            options = opts,
+                            selectedOptionId = item.optString("selectedOptionId"),
+                            selectedOptionLabel = item.optString("selectedOptionLabel"),
+                            updatedAt = item.optString("updatedAt")
+                        )
+                    )
+                }
+
+                _unansweredQuestions.value = parsedUnanswered
+                _answeredQuestions.value = parsedAnswered
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -131,29 +156,35 @@ class ProfileSurveyService private constructor(context: Context) {
         _isSubmitting.value = true
         _errorMessage.value = null
 
-        val payloadArr = answers.map { (qId, optId) ->
-            mapOf("questionId" to qId, "optionId" to optId)
-        }
-
         return try {
-            val result = functions.getHttpsCallable("submitProfileQuestionAnswers")
-                .call(hashMapOf("answers" to payloadArr))
-                .await()
-            val responseMap = result.getData() as? Map<*, *> ?: return false
+            val answersArray = JSONArray()
+            answers.forEach { (qId, optId) ->
+                val obj = JSONObject().apply {
+                    put("questionId", qId)
+                    put("optionId", optId)
+                }
+                answersArray.put(obj)
+            }
 
-            if (responseMap["success"] == true) {
-                val dataMap = responseMap["data"] as? Map<*, *> ?: return false
-                _lastBatchScoreAwarded.value = (dataMap["batchScoreAwarded"] as? Number)?.toInt() ?: 0
+            val payload = JSONObject().apply {
+                put("answers", answersArray)
+            }
 
+            val apiRes = PAGApiClient.post("/profile-questions", payload)
+            if (apiRes.optBoolean("success")) {
+                val dataObj = apiRes.optJSONObject("data") ?: JSONObject()
+                _lastBatchScoreAwarded.value = dataObj.optInt("batchScoreAwarded", 0)
+
+                // Refresh questions
                 fetchProfileQuestions(3)
-                fetchAnsweredQuestions()
                 true
             } else {
+                _errorMessage.value = apiRes.optString("error", "Cevaplar kaydedilemedi.")
                 false
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _errorMessage.value = "Cevaplar gönderilemedi."
+            _errorMessage.value = e.localizedMessage
             false
         } finally {
             _isSubmitting.value = false
@@ -161,59 +192,23 @@ class ProfileSurveyService private constructor(context: Context) {
     }
 
     suspend fun fetchAnsweredQuestions() {
-        try {
-            val result = functions.getHttpsCallable("getAnsweredProfileQuestions").call().await()
-            val responseMap = result.getData() as? Map<*, *> ?: return
-
-            if (responseMap["success"] == true) {
-                val dataMap = responseMap["data"] as? Map<*, *> ?: return
-                val rawList = dataMap["answeredQuestions"] as? List<*> ?: emptyList<Any>()
-                val parsed = mutableListOf<PAGProfileQuestionAnswer>()
-
-                for (item in rawList) {
-                    if (item is Map<*, *>) {
-                        val rawOpts = item["options"] as? List<*> ?: emptyList<Any>()
-                        val opts = mutableListOf<PAGProfileQuestionOption>()
-                        for (o in rawOpts) {
-                            if (o is Map<*, *>) {
-                                opts.add(
-                                    PAGProfileQuestionOption(
-                                        optionId = o["optionId"] as? String ?: "",
-                                        label = o["label"] as? String ?: "",
-                                        order = (o["order"] as? Number)?.toInt() ?: 1
-                                    )
-                                )
-                            }
-                        }
-
-                        parsed.add(
-                            PAGProfileQuestionAnswer(
-                                questionId = item["questionId"] as? String ?: "",
-                                questionText = item["questionText"] as? String ?: "",
-                                categoryId = item["categoryId"] as? String ?: "",
-                                categoryName = item["categoryName"] as? String ?: "Genel",
-                                options = opts,
-                                selectedOptionId = item["selectedOptionId"] as? String ?: "",
-                                selectedOptionLabel = item["selectedOptionLabel"] as? String ?: "",
-                                updatedAt = item["updatedAt"] as? String ?: ""
-                            )
-                        )
-                    }
-                }
-                _answeredQuestions.value = parsed
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        fetchProfileQuestions(3)
     }
 
     suspend fun updateAnswer(questionId: String, selectedOptionId: String): Boolean {
         return try {
-            val payload = hashMapOf("questionId" to questionId, "selectedOptionId" to selectedOptionId)
-            val result = functions.getHttpsCallable("updateProfileQuestionAnswer").call(payload).await()
-            val responseMap = result.getData() as? Map<*, *> ?: return false
-            if (responseMap["success"] == true) {
-                fetchAnsweredQuestions()
+            val answersArray = JSONArray().apply {
+                put(JSONObject().apply {
+                    put("questionId", questionId)
+                    put("optionId", selectedOptionId)
+                })
+            }
+            val payload = JSONObject().apply {
+                put("answers", answersArray)
+            }
+            val apiRes = PAGApiClient.post("/profile-questions", payload)
+            if (apiRes.optBoolean("success")) {
+                fetchProfileQuestions(3)
                 true
             } else {
                 false
