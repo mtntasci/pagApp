@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -25,16 +26,24 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// Formats phone ensuring '0 5XX XXX XX XX' format
+// User does not need to type 0; if 0 is typed, it's recognized as leading digit without doubling
 fun formatTRStandardPhone(raw: String): String {
     var digits = raw.filter { it.isDigit() }
     if (digits.isEmpty()) return ""
-    if (!digits.startsWith("0")) {
-        digits = "0$digits"
+
+    // If user starts with 0, strip it first to get clean 10-digit payload
+    if (digits.startsWith("0")) {
+        digits = digits.drop(1)
     }
+
+    digits = digits.take(10)
+    val full = "0$digits"
+
     val sb = StringBuilder()
-    for (i in digits.indices) {
+    for (i in full.indices) {
         if (i == 1 || i == 4 || i == 7 || i == 9) sb.append(" ")
-        sb.append(digits[i])
+        sb.append(full[i])
         if (sb.length >= 15) break
     }
     return sb.toString()
@@ -57,7 +66,8 @@ fun PhoneVerificationDialog(
 ) {
     var rawPhone by remember {
         val filtered = initialPhone.filter { it.isDigit() }
-        mutableStateOf(if (filtered.isNotEmpty() && !filtered.startsWith("0")) "0$filtered" else filtered)
+        val withoutZero = if (filtered.startsWith("0")) filtered.drop(1) else filtered
+        mutableStateOf(withoutZero.take(10))
     }
     var isCodeSent by remember { mutableStateOf(false) }
     var otpDigits by remember { mutableStateOf(listOf("", "", "", "")) }
@@ -66,6 +76,7 @@ fun PhoneVerificationDialog(
     val scope = rememberCoroutineScope()
 
     val focusRequesters = remember { List(4) { FocusRequester() } }
+    val cleanFullPhone = if (rawPhone.isEmpty()) "" else "0$rawPhone"
 
     val handleOtpVerify = { fullCode: String ->
         errorMessage = null
@@ -74,7 +85,7 @@ fun PhoneVerificationDialog(
         scope.launch {
             delay(700) // Simulated realistic verification delay
             if (fullCode == "1111") {
-                val ok = userService?.verifyPhone(rawPhone) ?: false
+                val ok = userService?.verifyPhone(cleanFullPhone) ?: false
                 if (ok) {
                     uiState = PhoneVerificationUiState.SUCCESS
                     delay(1200)
@@ -119,18 +130,36 @@ fun PhoneVerificationDialog(
                         textAlign = TextAlign.Center
                     )
 
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Cep Telefonu Numarası",
+                            style = PAGTheme.typography.caption,
+                            fontWeight = FontWeight.Bold,
+                            color = PAGTheme.colors.textPrimary
+                        )
+                        Text(
+                            "${cleanFullPhone.length}/11",
+                            style = PAGTheme.typography.caption,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (cleanFullPhone.length == 11) Color(0xFF10B981) else PAGTheme.colors.textMuted
+                        )
+                    }
+
                     OutlinedTextField(
                         value = formatTRStandardPhone(rawPhone),
                         onValueChange = { newValue ->
-                            val clean = newValue.filter { it.isDigit() }
-                            if (clean.length <= 11) {
-                                rawPhone = if (clean.isNotEmpty() && !clean.startsWith("0")) "0$clean" else clean
+                            var clean = newValue.filter { it.isDigit() }
+                            if (clean.startsWith("0")) {
+                                clean = clean.drop(1)
                             }
+                            rawPhone = clean.take(10)
                         },
-                        label = { Text("0 5XX XXX XX XX") },
                         placeholder = { Text("0 5XX XXX XX XX") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = PAGTheme.colors.brandLime,
@@ -147,66 +176,79 @@ fun PhoneVerificationDialog(
                         )
                     }
                 } else {
+                    // OTP Verification Step
                     Text(
-                        "${formatTRStandardPhone(rawPhone)} numaralı telefonunuza gönderilen 4 haneli SMS doğrulama kodunu giriniz.",
-                        style = PAGTheme.typography.bodySmall,
+                        "${formatTRStandardPhone(rawPhone)} numarasına iletilen 4 haneli kodu giriniz.",
+                        style = PAGTheme.typography.caption,
                         color = PAGTheme.colors.textSecondary,
                         textAlign = TextAlign.Center
                     )
 
-                    // 4 Separate OTP Boxes
+                    // 4-Digit OTP Boxes
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 8.dp)
                     ) {
-                        for (i in 0 until 4) {
+                        for (i in 0..3) {
                             OutlinedTextField(
                                 value = otpDigits[i],
-                                onValueChange = { newValue: String ->
-                                    val clean = newValue.filter { c: Char -> c.isDigit() }
-                                    if (clean.length > 1) {
-                                        // Paste support for 4 digits
-                                        val pasted = clean.take(4)
-                                        val newList = otpDigits.toMutableList()
-                                        for (j in 0 until pasted.length) {
-                                            if (j < 4) newList[j] = pasted[j].toString()
+                                onValueChange = { value ->
+                                    val digits = value.filter { it.isDigit() }
+                                    if (digits.length > 1) {
+                                        // Paste multi-character OTP
+                                        val chars = digits.take(4)
+                                        val newOtp = List(4) { idx ->
+                                            if (idx < chars.length) chars[idx].toString() else ""
                                         }
-                                        otpDigits = newList
-                                        val full = otpDigits.joinToString("")
-                                        if (full.length == 4) handleOtpVerify(full)
+                                        otpDigits = newOtp
+                                        if (chars.length == 4) {
+                                            handleOtpVerify(chars)
+                                        }
                                     } else {
-                                        val newList = otpDigits.toMutableList()
-                                        newList[i] = clean
-                                        otpDigits = newList
-                                        if (clean.isNotEmpty() && i < 3) {
+                                        val updated = otpDigits.toMutableList()
+                                        updated[i] = digits.take(1)
+                                        otpDigits = updated
+
+                                        if (digits.isNotEmpty() && i < 3) {
                                             focusRequesters[i + 1].requestFocus()
                                         }
-                                        val full = newList.joinToString("")
-                                        if (full.length == 4) handleOtpVerify(full)
+
+                                        val fullCode = updated.joinToString("")
+                                        if (fullCode.length == 4 && !updated.contains("")) {
+                                            handleOtpVerify(fullCode)
+                                        }
                                     }
                                 },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                textStyle = LocalTextStyle.current.copy(
-                                    fontSize = 22.sp,
-                                    fontWeight = FontWeight.Black,
-                                    textAlign = TextAlign.Center
-                                ),
-                                enabled = uiState != PhoneVerificationUiState.CHECKING && uiState != PhoneVerificationUiState.SUCCESS,
                                 modifier = Modifier
-                                    .size(54.dp)
+                                    .width(54.dp)
+                                    .height(60.dp)
                                     .focusRequester(focusRequesters[i])
                                     .onKeyEvent { event ->
                                         if (event.key == Key.Backspace && otpDigits[i].isEmpty() && i > 0) {
                                             focusRequesters[i - 1].requestFocus()
                                             true
-                                        } else false
-                                    }
+                                        } else {
+                                            false
+                                        }
+                                    },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Black,
+                                    fontFamily = FontFamily.Monospace,
+                                    textAlign = TextAlign.Center
+                                ),
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = if (uiState == PhoneVerificationUiState.ERROR) PAGTheme.colors.error else PAGTheme.colors.brandLime,
+                                    unfocusedBorderColor = if (uiState == PhoneVerificationUiState.ERROR) PAGTheme.colors.error else PAGTheme.colors.borderDefault
+                                )
                             )
                         }
                     }
 
+                    // Verification State Banners
                     if (uiState == PhoneVerificationUiState.CHECKING) {
                         Row(
                             horizontalArrangement = Arrangement.Center,
@@ -214,13 +256,13 @@ fun PhoneVerificationDialog(
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
+                                modifier = Modifier.size(18.dp),
                                 color = PAGTheme.colors.brandLime,
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "Kontrol ediliyor... Lütfen bekleyiniz.",
+                                "Kontrol ediliyor...",
                                 style = PAGTheme.typography.caption,
                                 color = PAGTheme.colors.brandLime,
                                 fontWeight = FontWeight.SemiBold
@@ -231,37 +273,31 @@ fun PhoneVerificationDialog(
                             "✅ Onaylandı! (+200 PP)",
                             style = PAGTheme.typography.bodySmall,
                             color = Color(0xFF10B981),
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
+                            fontWeight = FontWeight.Bold
                         )
                     } else if (errorMessage != null) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                "⚠️ $errorMessage",
-                                style = PAGTheme.typography.caption,
-                                color = PAGTheme.colors.error,
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                "Test Doğrulama Kodu: 1111",
-                                style = PAGTheme.typography.caption,
-                                color = PAGTheme.colors.textMuted,
-                                fontSize = 11.sp
-                            )
-                        }
+                        Text(
+                            errorMessage!!,
+                            style = PAGTheme.typography.caption,
+                            color = PAGTheme.colors.error,
+                            textAlign = TextAlign.Center
+                        )
                     }
 
+                    // Resend Action
                     TextButton(
                         onClick = {
                             isCodeSent = false
                             otpDigits = listOf("", "", "", "")
-                            uiState = PhoneVerificationUiState.IDLE
                             errorMessage = null
-                        },
-                        enabled = uiState != PhoneVerificationUiState.CHECKING
+                            uiState = PhoneVerificationUiState.IDLE
+                        }
                     ) {
-                        Text("Numarayı Değiştir", color = PAGTheme.colors.brandLime, fontSize = 12.sp)
+                        Text(
+                            "Numarayı Değiştir",
+                            style = PAGTheme.typography.caption,
+                            color = PAGTheme.colors.textSecondary
+                        )
                     }
                 }
             }
@@ -270,16 +306,21 @@ fun PhoneVerificationDialog(
             if (!isCodeSent) {
                 Button(
                     onClick = {
-                        if (rawPhone.length >= 11) {
+                        if (cleanFullPhone.length == 11) {
                             errorMessage = null
                             isCodeSent = true
                         } else {
-                            errorMessage = "Lütfen 11 haneli geçerli telefon numaranızı giriniz (0 5XX...)."
+                            errorMessage = "Lütfen 10 haneli telefon numaranızı eksiksiz giriniz."
                         }
                     },
+                    enabled = cleanFullPhone.length == 11,
                     colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime)
                 ) {
-                    Text("Kod Gönder", color = PAGTheme.colors.brandMidnight, fontWeight = FontWeight.Bold)
+                    Text(
+                        "SMS Kodu Gönder",
+                        color = PAGTheme.colors.brandMidnight,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         },

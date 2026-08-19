@@ -31,32 +31,38 @@ public struct PhoneVerificationSheetView: View {
     }
     
     // Turkish Standard Phone Number Formatter (0 5XX XXX XX XX)
+    // User doesn't need to type '0'; if they type '0' it is cleanly recognized as first char
     private func formatPhoneNumber(_ raw: String) -> String {
         var digits = raw.filter { $0.isNumber }
         if digits.isEmpty { return "" }
         
-        // If user starts without leading 0, prepend 0
-        if !digits.hasPrefix("0") {
-            digits = "0" + digits
+        // If user typed leading '0', strip it first to obtain 10-digit payload without doubling
+        if digits.hasPrefix("0") {
+            digits = String(digits.dropFirst())
         }
         
+        // Take up to 10 digits (e.g. 5XX XXX XX XX)
+        digits = String(digits.prefix(10))
+        
+        // Prepend fixed leading '0'
+        let full = "0" + digits
         var result = ""
-        for (idx, char) in digits.enumerated() {
+        for (idx, char) in full.enumerated() {
             if idx == 1 || idx == 4 || idx == 7 || idx == 9 {
                 result.append(" ")
             }
             result.append(char)
-            if result.count >= 15 { break } // "0 5XX XXX XX XX" has 15 chars
         }
         return result
     }
     
     private var cleanPhoneDigits: String {
         var digits = phoneInput.filter { $0.isNumber }
-        if !digits.hasPrefix("0") && !digits.isEmpty {
-            digits = "0" + digits
+        if digits.hasPrefix("0") {
+            digits = String(digits.dropFirst())
         }
-        return digits
+        digits = String(digits.prefix(10))
+        return digits.isEmpty ? "" : ("0" + digits)
     }
     
     private func handleOtpEntered(_ fullCode: String) {
@@ -114,12 +120,20 @@ public struct PhoneVerificationSheetView: View {
                     }
                     .padding(.top, 10)
                     
-                    // Phone Input Field
+                    // Phone Input Field (Numeric Keyboard, Automatic '0' handling)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Cep Telefonu Numaranız")
-                            .font(PAGTypography.caption)
-                            .foregroundColor(PAGTheme.textSecondary)
-                            .fontWeight(.semibold)
+                        HStack {
+                            Text("Cep Telefonu Numaranız")
+                                .font(PAGTypography.caption)
+                                .foregroundColor(PAGTheme.textSecondary)
+                                .fontWeight(.semibold)
+                            
+                            Spacer()
+                            
+                            Text("\(cleanPhoneDigits.count)/11")
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundColor(cleanPhoneDigits.count == 11 ? .green : PAGTheme.textMuted)
+                        }
                         
                         HStack(spacing: 12) {
                             Text("🇹🇷 +90")
@@ -132,10 +146,17 @@ public struct PhoneVerificationSheetView: View {
                             
                             TextField("0 5XX XXX XX XX", text: Binding(
                                 get: { formatPhoneNumber(phoneInput) },
-                                set: { newValue in phoneInput = newValue.filter { $0.isNumber } }
+                                set: { newValue in
+                                    var digits = newValue.filter { $0.isNumber }
+                                    if digits.hasPrefix("0") {
+                                        digits = String(digits.dropFirst())
+                                    }
+                                    digits = String(digits.prefix(10))
+                                    phoneInput = digits.isEmpty ? "" : ("0" + digits)
+                                }
                             ))
                             .focused($isPhoneFocused)
-                            .keyboardType(.phonePad)
+                            .keyboardType(.numberPad)
                             .font(.system(size: 17, weight: .bold, design: .monospaced))
                             .padding(12)
                             .background(PAGTheme.surfacePrimary)
@@ -158,160 +179,129 @@ public struct PhoneVerificationSheetView: View {
                         }
                     }
                     
-                    Spacer()
-                    
-                    PAGButton(title: "Doğrulama Kodu Gönder", iconName: "paperplane.fill", style: .primary) {
-                        if cleanPhoneDigits.count >= 11 {
-                            errorMessage = nil
-                            isCodeSent = true
-                            activeBox = 0
-                        } else {
-                            errorMessage = "Lütfen 11 haneli geçerli telefon numaranızı giriniz (0 5XX...)."
+                    // Action Button
+                    PAGButton(
+                        title: "SMS Onay Kodu Gönder",
+                        iconName: "paperplane.fill",
+                        style: .primary
+                    ) {
+                        let digits = cleanPhoneDigits
+                        if digits.count != 11 {
+                            errorMessage = "Lütfen 10 haneli telefon numaranızı eksiksiz giriniz."
+                            return
                         }
+                        errorMessage = nil
+                        isCodeSent = true
+                        activeBox = 0
                     }
-                    .padding(.bottom, 8)
+                    .disabled(cleanPhoneDigits.count != 11)
+                    
                 } else {
                     // OTP Verification Step
-                    VStack(spacing: 12) {
-                        ZStack {
-                            Circle()
-                                .fill(verificationState == .success ? Color.green.opacity(0.12) : verificationState == .error ? Color.red.opacity(0.12) : PAGTheme.brandNavy.opacity(0.08))
-                                .frame(width: 68, height: 68)
-                            
-                            if verificationState == .success {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 34))
-                                    .foregroundColor(.green)
-                            } else if verificationState == .error {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 34))
-                                    .foregroundColor(PAGTheme.error)
-                            } else {
-                                Image(systemName: "message.fill")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(PAGTheme.brandNavy)
-                            }
-                        }
+                    VStack(spacing: 8) {
+                        Image(systemName: "envelope.badge.shield.half.filled")
+                            .font(.system(size: 38))
+                            .foregroundColor(PAGTheme.brandNavy)
                         
                         Text("SMS Doğrulama Kodu")
                             .font(PAGTypography.heading)
                             .foregroundColor(PAGTheme.textPrimary)
                         
-                        Text("\(formatPhoneNumber(phoneInput)) numarasına gönderilen 4 haneli kodu giriniz.")
+                        Text("\(formatPhoneNumber(phoneInput)) numarasına iletilen 4 haneli kodu giriniz.")
                             .font(PAGTypography.body)
                             .foregroundColor(PAGTheme.textSecondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 16)
                     }
-                    .padding(.top, 8)
+                    .padding(.top, 10)
                     
                     // 4-Digit OTP Boxes
                     HStack(spacing: 14) {
-                        ForEach(0..<4, id: \.self) { idx in
-                            TextField("", text: Binding(
-                                get: { otpDigits[idx] },
-                                set: { newValue in
-                                    let filtered = newValue.filter { $0.isNumber }
-                                    if filtered.count > 1 {
-                                        // Paste support for 4 digits
-                                        let chars = Array(filtered.prefix(4))
-                                        for (i, c) in chars.enumerated() {
-                                            if i < 4 { otpDigits[i] = String(c) }
-                                        }
-                                        let codeStr = otpDigits.joined()
-                                        if codeStr.count == 4 {
-                                            activeBox = nil
-                                            handleOtpEntered(codeStr)
-                                        }
-                                    } else {
-                                        otpDigits[idx] = filtered
-                                        if !filtered.isEmpty {
-                                            if idx < 3 {
-                                                activeBox = idx + 1
-                                            } else {
-                                                activeBox = nil
-                                                let codeStr = otpDigits.joined()
-                                                handleOtpEntered(codeStr)
-                                            }
-                                        }
-                                    }
-                                }
-                            ))
-                            .focused($activeBox, equals: idx)
-                            .keyboardType(.numberPad)
-                            .multilineTextAlignment(.center)
-                            .font(.system(size: 26, weight: .black, design: .rounded))
-                            .frame(width: 58, height: 64)
-                            .background(PAGTheme.surfacePrimary)
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
+                        ForEach(0..<4, id: \.self) { index in
+                            ZStack {
                                 RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(
-                                        verificationState == .success ? Color.green :
-                                        verificationState == .error ? PAGTheme.error :
-                                        (activeBox == idx ? PAGTheme.brandNavy : PAGTheme.borderDefault),
-                                        lineWidth: (activeBox == idx || verificationState != .idle) ? 2 : 1
+                                    .fill(PAGTheme.surfacePrimary)
+                                    .frame(width: 58, height: 64)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                            .stroke(
+                                                verificationState == .error ? PAGTheme.error :
+                                                (verificationState == .success ? Color.green :
+                                                (activeBox == index ? PAGTheme.brandNavy : PAGTheme.borderDefault)),
+                                                lineWidth: activeBox == index ? 2 : 1.5
+                                            )
                                     )
-                            )
-                            .disabled(verificationState == .checking || verificationState == .success)
+                                
+                                TextField("", text: Binding(
+                                    get: { otpDigits[index] },
+                                    set: { newValue in
+                                        handleOtpChange(newValue, at: index)
+                                    }
+                                ))
+                                .focused($activeBox, equals: index)
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 26, weight: .black, design: .monospaced))
+                                .multilineTextAlignment(.center)
+                                .foregroundColor(PAGTheme.textPrimary)
+                            }
                         }
                     }
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 10)
                     
-                    // Status Banners
+                    // Verification State Banners
                     if verificationState == .checking {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             ProgressView()
                                 .tint(PAGTheme.brandNavy)
-                            Text("Kontrol ediliyor... Lütfen bekleyiniz.")
+                            Text("Kontrol ediliyor...")
                                 .font(PAGTypography.body)
                                 .fontWeight(.semibold)
                                 .foregroundColor(PAGTheme.brandNavy)
                         }
-                        .padding(.vertical, 8)
                     } else if verificationState == .success {
                         VStack(spacing: 4) {
                             Text("✅ Onaylandı!")
-                                .font(.system(size: 17, weight: .bold))
+                                .font(.system(size: 18, weight: .bold))
                                 .foregroundColor(.green)
-                            Text("+200 Profil Puanı hesabınıza yüklendi.")
+                            Text("+200 Profil Puanı hesabınıza tanımlandı.")
                                 .font(PAGTypography.caption)
                                 .foregroundColor(PAGTheme.textSecondary)
                         }
-                        .padding(.vertical, 6)
                     } else if let err = errorMessage {
-                        VStack(spacing: 4) {
-                            Text("⚠️ \(err)")
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(PAGTheme.error)
+                            Text(err)
                                 .font(PAGTypography.caption)
                                 .fontWeight(.bold)
                                 .foregroundColor(PAGTheme.error)
-                                .multilineTextAlignment(.center)
-                            Text("Geliştirme / Test Kodu: 1111")
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundColor(PAGTheme.textMuted)
                         }
-                        .padding(.vertical, 4)
                     }
                     
-                    Spacer()
-                    
-                    Button(action: {
-                        isCodeSent = false
-                        otpDigits = ["", "", "", ""]
-                        verificationState = .idle
-                        errorMessage = nil
-                    }) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "pencil")
-                            Text("Numarayı Değiştir / Tekrar Gönder")
+                    // Resend / Change Phone Buttons
+                    HStack(spacing: 20) {
+                        Button("Numarayı Değiştir") {
+                            isCodeSent = false
+                            otpDigits = ["", "", "", ""]
+                            errorMessage = nil
+                            verificationState = .idle
                         }
                         .font(PAGTypography.caption)
-                        .fontWeight(.semibold)
+                        .foregroundColor(PAGTheme.textSecondary)
+                        
+                        Button("Tekrar Kod Gönder") {
+                            errorMessage = nil
+                            otpDigits = ["", "", "", ""]
+                            activeBox = 0
+                        }
+                        .font(PAGTypography.caption)
+                        .fontWeight(.bold)
                         .foregroundColor(PAGTheme.brandNavy)
                     }
-                    .disabled(verificationState == .checking || verificationState == .success)
-                    .padding(.bottom, 8)
+                    .padding(.top, 6)
                 }
+                
+                Spacer()
             }
             .padding(20)
             .navigationTitle("Telefon Doğrulama")
@@ -322,6 +312,41 @@ public struct PhoneVerificationSheetView: View {
                         isPresented = false
                     }
                     .foregroundColor(PAGTheme.textSecondary)
+                }
+            }
+        }
+    }
+    
+    private func handleOtpChange(_ text: String, at index: Int) {
+        let filtered = text.filter { $0.isNumber }
+        
+        // Handle Paste (e.g. "1111")
+        if filtered.count > 1 {
+            let digits = Array(filtered.prefix(4))
+            for (i, d) in digits.enumerated() {
+                if i < 4 { otpDigits[i] = String(d) }
+            }
+            if digits.count == 4 {
+                activeBox = nil
+                handleOtpEntered(String(digits))
+            } else {
+                activeBox = min(digits.count, 3)
+            }
+            return
+        }
+        
+        if filtered.isEmpty {
+            otpDigits[index] = ""
+            if index > 0 { activeBox = index - 1 }
+        } else {
+            otpDigits[index] = String(filtered.last!)
+            if index < 3 {
+                activeBox = index + 1
+            } else {
+                activeBox = nil
+                let full = otpDigits.joined()
+                if full.count == 4 {
+                    handleOtpEntered(full)
                 }
             }
         }

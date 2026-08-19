@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,26 +24,29 @@ import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+// Formats IBAN ensuring TR prefix and 4-char groups
+// Handles pasted "TR..." or raw digits seamlessly
 fun formatTRStandardIban(raw: String): String {
     var clean = raw.uppercase().replace(Regex("[^A-Z0-9]"), "")
     if (clean.isEmpty()) return ""
 
-    if (!clean.startsWith("TR")) {
-        clean = if (clean.startsWith("T")) {
-            "TR" + clean.drop(1)
-        } else {
-            "TR$clean"
-        }
+    // Strip leading TR / T if present to prevent TRTR duplication
+    if (clean.startsWith("TR")) {
+        clean = clean.drop(2)
+    } else if (clean.startsWith("T")) {
+        clean = clean.drop(1)
     }
 
-    clean = clean.take(26)
+    // Up to 24 digits
+    clean = clean.take(24)
 
+    val fullIban = "TR$clean"
     val sb = StringBuilder()
-    for (i in clean.indices) {
+    for (i in fullIban.indices) {
         if (i > 0 && i % 4 == 0) {
             sb.append(" ")
         }
-        sb.append(clean[i])
+        sb.append(fullIban[i])
     }
     return sb.toString()
 }
@@ -81,8 +83,8 @@ fun IbanVerificationDialog(
             errorMessage = "Lütfen 11 haneli TC Kimlik Numaranızı eksiksiz giriniz."
         } else if (cleanTckn.startsWith("0")) {
             errorMessage = "TC Kimlik Numarası '0' ile başlayamaz."
-        } else if (cleanIban.length < 26 || !cleanIban.startsWith("TR")) {
-            errorMessage = "Lütfen 26 haneli geçerli bir TR IBAN giriniz."
+        } else if (cleanIban.length != 26 || !cleanIban.startsWith("TR")) {
+            errorMessage = "Lütfen 26 haneli geçerli bir TR IBAN giriniz (TR + 24 hane)."
         } else {
             uiState = IbanUiState.VERIFYING
             scope.launch {
@@ -124,7 +126,7 @@ fun IbanVerificationDialog(
                     color = PAGTheme.colors.textSecondary
                 )
 
-                // 1. TC Kimlik No
+                // 1. TC Kimlik No (Strict 11 digits, Numeric Keyboard)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -161,7 +163,7 @@ fun IbanVerificationDialog(
                     )
                 }
 
-                // 2. IBAN No
+                // 2. IBAN No (Numeric Keyboard, Fixed TR badge, Exact 26 chars)
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -181,23 +183,46 @@ fun IbanVerificationDialog(
                         )
                     }
 
-                    OutlinedTextField(
-                        value = ibanInput,
-                        onValueChange = { newValue ->
-                            ibanInput = formatTRStandardIban(newValue)
-                        },
-                        placeholder = { Text("TRXX XXXX XXXX XXXX XXXX XXXX XX") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(
-                            keyboardType = KeyboardType.Ascii,
-                            capitalization = KeyboardCapitalization.Characters
-                        ),
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PAGTheme.colors.brandLime,
-                            unfocusedBorderColor = PAGTheme.colors.borderDefault
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = PAGTheme.colors.surfaceSecondary,
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .height(56.dp)
+                        ) {
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier.padding(horizontal = 12.dp)
+                            ) {
+                                Text(
+                                    "TR",
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace,
+                                    color = PAGTheme.colors.brandLime,
+                                    fontSize = 16.sp
+                                )
+                            }
+                        }
+
+                        OutlinedTextField(
+                            value = if (ibanInput.startsWith("TR")) ibanInput.drop(2).trimStart() else ibanInput,
+                            onValueChange = { newValue ->
+                                ibanInput = formatTRStandardIban(newValue)
+                            },
+                            placeholder = { Text("24 haneli hesap no") },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PAGTheme.colors.brandLime,
+                                unfocusedBorderColor = PAGTheme.colors.borderDefault
+                            )
                         )
-                    )
+                    }
                 }
 
                 // Status Message
@@ -256,7 +281,7 @@ fun IbanVerificationDialog(
         confirmButton = {
             Button(
                 onClick = { handleVerify() },
-                enabled = uiState != IbanUiState.VERIFYING && uiState != IbanUiState.SUCCESS,
+                enabled = uiState != IbanUiState.VERIFYING && uiState != IbanUiState.SUCCESS && cleanTckn.length == 11 && cleanIban.length == 26,
                 colors = ButtonDefaults.buttonColors(containerColor = PAGTheme.colors.brandLime)
             ) {
                 Text(

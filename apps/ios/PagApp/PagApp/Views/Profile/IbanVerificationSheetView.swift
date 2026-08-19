@@ -36,27 +36,27 @@ public struct IbanVerificationSheetView: View {
     }
     
     // Turkish IBAN Formatter (TRXX XXXX XXXX XXXX XXXX XXXX XX)
+    // Automatically handles pasted "TR..." or direct numeric typing with numberPad
     private func formatIban(_ raw: String) -> String {
-        // Clean characters: uppercase alphanumeric only
         var clean = raw.uppercased().replacingOccurrences(of: "[^A-Z0-9]", with: "", options: .regularExpression)
-        
         if clean.isEmpty { return "" }
         
-        // Ensure TR prefix
-        if !clean.hasPrefix("TR") {
-            if clean.hasPrefix("T") {
-                clean = "TR" + clean.dropFirst()
-            } else {
-                clean = "TR" + clean
-            }
+        // Strip leading TR / T if present in pasted text to prevent duplication
+        if clean.hasPrefix("TR") {
+            clean = String(clean.dropFirst(2))
+        } else if clean.hasPrefix("T") {
+            clean = String(clean.dropFirst(1))
         }
         
-        // Max 26 characters (standard TR IBAN length)
-        clean = String(clean.prefix(26))
+        // Max 24 digits after TR
+        clean = String(clean.prefix(24))
+        
+        // Prepend TR
+        let fullIban = "TR" + clean
         
         // Group into 4-character blocks
         var result = ""
-        for (idx, char) in clean.enumerated() {
+        for (idx, char) in fullIban.enumerated() {
             if idx > 0 && idx % 4 == 0 {
                 result.append(" ")
             }
@@ -92,8 +92,8 @@ public struct IbanVerificationSheetView: View {
             return
         }
         
-        if iban.count < 26 || !iban.hasPrefix("TR") {
-            errorMessage = "Lütfen geçerli bir 26 haneli TR IBAN giriniz."
+        if iban.count != 26 || !iban.hasPrefix("TR") {
+            errorMessage = "Lütfen 26 haneli TR IBAN numaranızı eksiksiz giriniz (TR + 24 hane)."
             focusedField = .iban
             return
         }
@@ -146,7 +146,7 @@ public struct IbanVerificationSheetView: View {
                     
                     // Form Fields Card
                     VStack(alignment: .leading, spacing: 18) {
-                        // 1. TC Kimlik Numarası
+                        // 1. TC Kimlik Numarası (Strict 11 digits, Numeric Keyboard)
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text("TC Kimlik Numarası")
@@ -163,7 +163,10 @@ public struct IbanVerificationSheetView: View {
                             
                             TextField("11 haneli kimlik numaranız", text: Binding(
                                 get: { cleanTcknDigits },
-                                set: { newValue in tcknInput = String(newValue.filter { $0.isNumber }.prefix(11)) }
+                                set: { newValue in
+                                    let digits = newValue.filter { $0.isNumber }
+                                    tcknInput = String(digits.prefix(11))
+                                }
                             ))
                             .focused($focusedField, equals: .tckn)
                             .keyboardType(.numberPad)
@@ -177,7 +180,7 @@ public struct IbanVerificationSheetView: View {
                             )
                         }
                         
-                        // 2. IBAN Numarası
+                        // 2. IBAN Numarası (Numeric Keyboard, Automatic TR prefix, Exact 26 chars)
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text("IBAN Numarası")
@@ -192,22 +195,38 @@ public struct IbanVerificationSheetView: View {
                                     .foregroundColor(cleanIbanDigits.count == 26 ? .green : PAGTheme.textMuted)
                             }
                             
-                            TextField("TRXX XXXX XXXX XXXX XXXX XXXX XX", text: Binding(
-                                get: { formatIban(ibanInput) },
-                                set: { newValue in ibanInput = newValue }
-                            ))
-                            .focused($focusedField, equals: .iban)
-                            .keyboardType(.asciiCapable)
-                            .autocapitalization(.allCharacters)
-                            .disableAutocorrection(true)
-                            .font(.system(size: 15, weight: .bold, design: .monospaced))
-                            .padding(14)
-                            .background(PAGTheme.surfacePrimary)
-                            .cornerRadius(PAGRadius.medium)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: PAGRadius.medium)
-                                    .stroke(focusedField == .iban ? PAGTheme.brandNavy : PAGTheme.borderDefault, lineWidth: 1.5)
-                            )
+                            HStack(spacing: 8) {
+                                Text("TR")
+                                    .font(.system(size: 15, weight: .bold, design: .monospaced))
+                                    .foregroundColor(PAGTheme.brandNavy)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 12)
+                                    .background(PAGTheme.surfaceSecondary)
+                                    .cornerRadius(PAGRadius.small)
+                                
+                                TextField("24 haneli hesap numaranız", text: Binding(
+                                    get: {
+                                        let fmt = formatIban(ibanInput)
+                                        if fmt.hasPrefix("TR") {
+                                            return String(fmt.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+                                        }
+                                        return fmt
+                                    },
+                                    set: { newValue in
+                                        ibanInput = formatIban(newValue)
+                                    }
+                                ))
+                                .focused($focusedField, equals: .iban)
+                                .keyboardType(.numberPad)
+                                .font(.system(size: 15, weight: .bold, design: .monospaced))
+                                .padding(12)
+                                .background(PAGTheme.surfacePrimary)
+                                .cornerRadius(PAGRadius.medium)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: PAGRadius.medium)
+                                        .stroke(focusedField == .iban ? PAGTheme.brandNavy : PAGTheme.borderDefault, lineWidth: 1.5)
+                                )
+                            }
                         }
                     }
                     .padding(16)
@@ -255,7 +274,7 @@ public struct IbanVerificationSheetView: View {
                         focusedField = nil
                         handleVerify()
                     }
-                    .disabled(uiState == .verifying || uiState == .success)
+                    .disabled(uiState == .verifying || uiState == .success || cleanTcknDigits.count != 11 || cleanIbanDigits.count != 26)
                     
                     // Info Note
                     HStack(spacing: 8) {
