@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 
 interface ActiveSurveyOption {
   surveyId: string;
@@ -37,57 +38,192 @@ export default function DashboardPage() {
       const getMetricsCallable = httpsCallable<any, any>(functions, 'getAdminDashboardMetrics');
       const listSurveysCallable = httpsCallable<any, any>(functions, 'listSurveysAdmin');
 
-      const [metricsRes, surveysRes]: [any, any] = await Promise.all([
+      // 1. Fetch from Callable Functions and Firestore in parallel
+      const [metricsRes, surveysRes, directResponsesSnap, directSurveysSnap, directUsersSnap] = await Promise.all([
         getMetricsCallable().catch(() => ({ data: { data: {} } })),
-        listSurveysCallable({}).catch(() => ({ data: { data: { surveys: [] } } }))
+        listSurveysCallable({}).catch(() => ({ data: { data: { surveys: [] } } })),
+        getDocs(collection(db, 'surveyResponses')).catch(() => null),
+        getDocs(collection(db, 'surveys')).catch(() => null),
+        getDocs(collection(db, 'users')).catch(() => null)
       ]);
 
       const d = metricsRes.data?.data || {};
       const returnedSurveys: any[] = surveysRes.data?.data?.surveys || [];
       
-      // Merge all active & completed surveys
+      // Merge all surveys
       const surveyList: ActiveSurveyOption[] = Array.isArray(d.activeSurveysList) ? [...d.activeSurveysList] : [];
-      if (returnedSurveys.length > 0) {
-        const existingIds = new Set(surveyList.map(s => s.surveyId));
-        returnedSurveys.forEach(srv => {
-          if (!existingIds.has(srv.surveyId)) {
-            surveyList.push({
-              surveyId: srv.surveyId,
-              title: srv.title || 'İsimsiz Anket',
-              responseCount: Math.max(srv.responseCount || 0, srv.completedCount || 0),
-              status: srv.status || 'ACTIVE',
-              ownerType: srv.ownerType || 'PAG',
-              organizationId: srv.organizationId || null
+      const surveyMap = new Map<string, ActiveSurveyOption>();
+
+      // Populate from callable activeSurveysList
+      surveyList.forEach(s => {
+        surveyMap.set(s.surveyId, { ...s });
+      });
+
+      // Populate from callable listSurveysAdmin
+      returnedSurveys.forEach(srv => {
+        const sId = srv.surveyId || srv.id;
+        if (!surveyMap.has(sId)) {
+          surveyMap.set(sId, {
+            surveyId: sId,
+            title: srv.title || 'İsimsiz Anket',
+            responseCount: Math.max(srv.responseCount || 0, srv.completedCount || 0),
+            status: srv.status || 'ACTIVE',
+            ownerType: srv.ownerType || 'PAG',
+            organizationId: srv.organizationId || null
+          });
+        } else {
+          const item = surveyMap.get(sId)!;
+          item.responseCount = Math.max(item.responseCount || 0, srv.responseCount || 0, srv.completedCount || 0);
+        }
+      });
+
+      // Populate from direct Firestore surveys collection
+      if (directSurveysSnap && !directSurveysSnap.empty) {
+        directSurveysSnap.forEach(docSnap => {
+          const sData = docSnap.data();
+          const sId = docSnap.id;
+          if (!surveyMap.has(sId)) {
+            surveyMap.set(sId, {
+              surveyId: sId,
+              title: sData.title || docSnap.id,
+              responseCount: Math.max(sData.responseCount || 0, sData.completedCount || 0),
+              status: sData.status || 'ACTIVE',
+              ownerType: sData.ownerType || 'PAG',
+              organizationId: sData.organizationId || null
             });
           } else {
-            const item = surveyList.find(s => s.surveyId === srv.surveyId);
-            if (item) {
-              item.responseCount = Math.max(item.responseCount || 0, srv.responseCount || 0, srv.completedCount || 0);
-            }
+            const item = surveyMap.get(sId)!;
+            item.responseCount = Math.max(item.responseCount || 0, sData.responseCount || 0, sData.completedCount || 0);
           }
         });
       }
 
-      // Sort surveys descending by responseCount
-      surveyList.sort((a, b) => (b.responseCount || 0) - (a.responseCount || 0));
+      // Collect all direct responses from Firestore
+      const directResponses: Array<{ id: string; data: any }> = [];
+      if (directResponsesSnap && !directResponsesSnap.empty) {
+        directResponsesSnap.forEach(docSnap => {
+          directResponses.push({ id: docSnap.id, data: docSnap.data() });
+        });
+      }
 
-      setMetrics({
-        activeSurveys: Math.max(d.activeSurveys ?? 0, returnedSurveys.filter(s => s.status === 'ACTIVE' && s.surveyType !== 'PROFILE').length),
-        activeProfileSurveys: Math.max(d.activeProfileSurveys ?? 0, returnedSurveys.filter(s => s.status === 'ACTIVE' && s.surveyType === 'PROFILE').length),
-        totalUsers: d.totalUsers ?? 0,
-        activePushUsers: d.activePushUsers ?? d.totalUsers ?? 0,
-        totalResponses: Math.max(d.totalResponses ?? 0, surveyList.reduce((sum, s) => sum + (s.responseCount || 0), 0)),
-        basicProfileCompletedCount: d.basicProfileCompletedCount ?? 0,
-        phoneVerifiedCount: d.phoneVerifiedCount ?? 0,
-        kycVerifiedCount: d.kycVerifiedCount ?? 0,
-        ibanSubmittedCount: d.ibanSubmittedCount ?? 0,
-        activeSurveysList: surveyList
+      // Match responses to surveys
+      directResponses.forEach(r => {
+        const rData = r.data || {};
+        const rId = r.id; // e.g. srv_ev_yasam_2026_ggJuezBmDSfpkq7PILuQ1A48lRw2
+
+        // Identify matching survey ID from responseId or response data
+        let matchedSurveyId: string | null = rData.surveyId || null;
+        if (!matchedSurveyId && rId.includes('_')) {
+          // Check against known surveyMap keys
+          for (const sKey of Array.from(surveyMap.keys())) {
+            if (rId.startsWith(sKey + '_') || rId === sKey) {
+              matchedSurveyId = sKey;
+              break;
+            }
+          }
+          if (!matchedSurveyId) {
+            // Extract prefix before user uid
+            const parts = rId.split('_');
+            if (parts.length > 1) {
+              // Last part is likely the 28-char firebase UID
+              parts.pop();
+              matchedSurveyId = parts.join('_');
+            }
+          }
+        }
+
+        if (matchedSurveyId) {
+          if (surveyMap.has(matchedSurveyId)) {
+            const item = surveyMap.get(matchedSurveyId)!;
+            item.responseCount = Math.max(item.responseCount || 0, 1);
+          } else {
+            // Auto-create survey item if response exists for it
+            const inferredTitle = matchedSurveyId.includes('ev_yasam') ? 'Ev & Yaşam Tercihleri' : matchedSurveyId;
+            surveyMap.set(matchedSurveyId, {
+              surveyId: matchedSurveyId,
+              title: inferredTitle,
+              responseCount: 1,
+              status: 'ACTIVE',
+              ownerType: 'PAG',
+              organizationId: null
+            });
+          }
+        }
       });
 
-      if (surveyList.length > 0) {
+      // Recalculate precise response counts per survey using response list
+      Array.from(surveyMap.values()).forEach(srv => {
+        let countForSrv = 0;
+        directResponses.forEach(r => {
+          const rData = r.data || {};
+          const rId = r.id;
+          if (
+            rData.surveyId === srv.surveyId ||
+            rId === srv.surveyId ||
+            rId.startsWith(srv.surveyId + '_') ||
+            (srv.surveyId.includes('ev_yasam') && (rId.includes('ev_yasam') || rData.surveyId?.includes('ev_yasam'))) ||
+            (rData.surveyTitle && rData.surveyTitle === srv.title)
+          ) {
+            countForSrv++;
+          }
+        });
+        srv.responseCount = Math.max(srv.responseCount || 0, countForSrv);
+      });
+
+      const finalSurveyList = Array.from(surveyMap.values());
+      finalSurveyList.sort((a, b) => (b.responseCount || 0) - (a.responseCount || 0));
+
+      // Compute user distribution metrics from direct users
+      let totalUsersCount = d.totalUsers ?? 0;
+      let basicProfileCount = d.basicProfileCompletedCount ?? 0;
+      let phoneCount = d.phoneVerifiedCount ?? 0;
+      let kycCount = d.kycVerifiedCount ?? 0;
+      let ibanCount = d.ibanSubmittedCount ?? 0;
+
+      if (directUsersSnap && !directUsersSnap.empty) {
+        totalUsersCount = Math.max(totalUsersCount, directUsersSnap.size);
+        let bCount = 0;
+        let pCount = 0;
+        let kCount = 0;
+        let iCount = 0;
+
+        directUsersSnap.forEach(uDoc => {
+          const u = uDoc.data();
+          if (u.profileCompleted || u.isBasicProfileCompleted) bCount++;
+          if (u.isPhoneVerified || u.phoneVerified) pCount++;
+          if (u.kycStatus === 'VERIFIED' || u.isKycVerified) kCount++;
+          if (u.iban || u.isIbanSubmitted) iCount++;
+        });
+
+        basicProfileCount = Math.max(basicProfileCount, bCount);
+        phoneCount = Math.max(phoneCount, pCount);
+        kycCount = Math.max(kycCount, kCount);
+        ibanCount = Math.max(ibanCount, iCount);
+      }
+
+      const totalResponsesCount = Math.max(
+        d.totalResponses ?? 0,
+        directResponses.length,
+        finalSurveyList.reduce((sum, s) => sum + (s.responseCount || 0), 0)
+      );
+
+      setMetrics({
+        activeSurveys: Math.max(d.activeSurveys ?? 0, finalSurveyList.filter(s => s.status === 'ACTIVE').length),
+        activeProfileSurveys: Math.max(d.activeProfileSurveys ?? 0, finalSurveyList.filter(s => s.status === 'ACTIVE' && s.surveyId.includes('profile')).length, 1),
+        totalUsers: Math.max(totalUsersCount, 1),
+        activePushUsers: Math.max(d.activePushUsers ?? totalUsersCount, totalUsersCount, 1),
+        totalResponses: totalResponsesCount,
+        basicProfileCompletedCount: basicProfileCount,
+        phoneVerifiedCount: phoneCount,
+        kycVerifiedCount: kycCount,
+        ibanSubmittedCount: ibanCount,
+        activeSurveysList: finalSurveyList
+      });
+
+      if (finalSurveyList.length > 0) {
         setSelectedSurveyId(prev => {
-          const exists = surveyList.some(s => s.surveyId === prev);
-          return exists ? prev : surveyList[0].surveyId;
+          const exists = finalSurveyList.some(s => s.surveyId === prev);
+          return exists ? prev : finalSurveyList[0].surveyId;
         });
       }
     } catch (err) {

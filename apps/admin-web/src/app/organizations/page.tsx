@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface OrganizationItem {
@@ -50,29 +51,84 @@ export default function OrganizationsPage() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations & Auto-merge Approved Applications
+  // 1. Fetch Organizations & Auto-merge Approved Applications (with direct Firestore fallback)
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
     try {
       const listFn = httpsCallable(functions, 'listOrganizationsAdmin');
       const listAppsFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
-      const createOrgFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
       
-      const [res, appsRes]: [any, any] = await Promise.all([
-        listFn({}),
-        listAppsFn({}).catch(() => ({ data: { data: { applications: [] } } }))
-      ]);
+      let orgsList: OrganizationItem[] = [];
+      let applicationsList: any[] = [];
 
-      const orgsList: OrganizationItem[] = Array.isArray(res.data?.data?.organizations) ? [...res.data.data.organizations] : [];
-      
-      // Auto-sync approved applications into the list
-      if (appsRes?.data?.data?.applications && Array.isArray(appsRes.data.data.applications)) {
+      // 1. Try Callable Functions
+      try {
+        const [res, appsRes]: [any, any] = await Promise.all([
+          listFn({}).catch(() => null),
+          listAppsFn({}).catch(() => null)
+        ]);
+
+        if (res?.data?.success && Array.isArray(res.data.data?.organizations)) {
+          orgsList = [...res.data.data.organizations];
+        }
+        if (appsRes?.data?.success && Array.isArray(appsRes.data.data?.applications)) {
+          applicationsList = appsRes.data.data.applications;
+        }
+      } catch (callErr) {
+        console.warn('Callable functions fallback to direct Firestore:', callErr);
+      }
+
+      // 2. Direct Firestore fallback if callable is not deployed / blocked by CORS
+      try {
+        const orgsSnap = await getDocs(collection(db, 'organizations'));
+        const existingIds = new Set(orgsList.map(o => o.organizationId));
+        orgsSnap.forEach(d => {
+          const data = d.data();
+          const oId = data.organizationId || d.id;
+          if (!existingIds.has(oId)) {
+            orgsList.push({
+              id: d.id,
+              organizationId: oId,
+              name: data.name || d.id,
+              sector: data.sector || 'Genel',
+              contactEmail: data.contactEmail || null,
+              contactPhone: data.contactPhone || null,
+              status: data.status || 'ACTIVE',
+              isVerificationAuthorized: data.isVerificationAuthorized === true,
+              surveyCount: 0,
+              portalUserCount: 0,
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null
+            });
+            existingIds.add(oId);
+          }
+        });
+      } catch (fsErr) {
+        console.warn('Direct Firestore organizations read:', fsErr);
+      }
+
+      try {
+        const appsSnap = await getDocs(collection(db, 'companyApplications'));
+        appsSnap.forEach(d => {
+          const data = d.data();
+          if (!applicationsList.some(a => a.applicationId === d.id)) {
+            applicationsList.push({
+              applicationId: d.id,
+              ...data
+            });
+          }
+        });
+      } catch (fsAppsErr) {
+        console.warn('Direct Firestore applications read:', fsAppsErr);
+      }
+
+      // 3. Auto-sync approved applications into the list & persist missing to Firestore
+      if (applicationsList.length > 0) {
         const existingOrgIds = new Set(orgsList.map(o => o.organizationId));
         const existingNames = new Set(orgsList.map(o => (o.name || '').toLowerCase().trim()));
 
-        for (const app of appsRes.data.data.applications) {
+        for (const app of applicationsList) {
           if (app.status === 'APPROVED') {
-            const name = (app.companyName || (app as any).name || 'Firma').trim();
+            const name = (app.companyName || app.name || 'Firma').trim();
             const cleanSlug = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 30);
             const orgId = app.createdOrganizationId || `org_${cleanSlug}`;
 
@@ -94,16 +150,25 @@ export default function OrganizationsPage() {
               existingOrgIds.add(orgId);
               existingNames.add(name.toLowerCase());
 
-              // Persist to backend Firestore in background
-              createOrgFn({
-                organizationId: orgId,
-                name: name,
-                sector: app.sector || 'Genel',
-                contactEmail: app.contactEmail || null,
-                contactPhone: app.contactPhone || null,
-                isVerificationAuthorized: true,
-                status: 'ACTIVE'
-              }).catch(err => console.warn('Background sync org error:', err));
+              // Persist directly to Firestore
+              try {
+                await setDoc(doc(db, 'organizations', orgId), {
+                  organizationId: orgId,
+                  name: name,
+                  sector: app.sector || 'Genel',
+                  contactName: app.contactName || null,
+                  contactEmail: app.contactEmail || null,
+                  contactPhone: app.contactPhone || null,
+                  website: app.website || null,
+                  status: 'ACTIVE',
+                  isVerificationAuthorized: true,
+                  sourceApplicationId: app.applicationId || null,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString()
+                }, { merge: true });
+              } catch (setErr) {
+                // background fallback
+              }
             }
           }
         }

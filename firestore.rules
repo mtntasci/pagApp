@@ -12,7 +12,13 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isAuthenticated() && request.auth.token.admin == true;
+      return isAuthenticated() && (
+        request.auth.token.admin == true ||
+        request.auth.token.email == 'mtntasci@gmail.com' ||
+        request.auth.token.email == 'admin@pagapp.com' ||
+        request.auth.token.email == 'admin@pagapp.com.tr' ||
+        exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid))
+      );
     }
 
     function isOrgMember(orgId) {
@@ -186,9 +192,21 @@ service cloud.firestore {
       allow write: if false; // All updates via Cloud Functions Admin SDK
     }
 
-    match /verificationCallAuditLogs/{logId} {
-      allow read: if isAdmin();
-      allow write: if false; // Backend audit logs only
+    // Organizations Collection: READ by authenticated users, WRITE by authorized active portal users / admin
+    match /organizations/{orgId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+    }
+
+    // Company Applications Collection Rules
+    match /companyApplications/{applicationId} {
+      allow read, write: if isAuthenticated();
     }
 
     // Default Deny

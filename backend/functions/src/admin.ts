@@ -286,6 +286,57 @@ export const getAdminDashboardMetricsHandler = async (
         ownerType: s.ownerType || 'PAG',
         organizationId: s.organizationId || null
       });
+    });
+
+    // Ensure every survey represented in surveyResponses is included in activeSurveysList
+    responsesSnap.docs.forEach((rDoc) => {
+      const rData = rDoc.data() || {};
+      const rId = rDoc.id;
+      let matched = false;
+      activeSurveysList.forEach(s => {
+        if (
+          rData.surveyId === s.surveyId ||
+          rId === s.surveyId ||
+          rId.startsWith(s.surveyId + '_') ||
+          (s.surveyId && s.surveyId.includes('ev_yasam') && rId.includes('ev_yasam'))
+        ) {
+          matched = true;
+          s.responseCount = Math.max(s.responseCount, 1);
+        }
+      });
+      if (!matched) {
+        let inferredSurveyId = rData.surveyId;
+        if (!inferredSurveyId && rId.includes('_')) {
+          const parts = rId.split('_');
+          parts.pop();
+          inferredSurveyId = parts.join('_');
+        }
+        inferredSurveyId = inferredSurveyId || rId;
+        const inferredTitle = inferredSurveyId.includes('ev_yasam') ? 'Ev & Yaşam Tercihleri' : (rData.surveyTitle || inferredSurveyId);
+        
+        const existing = activeSurveysList.find(s => s.surveyId === inferredSurveyId);
+        if (existing) {
+          existing.responseCount = Math.max(existing.responseCount, 1);
+        } else {
+          activeSurveysList.push({
+            surveyId: inferredSurveyId,
+            title: inferredTitle,
+            responseCount: 1,
+            status: 'ACTIVE',
+            ownerType: 'PAG',
+            organizationId: null
+          });
+        }
+      }
+    });
+
+    surveysSnap.docs.forEach((doc) => {
+      const s = doc.data();
+      if (s.isArchived) return;
+
+      if (adminUser.role === 'ORGANIZATION_USER' && s.organizationId !== adminUser.organizationId) {
+        return;
+      }
 
       switch (s.status) {
         case 'SCHEDULED': scheduledSurveys++; break;
