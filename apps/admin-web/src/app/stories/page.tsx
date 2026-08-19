@@ -269,7 +269,7 @@ export default function StoriesPage() {
               type="text"
               value={formLabel}
               onChange={(e) => setFormLabel(e.target.value)}
-              placeholder="Örn: Ford Özel Anketi"
+              placeholder="Örn: Özel Kampanya Anketi"
               style={{
                 width: '100%',
                 padding: '12px',

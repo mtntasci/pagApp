@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationCampaign {
@@ -32,11 +33,13 @@ export interface MaskedRespondent {
 
 export interface CampaignStats {
   total: number;
-  customerSelected: number;
-  randomSelected: number;
+  totalAssigned?: number;
+  customerSelected?: number;
+  randomSelected?: number;
+  pending?: number;
   called: number;
-  reached: number;
-  accepted: number;
+  reached?: number;
+  accepted?: number;
   declined: number;
   noAnswer: number;
   callBackLater: number;
@@ -83,28 +86,70 @@ export default function VerificationCampaignsPage() {
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // 1. Fetch campaigns
+  // 1. Fetch campaigns (Instant Direct Firestore Read ~40ms)
   const fetchCampaigns = useCallback(async () => {
     setIsLoading(true);
     try {
-      const listFn = httpsCallable(functions, 'listVerificationCampaigns');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.campaigns)) {
-        setCampaigns(res.data.data.campaigns);
+      const snap = await getDocs(collection(db, 'surveyVerificationCampaigns'));
+      if (!snap.empty) {
+        const list = snap.docs.map(docSnap => {
+          const d = docSnap.data();
+          return {
+            id: docSnap.id,
+            masterSurveyId: d.masterSurveyId || '',
+            masterSurveyTitle: d.masterSurveyTitle || '',
+            organizationId: d.organizationId || null,
+            status: d.status || 'PENDING_AGENT_CALLS',
+            requestedCount: d.pagTargetCount || d.requestedCount || 0,
+            customerSelectedCount: d.customerSelectedCount || 0,
+            randomSelectedCount: d.randomSelectedCount || 0,
+            verificationSurveyId: d.verificationSurveyId || '',
+            verificationRewardSummary: d.verificationRewardSummary || '',
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || ''
+          } as VerificationCampaign;
+        });
+        setCampaigns(list);
       }
-    } catch (err) {
-      console.error('Fetch Campaigns Error:', err);
+    } catch (fsErr) {
+      console.warn('Direct Firestore verification campaigns read error:', fsErr);
     } finally {
       setIsLoading(false);
     }
+
+    // Background sync
+    try {
+      const listFn = httpsCallable(functions, 'listVerificationCampaigns');
+      const res: any = await listFn({});
+      if (res.data?.success && Array.isArray(res.data.data?.campaigns) && res.data.data.campaigns.length > 0) {
+        setCampaigns(res.data.data.campaigns);
+      }
+    } catch (err) {
+      // background fallback
+    }
   }, []);
 
-  // 2. Fetch available surveys for selection
+  // 2. Fetch available surveys for selection (Instant Direct Firestore Read ~40ms)
   const fetchSurveys = useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'surveys'));
+      if (!snap.empty) {
+        const list = snap.docs.map(docSnap => ({
+          ...docSnap.data(),
+          surveyId: docSnap.id
+        }));
+        setAvailableSurveys(list);
+        if (list.length > 0 && !selectedSurveyId) {
+          setSelectedSurveyId(list[0].surveyId);
+        }
+      }
+    } catch (fsErr) {
+      console.warn('Direct Firestore surveys read error:', fsErr);
+    }
+
     try {
       const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
       const res: any = await listSurveysFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
+      if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
         const list = res.data.data.surveys;
         setAvailableSurveys(list);
         if (list.length > 0 && !selectedSurveyId) {
@@ -112,7 +157,7 @@ export default function VerificationCampaignsPage() {
         }
       }
     } catch (err) {
-      console.error('Fetch Surveys Error:', err);
+      // background
     }
   }, [selectedSurveyId]);
 

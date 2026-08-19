@@ -36,7 +36,8 @@ import {
   listOrganizationUsersAdminHandler,
   listPortalUsersAdminHandler,
   approveSurveyByOrgHandler,
-  finalApproveSurveyAdminHandler
+  finalApproveSurveyAdminHandler,
+  adminResetUserPasswordAdminHandler
 } from './admin';
 import {
   getBasicProfileHandler,
@@ -176,6 +177,7 @@ export const listOrganizationUsersAdmin = functions.https.onCall(listOrganizatio
 export const listPortalUsersAdmin = functions.https.onCall(listPortalUsersAdminHandler);
 export const approveSurveyByOrg = functions.https.onCall(approveSurveyByOrgHandler);
 export const finalApproveSurveyAdmin = functions.https.onCall(finalApproveSurveyAdminHandler);
+export const adminResetUserPasswordAdmin = functions.https.onCall(adminResetUserPasswordAdminHandler);
 
 
 

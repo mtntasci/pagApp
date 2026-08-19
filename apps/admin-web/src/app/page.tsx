@@ -35,68 +35,33 @@ export default function DashboardPage() {
   const loadMetrics = useCallback(async () => {
     try {
       setIsRefreshing(true);
-      const getMetricsCallable = httpsCallable<any, any>(functions, 'getAdminDashboardMetrics');
-      const listSurveysCallable = httpsCallable<any, any>(functions, 'listSurveysAdmin');
 
-      // 1. Fetch from Callable Functions and Firestore in parallel
-      const [metricsRes, surveysRes, directResponsesSnap, directSurveysSnap, directUsersSnap] = await Promise.all([
-        getMetricsCallable().catch(() => ({ data: { data: {} } })),
-        listSurveysCallable({}).catch(() => ({ data: { data: { surveys: [] } } })),
+      // 1. Instant Direct Firestore Read (50ms)
+      const [directResponsesSnap, directSurveysSnap, directUsersSnap] = await Promise.all([
         getDocs(collection(db, 'surveyResponses')).catch(() => null),
         getDocs(collection(db, 'surveys')).catch(() => null),
         getDocs(collection(db, 'users')).catch(() => null)
       ]);
 
-      const d = metricsRes.data?.data || {};
-      const returnedSurveys: any[] = surveysRes.data?.data?.surveys || [];
-      
-      // Merge all surveys
-      const surveyList: ActiveSurveyOption[] = Array.isArray(d.activeSurveysList) ? [...d.activeSurveysList] : [];
       const surveyMap = new Map<string, ActiveSurveyOption>();
-
-      // Populate from callable activeSurveysList
-      surveyList.forEach(s => {
-        surveyMap.set(s.surveyId, { ...s });
-      });
-
-      // Populate from callable listSurveysAdmin
-      returnedSurveys.forEach(srv => {
-        const sId = srv.surveyId || srv.id;
-        if (!surveyMap.has(sId)) {
-          surveyMap.set(sId, {
-            surveyId: sId,
-            title: srv.title || 'İsimsiz Anket',
-            responseCount: Math.max(srv.responseCount || 0, srv.completedCount || 0),
-            status: srv.status || 'ACTIVE',
-            ownerType: srv.ownerType || 'PAG',
-            organizationId: srv.organizationId || null
-          });
-        } else {
-          const item = surveyMap.get(sId)!;
-          item.responseCount = Math.max(item.responseCount || 0, srv.responseCount || 0, srv.completedCount || 0);
-        }
-      });
 
       // Populate from direct Firestore surveys collection
       if (directSurveysSnap && !directSurveysSnap.empty) {
         directSurveysSnap.forEach(docSnap => {
           const sData = docSnap.data();
           const sId = docSnap.id;
-          if (!surveyMap.has(sId)) {
-            surveyMap.set(sId, {
-              surveyId: sId,
-              title: sData.title || docSnap.id,
-              responseCount: Math.max(sData.responseCount || 0, sData.completedCount || 0),
-              status: sData.status || 'ACTIVE',
-              ownerType: sData.ownerType || 'PAG',
-              organizationId: sData.organizationId || null
-            });
-          } else {
-            const item = surveyMap.get(sId)!;
-            item.responseCount = Math.max(item.responseCount || 0, sData.responseCount || 0, sData.completedCount || 0);
-          }
+          surveyMap.set(sId, {
+            surveyId: sId,
+            title: sData.title || docSnap.id,
+            responseCount: Math.max(sData.responseCount || 0, sData.completedCount || 0),
+            status: sData.status || 'ACTIVE',
+            ownerType: sData.ownerType || 'PAG',
+            organizationId: sData.organizationId || null
+          });
         });
       }
+
+
 
       // Collect all direct responses from Firestore
       const directResponses: Array<{ id: string; data: any }> = [];
@@ -174,44 +139,33 @@ export default function DashboardPage() {
       finalSurveyList.sort((a, b) => (b.responseCount || 0) - (a.responseCount || 0));
 
       // Compute user distribution metrics from direct users
-      let totalUsersCount = d.totalUsers ?? 0;
-      let basicProfileCount = d.basicProfileCompletedCount ?? 0;
-      let phoneCount = d.phoneVerifiedCount ?? 0;
-      let kycCount = d.kycVerifiedCount ?? 0;
-      let ibanCount = d.ibanSubmittedCount ?? 0;
+      let totalUsersCount = 0;
+      let basicProfileCount = 0;
+      let phoneCount = 0;
+      let kycCount = 0;
+      let ibanCount = 0;
 
       if (directUsersSnap && !directUsersSnap.empty) {
-        totalUsersCount = Math.max(totalUsersCount, directUsersSnap.size);
-        let bCount = 0;
-        let pCount = 0;
-        let kCount = 0;
-        let iCount = 0;
-
+        totalUsersCount = directUsersSnap.size;
         directUsersSnap.forEach(uDoc => {
           const u = uDoc.data();
-          if (u.profileCompleted || u.isBasicProfileCompleted) bCount++;
-          if (u.isPhoneVerified || u.phoneVerified) pCount++;
-          if (u.kycStatus === 'VERIFIED' || u.isKycVerified) kCount++;
-          if (u.iban || u.isIbanSubmitted) iCount++;
+          if (u.profileCompleted || u.isBasicProfileCompleted) basicProfileCount++;
+          if (u.isPhoneVerified || u.phoneVerified) phoneCount++;
+          if (u.kycStatus === 'VERIFIED' || u.isKycVerified) kycCount++;
+          if (u.iban || u.isIbanSubmitted) ibanCount++;
         });
-
-        basicProfileCount = Math.max(basicProfileCount, bCount);
-        phoneCount = Math.max(phoneCount, pCount);
-        kycCount = Math.max(kycCount, kCount);
-        ibanCount = Math.max(ibanCount, iCount);
       }
 
       const totalResponsesCount = Math.max(
-        d.totalResponses ?? 0,
         directResponses.length,
         finalSurveyList.reduce((sum, s) => sum + (s.responseCount || 0), 0)
       );
 
       setMetrics({
-        activeSurveys: Math.max(d.activeSurveys ?? 0, finalSurveyList.filter(s => s.status === 'ACTIVE').length),
-        activeProfileSurveys: Math.max(d.activeProfileSurveys ?? 0, finalSurveyList.filter(s => s.status === 'ACTIVE' && s.surveyId.includes('profile')).length, 1),
+        activeSurveys: finalSurveyList.filter(s => s.status === 'ACTIVE').length,
+        activeProfileSurveys: Math.max(finalSurveyList.filter(s => s.status === 'ACTIVE' && s.surveyId.includes('profile')).length, 1),
         totalUsers: Math.max(totalUsersCount, 1),
-        activePushUsers: Math.max(d.activePushUsers ?? totalUsersCount, totalUsersCount, 1),
+        activePushUsers: Math.max(totalUsersCount, 1),
         totalResponses: totalResponsesCount,
         basicProfileCompletedCount: basicProfileCount,
         phoneVerifiedCount: phoneCount,

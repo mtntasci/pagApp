@@ -163,6 +163,7 @@ export default function SurveysPage() {
   const [editingSurveyId, setEditingSurveyId] = useState<string | null>(null);
 
   const [surveys, setSurveys] = useState<any[]>([]);
+  const [registeredOrganizations, setRegisteredOrganizations] = useState<{ organizationId: string; name: string }[]>([]);
 
   // Wizard Form State
   const [formOwnerType, setFormOwnerType] = useState<'PAG' | 'ORGANIZATION'>('PAG');
@@ -401,18 +402,7 @@ export default function SurveysPage() {
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
     try {
-      const listFn = httpsCallable(functions, 'listSurveysAdmin');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
-        setSurveys(res.data.data.surveys);
-        setIsLoading(false);
-        return;
-      }
-    } catch (err: any) {
-      console.warn('Fetch Surveys Admin SDK error/fallback:', err);
-    }
-
-    try {
+      // 1. Direct Firestore Instant Load (~50ms)
       const snap = await getDocs(collection(db, 'surveys'));
       const list = snap.docs.map(docSnap => {
         const d = docSnap.data();
@@ -423,9 +413,20 @@ export default function SurveysPage() {
       });
       setSurveys(list);
     } catch (fsErr) {
-      console.error('Fetch Surveys Firestore fallback error:', fsErr);
+      console.warn('Fetch Surveys Firestore direct read:', fsErr);
     } finally {
       setIsLoading(false);
+    }
+
+    // 2. Background Callable Function sync (non-blocking)
+    try {
+      const listFn = httpsCallable(functions, 'listSurveysAdmin');
+      const res: any = await listFn({});
+      if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
+        setSurveys(res.data.data.surveys);
+      }
+    } catch (err: any) {
+      // Background fallback
     }
   }, []);
 
@@ -461,10 +462,29 @@ export default function SurveysPage() {
     }
   }, []);
 
+  const fetchOrganizations = useCallback(async () => {
+    try {
+      const snap = await getDocs(collection(db, 'organizations'));
+      if (!snap.empty) {
+        const list = snap.docs.map(docSnap => {
+          const d = docSnap.data();
+          return {
+            organizationId: d.organizationId || docSnap.id,
+            name: d.name || docSnap.id
+          };
+        });
+        setRegisteredOrganizations(list);
+      }
+    } catch (err) {
+      console.warn('Fetch registered organizations error:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchSurveys();
     fetchCategories();
-  }, [fetchSurveys, fetchCategories]);
+    fetchOrganizations();
+  }, [fetchSurveys, fetchCategories, fetchOrganizations]);
 
   const resetWizardForm = () => {
     setEditingSurveyId(null);
@@ -995,9 +1015,14 @@ export default function SurveysPage() {
                       style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                     >
                       <option value="">Kurum Seçin</option>
-                      <option value="org_ford">Ford Otosan</option>
-                      <option value="org_mcdonalds">McDonald's Türkiye</option>
-                      <option value="org_nike">Nike Türkiye</option>
+                      {registeredOrganizations.map(org => (
+                        <option key={org.organizationId} value={org.organizationId}>
+                          {org.name} ({org.organizationId})
+                        </option>
+                      ))}
+                      {registeredOrganizations.length === 0 && (
+                        <option value="" disabled>Henüz kayıtlı firma bulunamadı (Önce Firmalar menüsünden ekleyin)</option>
+                      )}
                     </select>
                   </div>
                 )}
@@ -1195,7 +1220,7 @@ export default function SurveysPage() {
                   <div>
                     <div style={{ marginBottom: '16px' }}>
                       <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Kupon Havuzu Adı</label>
-                      <input type="text" value={formVoucherName} onChange={(e) => setFormVoucherName(e.target.value)} placeholder="Örn: Ford 200 TL Bakım Çeki" style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
+                      <input type="text" value={formVoucherName} onChange={(e) => setFormVoucherName(e.target.value)} placeholder="Örn: 250 TL İndirim Kuponu" style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }} />
                     </div>
                     <div>
                       <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>Toplu Kupon Kodları (Her satırda 1 kod)</label>
@@ -1224,7 +1249,7 @@ export default function SurveysPage() {
                           type="text"
                           value={formStoryLabel}
                           onChange={(e) => setFormStoryLabel(e.target.value)}
-                          placeholder="Örn: Ford Özel"
+                          placeholder="Örn: Özel Fırsat"
                           style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
                         />
                       </div>

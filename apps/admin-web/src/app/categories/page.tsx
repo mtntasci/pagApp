@@ -68,36 +68,44 @@ export default function CategoriesManagementPage() {
     setErrorMsg(null);
     const collName = activeTab === 'SURVEY' ? 'surveyCategories' : 'profileSurveyCategories';
     try {
+      // 1. Direct Firestore Instant Read (~30ms)
+      try {
+        const snap = await getDocs(collection(db, collName));
+        if (!snap.empty) {
+          const items: CategoryItem[] = snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              name: data.name || d.id,
+              isVisible: typeof data.isVisible === 'boolean' ? data.isVisible : true,
+              sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 1,
+              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+              updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt
+            };
+          });
+          items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+
+          if (activeTab === 'SURVEY') setSurveyCategories(items);
+          else setProfileCategories(items);
+        }
+      } catch (fsErr) {
+        console.warn('Direct Firestore categories read error:', fsErr);
+      } finally {
+        setIsLoading(false);
+      }
+
+      // 2. Background Callable Functions Sync (non-blocking)
       try {
         const fnName = activeTab === 'SURVEY' ? 'manageSurveyCategoriesAdmin' : 'manageProfileCategoriesAdmin';
         const fn = httpsCallable(functions, fnName);
         const res: any = await fn({ action: 'GET' });
-        if (res.data?.success && Array.isArray(res.data.data?.categories)) {
+        if (res.data?.success && Array.isArray(res.data.data?.categories) && res.data.data.categories.length > 0) {
           if (activeTab === 'SURVEY') setSurveyCategories(res.data.data.categories);
           else setProfileCategories(res.data.data.categories);
-          return;
         }
       } catch (cloudErr) {
-        console.warn('Cloud Function unavailable, falling back to direct Firestore query:', cloudErr);
+        // background
       }
-
-      // Direct Firestore Fallback
-      const snap = await getDocs(collection(db, collName));
-      const items: CategoryItem[] = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          name: data.name || d.id,
-          isVisible: typeof data.isVisible === 'boolean' ? data.isVisible : true,
-          sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 1,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
-          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt
-        };
-      });
-      items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-      if (activeTab === 'SURVEY') setSurveyCategories(items);
-      else setProfileCategories(items);
     } catch (err: any) {
       console.error('Fetch Categories Error:', err);
       setErrorMsg('Kategoriler yüklenirken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));

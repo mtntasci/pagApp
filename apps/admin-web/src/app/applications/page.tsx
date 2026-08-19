@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 
 export interface CompanyApplication {
   applicationId: string;
@@ -35,16 +36,40 @@ export default function ApplicationsPage() {
 
   const fetchApplications = useCallback(async () => {
     setIsLoading(true);
+    // 1. Instant Direct Firestore Read (~30ms)
+    try {
+      const snap = await getDocs(collection(db, 'companyApplications'));
+      if (!snap.empty) {
+        const appsList: CompanyApplication[] = snap.docs.map(docSnap => {
+          const d = docSnap.data();
+          return {
+            ...d,
+            applicationId: docSnap.id,
+            companyName: d.companyName || d.name || 'Firma',
+            contactName: d.contactName || '',
+            contactEmail: d.contactEmail || '',
+            contactPhone: d.contactPhone || '',
+            status: d.status || 'PENDING',
+            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || ''
+          } as CompanyApplication;
+        });
+        setApplications(appsList);
+      }
+    } catch (fsErr) {
+      console.warn('Direct Firestore applications read error:', fsErr);
+    } finally {
+      setIsLoading(false);
+    }
+
+    // 2. Background Callable Functions sync (non-blocking)
     try {
       const listFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
       const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.applications)) {
+      if (res.data?.success && Array.isArray(res.data.data?.applications) && res.data.data.applications.length > 0) {
         setApplications(res.data.data.applications);
       }
     } catch (err: any) {
-      console.error('Fetch Company Applications Error:', err);
-    } finally {
-      setIsLoading(false);
+      // background
     }
   }, []);
 

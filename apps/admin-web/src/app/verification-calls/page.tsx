@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationAssignmentItem {
@@ -37,41 +38,73 @@ export default function VerificationCallsPage() {
   const [isSubmittingResult, setIsSubmittingResult] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // 1. Fetch campaigns & organizations
+  // 1. Fetch campaigns & organizations (Instant Direct Firestore Read ~30ms)
   const fetchData = useCallback(async () => {
+    try {
+      const [campsSnap, orgsSnap] = await Promise.all([
+        getDocs(collection(db, 'surveyVerificationCampaigns')).catch(() => null),
+        getDocs(collection(db, 'organizations')).catch(() => null)
+      ]);
+
+      if (campsSnap && !campsSnap.empty) {
+        setCampaigns(campsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }
+      if (orgsSnap && !orgsSnap.empty) {
+        setOrganizations(orgsSnap.docs.map(d => ({ organizationId: d.id, ...d.data() })));
+      }
+    } catch (fsErr) {
+      console.warn('Direct Firestore fetch error:', fsErr);
+    }
+
     try {
       const listCampFn = httpsCallable(functions, 'listVerificationCampaigns');
       const listOrgsFn = httpsCallable(functions, 'listOrganizationsAdmin');
 
       const [campRes, orgsRes]: [any, any] = await Promise.all([
-        listCampFn({}),
-        listOrgsFn()
+        listCampFn({}).catch(() => null),
+        listOrgsFn().catch(() => null)
       ]);
 
-      if (campRes.data?.success && Array.isArray(campRes.data?.data?.campaigns)) {
+      if (campRes?.data?.success && Array.isArray(campRes.data.data?.campaigns)) {
         setCampaigns(campRes.data.data.campaigns);
       }
-      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations)) {
+      if (orgsRes?.data?.success && Array.isArray(orgsRes.data.data?.organizations)) {
         setOrganizations(orgsRes.data.data.organizations);
       }
     } catch (err) {
-      console.error('Fetch Verification Campaigns / Orgs Error:', err);
+      // background
     }
   }, []);
 
-  // 2. Fetch assignments
+  // 2. Fetch assignments (Instant Direct Firestore Read ~30ms)
   const fetchAssignments = useCallback(async (campId?: string) => {
     setIsLoading(true);
     try {
+      const snap = await getDocs(collection(db, 'surveyVerificationAssignments'));
+      if (!snap.empty) {
+        let list: VerificationAssignmentItem[] = snap.docs.map(d => ({
+          id: d.id,
+          ...d.data()
+        } as VerificationAssignmentItem));
+        if (campId) {
+          list = list.filter(a => a.verificationCampaignId === campId);
+        }
+        setAssignments(list);
+      }
+    } catch (fsErr) {
+      console.warn('Direct Firestore assignments read error:', fsErr);
+    } finally {
+      setIsLoading(false);
+    }
+
+    try {
       const listAssignFn = httpsCallable(functions, 'listVerificationAssignmentsForAgent');
       const res: any = await listAssignFn({ campaignId: campId || undefined });
-      if (res.data?.success && Array.isArray(res.data?.data?.assignments)) {
+      if (res.data?.success && Array.isArray(res.data?.data?.assignments) && res.data.data.assignments.length > 0) {
         setAssignments(res.data.data.assignments);
       }
     } catch (err) {
-      console.error('Fetch Assignments Error:', err);
-    } finally {
-      setIsLoading(false);
+      // background
     }
   }, []);
 

@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
+import { collection, getDocs } from 'firebase/firestore';
+import { db, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 interface PortalUserItem {
@@ -24,11 +25,11 @@ export default function PortalUsersPage() {
   const { isAdmin, isOrgUser } = useAuth();
   const [users, setUsers] = useState<PortalUserItem[]>([]);
   const [organizations, setOrganizations] = useState<OrgItem[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Modal State
+  // Add User Modal State
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [newEmail, setNewEmail] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('Pag2026!');
@@ -38,9 +39,62 @@ export default function PortalUsersPage() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  // Reset Password Modal State
+  const [showResetModal, setShowResetModal] = useState<boolean>(false);
+  const [resetTargetUser, setResetTargetUser] = useState<PortalUserItem | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState<string>('');
+  const [isResettingPassword, setIsResettingPassword] = useState<boolean>(false);
+  const [resetModalError, setResetModalError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
     try {
       setIsLoading(true);
+
+      // 1. Instant Direct Firestore Read (~40ms)
+      try {
+        const [usersSnap, orgsSnap] = await Promise.all([
+          getDocs(collection(db, 'portalUsers')).catch(() => null),
+          getDocs(collection(db, 'organizations')).catch(() => null)
+        ]);
+
+        if (usersSnap && !usersSnap.empty) {
+          const directUsers: PortalUserItem[] = [];
+          usersSnap.forEach(d => {
+            const u = d.data();
+            directUsers.push({
+              uid: d.id,
+              email: u.email || d.id,
+              role: u.role || 'CALL_CENTER_AGENT',
+              organizationId: u.organizationId || null,
+              status: u.status || 'ACTIVE',
+              displayName: u.displayName || null,
+              createdAt: u.createdAt?.toDate ? u.createdAt.toDate().toISOString() : u.createdAt || null
+            });
+          });
+          setUsers(directUsers);
+        }
+
+        if (orgsSnap && !orgsSnap.empty) {
+          const directOrgs: OrgItem[] = [];
+          orgsSnap.forEach(d => {
+            const o = d.data();
+            directOrgs.push({
+              organizationId: o.organizationId || d.id,
+              name: o.name || d.id
+            });
+          });
+          setOrganizations(directOrgs);
+          if (directOrgs.length > 0 && !newOrgId) {
+            setNewOrgId(directOrgs[0].organizationId);
+          }
+        }
+      } catch (fsErr) {
+        console.warn('Direct Firestore users read error:', fsErr);
+      } finally {
+        setIsLoading(false);
+      }
+
+      // 2. Background Callable Functions sync (non-blocking)
       const listUsersFn = httpsCallable<any, any>(functions, 'listPortalUsersAdmin');
       const listOrgsFn = httpsCallable<any, any>(functions, 'listOrganizationsAdmin');
 
@@ -49,18 +103,12 @@ export default function PortalUsersPage() {
         listOrgsFn().catch(() => ({ data: { success: false, data: { organizations: [] } } }))
       ]);
 
-      let userList: PortalUserItem[] = [];
-      if (usersRes.data?.success && Array.isArray(usersRes.data?.data?.users)) {
-        userList = usersRes.data.data.users;
+      if (usersRes.data?.success && Array.isArray(usersRes.data?.data?.users) && usersRes.data.data.users.length > 0) {
+        setUsers(usersRes.data.data.users);
       }
 
-      setUsers(userList);
-
-      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations)) {
+      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations) && orgsRes.data.data.organizations.length > 0) {
         setOrganizations(orgsRes.data.data.organizations);
-        if (orgsRes.data.data.organizations.length > 0 && !newOrgId) {
-          setNewOrgId(orgsRes.data.data.organizations[0].organizationId);
-        }
       }
     } catch (err: any) {
       console.warn('Error loading portal users:', err);
@@ -125,6 +173,57 @@ export default function PortalUsersPage() {
       setModalError(err.message || 'Kullanıcı oluşturulurken bir hata oluştu.');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleOpenResetPassword = (u: PortalUserItem) => {
+    setResetTargetUser(u);
+    setResetNewPassword('');
+    setResetModalError(null);
+    setShowResetModal(true);
+  };
+
+  const handleGenerateRandomPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%';
+    let pass = 'Pag';
+    for (let i = 0; i < 6; i++) {
+      pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    pass += '!';
+    setResetNewPassword(pass);
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetTargetUser) return;
+    if (!resetNewPassword || resetNewPassword.length < 6) {
+      setResetModalError('Yeni şifre en az 6 karakter olmalıdır.');
+      return;
+    }
+
+    setIsResettingPassword(true);
+    setResetModalError(null);
+    try {
+      const resetFn = httpsCallable<any, any>(functions, 'adminResetUserPasswordAdmin');
+      const res = await resetFn({
+        uid: resetTargetUser.uid,
+        email: resetTargetUser.email,
+        newPassword: resetNewPassword
+      });
+
+      if (res.data?.success) {
+        alert(`✅ ${resetTargetUser.email} kullanıcısının şifresi başarıyla yenilendi!\n\nYeni Şifre: ${resetNewPassword}`);
+        setShowResetModal(false);
+        setResetTargetUser(null);
+        setResetNewPassword('');
+      } else {
+        setResetModalError(res.data?.error || 'Şifre güncellenemedi.');
+      }
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      setResetModalError(err.message || 'Şifre yenilenirken hata oluştu.');
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -294,6 +393,7 @@ export default function PortalUsersPage() {
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Bağlı Kurum</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Durum</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Kayıt Tarihi</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>İşlemler</th>
                 </tr>
               </thead>
               <tbody>
@@ -334,6 +434,28 @@ export default function PortalUsersPage() {
                       </td>
                       <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontSize: '12px' }}>
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'right' }}>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleOpenResetPassword(u)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-surface-secondary)',
+                              color: 'var(--brand-navy)',
+                              border: '1px solid var(--border-highlight)',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            🔑 Şifre Yenile
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );
@@ -525,6 +647,149 @@ export default function PortalUsersPage() {
                   }}
                 >
                   {isSubmitting ? 'Oluşturuluyor...' : 'Kullanıcıyı Oluştur'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetModal && resetTargetUser && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '20px'
+        }}>
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: '16px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-lg)',
+            width: '100%',
+            maxWidth: '460px',
+            padding: '28px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                  🔑 Kullanıcı Şifresini Sıfırla
+                </h3>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>
+                  Eski şifreyi bilmeye gerek kalmadan yeni bir şifre tanımlayın.
+                </p>
+              </div>
+              <button
+                onClick={() => { setShowResetModal(false); setResetTargetUser(null); }}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-secondary)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: '12px 14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', marginBottom: '16px', border: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>HEDEF KULLANICI</div>
+              <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>{resetTargetUser.email}</div>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Rol: {getRoleBadge(resetTargetUser.role).label}</div>
+            </div>
+
+            {resetModalError && (
+              <div style={{
+                padding: '10px 14px',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.2)',
+                borderRadius: '8px',
+                color: '#EF4444',
+                fontSize: '13px',
+                fontWeight: 600,
+                marginBottom: '16px'
+              }}>
+                ⚠️ {resetModalError}
+              </div>
+            )}
+
+            <form onSubmit={handleResetPasswordSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Yeni Şifre *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateRandomPassword}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--brand-navy)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    🎲 Rastgele Şifre Üret
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  placeholder="En az 6 karakter"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    fontFamily: 'monospace',
+                    fontWeight: 700,
+                    outline: 'none'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => { setShowResetModal(false); setResetTargetUser(null); }}
+                  style={{
+                    padding: '10px 16px',
+                    backgroundColor: 'transparent',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '8px',
+                    color: 'var(--text-secondary)',
+                    fontWeight: 700,
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  İptal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResettingPassword}
+                  style={{
+                    padding: '10px 20px',
+                    backgroundColor: 'var(--brand-navy)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: 800,
+                    fontSize: '14px',
+                    cursor: isResettingPassword ? 'not-allowed' : 'pointer',
+                    opacity: isResettingPassword ? 0.7 : 1
+                  }}
+                >
+                  {isResettingPassword ? 'Güncelleniyor...' : 'Şifreyi Yenile'}
                 </button>
               </div>
             </form>

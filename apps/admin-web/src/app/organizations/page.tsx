@@ -45,47 +45,41 @@ export default function OrganizationsPage() {
   const [newOrgVerificationAuth, setNewOrgVerificationAuth] = useState(true);
   const [isSavingOrg, setIsSavingOrg] = useState(false);
 
+  // Edit Organization Modal
+  const [isEditOrgModalOpen, setIsEditOrgModalOpen] = useState(false);
+  const [editingOrg, setEditingOrg] = useState<OrganizationItem | null>(null);
+  const [editOrgName, setEditOrgName] = useState('');
+  const [editOrgSector, setEditOrgSector] = useState('Otomotiv');
+  const [editOrgEmail, setEditOrgEmail] = useState('');
+  const [editOrgPhone, setEditOrgPhone] = useState('');
+  const [editOrgStatus, setEditOrgStatus] = useState<'ACTIVE' | 'DISABLED'>('ACTIVE');
+  const [editOrgVerificationAuth, setEditOrgVerificationAuth] = useState(false);
+  const [isSavingEditOrg, setIsSavingEditOrg] = useState(false);
+
   // Add Portal User for Org Modal
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations & Auto-merge Approved Applications (with direct Firestore fallback)
+  // 1. Fetch Organizations & Auto-merge Approved Applications (Instant Firestore Direct Read)
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
     try {
-      const listFn = httpsCallable(functions, 'listOrganizationsAdmin');
-      const listAppsFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
-      
       let orgsList: OrganizationItem[] = [];
       let applicationsList: any[] = [];
 
-      // 1. Try Callable Functions
+      // 1. Instant Direct Firestore Read (~40ms)
       try {
-        const [res, appsRes]: [any, any] = await Promise.all([
-          listFn({}).catch(() => null),
-          listAppsFn({}).catch(() => null)
+        const [orgsSnap, appsSnap] = await Promise.all([
+          getDocs(collection(db, 'organizations')).catch(() => null),
+          getDocs(collection(db, 'companyApplications')).catch(() => null)
         ]);
 
-        if (res?.data?.success && Array.isArray(res.data.data?.organizations)) {
-          orgsList = [...res.data.data.organizations];
-        }
-        if (appsRes?.data?.success && Array.isArray(appsRes.data.data?.applications)) {
-          applicationsList = appsRes.data.data.applications;
-        }
-      } catch (callErr) {
-        console.warn('Callable functions fallback to direct Firestore:', callErr);
-      }
-
-      // 2. Direct Firestore fallback if callable is not deployed / blocked by CORS
-      try {
-        const orgsSnap = await getDocs(collection(db, 'organizations'));
-        const existingIds = new Set(orgsList.map(o => o.organizationId));
-        orgsSnap.forEach(d => {
-          const data = d.data();
-          const oId = data.organizationId || d.id;
-          if (!existingIds.has(oId)) {
+        if (orgsSnap && !orgsSnap.empty) {
+          orgsSnap.forEach(d => {
+            const data = d.data();
+            const oId = data.organizationId || d.id;
             orgsList.push({
               id: d.id,
               organizationId: oId,
@@ -99,27 +93,21 @@ export default function OrganizationsPage() {
               portalUserCount: 0,
               createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null
             });
-            existingIds.add(oId);
-          }
-        });
-      } catch (fsErr) {
-        console.warn('Direct Firestore organizations read:', fsErr);
-      }
+          });
+        }
 
-      try {
-        const appsSnap = await getDocs(collection(db, 'companyApplications'));
-        appsSnap.forEach(d => {
-          const data = d.data();
-          if (!applicationsList.some(a => a.applicationId === d.id)) {
+        if (appsSnap && !appsSnap.empty) {
+          appsSnap.forEach(d => {
             applicationsList.push({
               applicationId: d.id,
-              ...data
+              ...d.data()
             });
-          }
-        });
-      } catch (fsAppsErr) {
-        console.warn('Direct Firestore applications read:', fsAppsErr);
+          });
+        }
+      } catch (fsErr) {
+        console.warn('Direct Firestore organizations read error:', fsErr);
       }
+
 
       // 3. Auto-sync approved applications into the list & persist missing to Firestore
       if (applicationsList.length > 0) {
@@ -252,6 +240,81 @@ export default function OrganizationsPage() {
       alert('Firma oluşturulurken hata: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setIsSavingOrg(false);
+    }
+  };
+
+  // 4b. Open Edit Org Modal
+  const handleOpenEditOrg = (org: OrganizationItem) => {
+    setEditingOrg(org);
+    setEditOrgName(org.name || '');
+    setEditOrgSector(org.sector || 'Genel');
+    setEditOrgEmail(org.contactEmail || '');
+    setEditOrgPhone(org.contactPhone || '');
+    setEditOrgStatus(org.status || 'ACTIVE');
+    setEditOrgVerificationAuth(org.isVerificationAuthorized === true);
+    setIsEditOrgModalOpen(true);
+  };
+
+  // 4c. Save Edited Org
+  const handleSaveEditOrg = async () => {
+    if (!editingOrg) return;
+    if (!editOrgName.trim()) {
+      alert('Lütfen firma adını giriniz.');
+      return;
+    }
+    setIsSavingEditOrg(true);
+    try {
+      // 1. Direct Firestore update
+      try {
+        await setDoc(doc(db, 'organizations', editingOrg.organizationId), {
+          organizationId: editingOrg.organizationId,
+          name: editOrgName.trim(),
+          sector: editOrgSector,
+          contactEmail: editOrgEmail.trim() || null,
+          contactPhone: editOrgPhone.trim() || null,
+          status: editOrgStatus,
+          isVerificationAuthorized: editOrgVerificationAuth,
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
+      } catch (fsErr) {
+        console.warn('Firestore edit org error:', fsErr);
+      }
+
+      // 2. Cloud Function update
+      try {
+        const createFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
+        await createFn({
+          organizationId: editingOrg.organizationId,
+          name: editOrgName.trim(),
+          sector: editOrgSector,
+          contactEmail: editOrgEmail.trim() || null,
+          contactPhone: editOrgPhone.trim() || null,
+          status: editOrgStatus,
+          isVerificationAuthorized: editOrgVerificationAuth
+        });
+      } catch (fnErr) {
+        // background
+      }
+
+      // Update local state immediately
+      setOrganizations(prev => prev.map(o => o.organizationId === editingOrg.organizationId ? {
+        ...o,
+        name: editOrgName.trim(),
+        sector: editOrgSector,
+        contactEmail: editOrgEmail.trim() || null,
+        contactPhone: editOrgPhone.trim() || null,
+        status: editOrgStatus,
+        isVerificationAuthorized: editOrgVerificationAuth
+      } : o));
+
+      alert(`"${editOrgName}" firması başarıyla güncellendi!`);
+      setIsEditOrgModalOpen(false);
+      setEditingOrg(null);
+    } catch (err: any) {
+      console.error('Save Edit Organization Error:', err);
+      alert('Firma güncellenirken hata: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsSavingEditOrg(false);
     }
   };
 
@@ -420,21 +483,40 @@ export default function OrganizationsPage() {
                       )}
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleOpenOrgUsers(org)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--bg-surface-secondary)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-highlight)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        👥 Kullanıcılar ({org.portalUserCount})
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleOpenEditOrg(org)}
+                            style={{
+                              padding: '6px 12px',
+                              borderRadius: '6px',
+                              backgroundColor: 'var(--bg-surface-secondary)',
+                              color: 'var(--brand-navy)',
+                              border: '1px solid var(--border-highlight)',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            ✏️ Düzenle
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleOpenOrgUsers(org)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            backgroundColor: 'var(--bg-surface-secondary)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-highlight)',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          👥 Kullanıcılar ({org.portalUserCount})
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -624,7 +706,7 @@ export default function OrganizationsPage() {
               </label>
               <input
                 type="text"
-                placeholder="Örn: McDonald's Türkiye"
+                placeholder="Örn: ABC A.Ş."
                 value={newOrgName}
                 onChange={(e) => setNewOrgName(e.target.value)}
                 style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px' }}
@@ -658,7 +740,7 @@ export default function OrganizationsPage() {
                 </label>
                 <input
                   type="email"
-                  placeholder="contact@mcdonalds.com.tr"
+                  placeholder="info@firma.com"
                   value={newOrgEmail}
                   onChange={(e) => setNewOrgEmail(e.target.value)}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px' }}
@@ -706,6 +788,136 @@ export default function OrganizationsPage() {
                 style={{ padding: '8px 18px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '6px', fontWeight: 700, border: 'none', cursor: 'pointer' }}
               >
                 {isSavingOrg ? 'Kaydediliyor...' : 'Firmayı Kaydet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Organization Modal */}
+      {isEditOrgModalOpen && editingOrg && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px'
+        }}>
+          <div style={{
+            width: '100%', maxWidth: '540px', backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)', borderRadius: '16px', padding: '24px',
+            boxShadow: 'var(--shadow-lg)', display: 'flex', flexDirection: 'column', gap: '14px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div>
+                <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)', margin: 0 }}>
+                  ✏️ Firma Düzenle & Yetkilendir
+                </h3>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
+                  {editingOrg.organizationId}
+                </span>
+              </div>
+              <button onClick={() => { setIsEditOrgModalOpen(false); setEditingOrg(null); }} style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                Firma Adı:
+              </label>
+              <input
+                type="text"
+                value={editOrgName}
+                onChange={(e) => setEditOrgName(e.target.value)}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px' }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Sektör:
+                </label>
+                <select
+                  value={editOrgSector}
+                  onChange={(e) => setEditOrgSector(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}
+                >
+                  <option value="Otomotiv">Otomotiv & Ulaşım</option>
+                  <option value="Yeme & İçme">Yeme & İçme / Restoran</option>
+                  <option value="Perakende">Perakende & Alışveriş</option>
+                  <option value="Teknoloji">Teknoloji & Telekomünikasyon</option>
+                  <option value="Finans">Finans & Bankacılık</option>
+                  <option value="Sağlık">Sağlık & Kozmetik</option>
+                  <option value="Turizm">Turizm & Eğlence</option>
+                  <option value="Genel">Diğer / Genel</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Durum:
+                </label>
+                <select
+                  value={editOrgStatus}
+                  onChange={(e) => setEditOrgStatus(e.target.value as any)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}
+                >
+                  <option value="ACTIVE">Aktif (Kullanımda)</option>
+                  <option value="DISABLED">Pasif / Askıya Alındı</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Kurumsal E-posta:
+                </label>
+                <input
+                  type="email"
+                  value={editOrgEmail}
+                  onChange={(e) => setEditOrgEmail(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                  Telefon:
+                </label>
+                <input
+                  type="tel"
+                  value={editOrgPhone}
+                  onChange={(e) => setEditOrgPhone(e.target.value)}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px' }}
+                />
+              </div>
+            </div>
+
+            <div style={{ padding: '14px 16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={editOrgVerificationAuth}
+                  onChange={(e) => setEditOrgVerificationAuth(e.target.checked)}
+                  style={{ width: '20px', height: '20px', accentColor: 'var(--brand-navy)', cursor: 'pointer' }}
+                />
+                🛡️ Kalite Doğrulama Yetkisi (Quality Verification Authorization)
+              </label>
+              <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: '4px 0 0 30px' }}>
+                Yetki verildiğinde firma kendi anket katılımcıları arasından arama ve doğrulama kampanyası başlatabilir.
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '8px' }}>
+              <button
+                onClick={() => { setIsEditOrgModalOpen(false); setEditingOrg(null); }}
+                style={{ padding: '8px 14px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                İptal
+              </button>
+              <button
+                onClick={handleSaveEditOrg}
+                disabled={isSavingEditOrg}
+                style={{ padding: '8px 20px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '6px', fontWeight: 700, border: 'none', cursor: 'pointer' }}
+              >
+                {isSavingEditOrg ? 'Güncelleniyor...' : 'Değişiklikleri Kaydet'}
               </button>
             </div>
           </div>
