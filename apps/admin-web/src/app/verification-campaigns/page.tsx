@@ -53,7 +53,7 @@ export interface CampaignStats {
 
 export default function VerificationCampaignsPage() {
   const { isAdmin, isOrgUser, portalUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'CREATE_CAMPAIGN'>('CAMPAIGNS');
+  const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'CREATE_CAMPAIGN'>('CREATE_CAMPAIGN');
 
   // Campaigns List
   const [campaigns, setCampaigns] = useState<VerificationCampaign[]>([]);
@@ -139,7 +139,7 @@ export default function VerificationCampaignsPage() {
     }
   }, [isOrgUser, portalUser]);
 
-  // 2. Fetch available surveys for selection (Filtered by Quality Verification enabled)
+  // 2. Fetch available surveys for selection
   const fetchSurveys = useCallback(async () => {
     try {
       const snap = await getDocs(collection(db, 'surveys'));
@@ -149,13 +149,17 @@ export default function VerificationCampaignsPage() {
           surveyId: docSnap.id
         } as any));
 
-        // Filter only surveys where verification is enabled
-        list = list.filter(s => s.isVerificationEnabled === true || s.verificationConfig?.enabled === true || s.verificationConfig?.questionText);
-
         // Tenant isolation for org user
         if (isOrgUser && portalUser?.organizationId) {
           list = list.filter(s => s.organizationId === portalUser.organizationId);
         }
+
+        // Sort: verification-ready surveys first
+        list.sort((a, b) => {
+          const aVer = (a.isVerificationEnabled || a.verificationConfig?.enabled || a.verificationConfig?.questionText) ? 1 : 0;
+          const bVer = (b.isVerificationEnabled || b.verificationConfig?.enabled || b.verificationConfig?.questionText) ? 1 : 0;
+          return bVer - aVer;
+        });
 
         setAvailableSurveys(list);
         if (list.length > 0 && !selectedSurveyId) {
@@ -177,10 +181,14 @@ export default function VerificationCampaignsPage() {
       const res: any = await listSurveysFn({});
       if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
         let list = res.data.data.surveys;
-        list = list.filter((s: any) => s.isVerificationEnabled === true || s.verificationConfig?.enabled === true || s.verificationConfig?.questionText);
         if (isOrgUser && portalUser?.organizationId) {
           list = list.filter((s: any) => s.organizationId === portalUser.organizationId);
         }
+        list.sort((a: any, b: any) => {
+          const aVer = (a.isVerificationEnabled || a.verificationConfig?.enabled || a.verificationConfig?.questionText) ? 1 : 0;
+          const bVer = (b.isVerificationEnabled || b.verificationConfig?.enabled || b.verificationConfig?.questionText) ? 1 : 0;
+          return bVer - aVer;
+        });
         setAvailableSurveys(list);
         if (list.length > 0 && !selectedSurveyId) {
           setSelectedSurveyId(list[0].surveyId);

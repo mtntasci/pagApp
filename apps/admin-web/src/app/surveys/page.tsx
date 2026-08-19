@@ -649,6 +649,12 @@ export default function SurveysPage() {
       return;
     }
 
+    if (formOwnerType === 'ORGANIZATION' && !formOrgId) {
+      setErrorMsg('Lütfen 1. Adımda anketin ait olduğu Firmayı (Kurum) seçiniz.');
+      setWizardStep(1);
+      return;
+    }
+
     setIsSaving(true);
     setErrorMsg(null);
     try {
@@ -656,12 +662,17 @@ export default function SurveysPage() {
         questionId: q.id || `q${idx + 1}`,
         order: idx + 1,
         type: 'SINGLE_SELECT',
-        text: q.text,
-        options: q.options.map((optText, oIdx) => ({
-          optionId: `opt_${oIdx + 1}`,
-          label: typeof optText === 'string' ? optText : (optText as any).label || `Seçenek ${oIdx + 1}`,
-          order: oIdx + 1
-        }))
+        text: q.text || `${idx + 1}. Soru`,
+        options: (q.options && q.options.length > 0)
+          ? q.options.map((optText, oIdx) => ({
+              optionId: `opt_${oIdx + 1}`,
+              label: typeof optText === 'string' ? optText : (optText as any).label || `Seçenek ${oIdx + 1}`,
+              order: oIdx + 1
+            }))
+          : [
+              { optionId: 'opt_1', label: 'Seçenek 1', order: 1 },
+              { optionId: 'opt_2', label: 'Seçenek 2', order: 2 }
+            ]
       }));
 
       const rewardDef: any = {
@@ -708,11 +719,18 @@ export default function SurveysPage() {
             ? `${formVerificationMoneyBudget || 500} TL Nakit Ödül`
             : `${formVerificationScoreReward || 25} Profil Puanı`);
 
+      const vQuestion = formVerificationQuestion.trim() || 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?';
+      const vOptions = formVerificationOptionsText.trim()
+        ? formVerificationOptionsText.split(',').map(s => s.trim()).filter(Boolean)
+        : ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
+
+      const resolvedSurveyType = formOwnerType === 'ORGANIZATION' ? 'ORGANIZATION' : (formSurveyType || 'PAG');
+
       const rawPayload = {
         surveyId: editingSurveyId || undefined,
         ownerType: formOwnerType,
-        organizationId: formOwnerType === 'ORGANIZATION' ? (formOrgId || undefined) : undefined,
-        surveyType: formSurveyType,
+        organizationId: formOwnerType === 'ORGANIZATION' ? formOrgId : undefined,
+        surveyType: resolvedSurveyType,
         category: formCategory,
         title: formTitle,
         description: formDesc || undefined,
@@ -742,8 +760,8 @@ export default function SurveysPage() {
         isVerificationEnabled: formVerificationEnabled,
         verificationConfig: formVerificationEnabled ? {
           enabled: true,
-          questionText: formVerificationQuestion.trim(),
-          options: formVerificationOptionsText.split(',').map(s => s.trim()).filter(Boolean),
+          questionText: vQuestion,
+          options: vOptions,
           pagTargetCount: Number(formPagTargetCount) || 50,
           orgSelectionQuota: Number(formOrgSelectionQuota) || 20,
           profileScoreReward: Number(formVerificationScoreReward) || 25,
@@ -768,6 +786,7 @@ export default function SurveysPage() {
         setIsWizardOpen(false);
         resetWizardForm();
         await fetchSurveys();
+        alert(targetStatus === 'PENDING_APPROVAL' ? '✅ Anket başarıyla Super Admin onayına gönderildi!' : '✅ Anket taslak olarak başarıyla kaydedildi!');
       } else {
         throw new Error(res.data?.error || 'Sunucu yazma hatası');
       }
