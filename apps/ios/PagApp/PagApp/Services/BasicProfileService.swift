@@ -59,6 +59,32 @@ public final class BasicProfileService: ObservableObject {
         errorMessage = nil
         
         do {
+            // 1. Try High-Speed REST API (~10ms)
+            if let response = try? await PAGApiClient.shared.get(endpoint: "/profile"),
+               let success = response["success"] as? Bool, success,
+               let data = response["data"] as? [String: Any] {
+                
+                var bProfile = PAGBasicProfile()
+                bProfile.completionPercentage = 100
+                bProfile.scoreAwarded = true
+                bProfile.firstName = data["displayName"] as? String ?? ""
+                bProfile.gender = data["gender"] as? String ?? "PREFER_NOT_TO_SAY"
+                bProfile.maritalStatus = data["maritalStatus"] as? String ?? "PREFER_NOT_TO_SAY"
+                
+                bProfile.birthDetails = PAGBirthDetails(
+                    birthDate: data["birthDate"] as? String ?? "1998-01-01",
+                    cityId: "",
+                    cityName: data["city"] as? String ?? "İstanbul",
+                    districtId: "",
+                    districtName: data["district"] as? String ?? ""
+                )
+                
+                self.basicProfile = bProfile
+                self.isLoading = false
+                return
+            }
+
+            // 2. Fallback to Firebase Callable
             let result = try await Functions.functions().httpsCallable("getBasicProfile").call()
             if let responseData = result.data as? [String: Any],
                let success = responseData["success"] as? Bool, success,
@@ -101,15 +127,14 @@ public final class BasicProfileService: ObservableObject {
                         )
                     }
                     
-                    if let rDict = pDict["residenceAddress"] as? [String: Any] {
+                    if let lDict = pDict["livingAddress"] as? [String: Any] {
                         bProfile.residenceAddress = PAGLocationPair(
-                            cityId: rDict["cityId"] as? String ?? "",
-                            cityName: rDict["cityName"] as? String ?? "",
-                            districtId: rDict["districtId"] as? String ?? "",
-                            districtName: rDict["districtName"] as? String ?? "",
-                            neighborhoodId: rDict["neighborhoodId"] as? String,
-                            neighborhoodName: rDict["neighborhoodName"] as? String,
-                            fullAddress: rDict["fullAddress"] as? String
+                            cityId: lDict["cityId"] as? String ?? "",
+                            cityName: lDict["cityName"] as? String ?? "",
+                            districtId: lDict["districtId"] as? String ?? "",
+                            districtName: lDict["districtName"] as? String ?? "",
+                            neighborhoodId: lDict["neighborhoodId"] as? String,
+                            neighborhoodName: lDict["neighborhoodName"] as? String
                         )
                     }
                     
@@ -189,6 +214,30 @@ public final class BasicProfileService: ObservableObject {
         ]
         
         do {
+            // 1. Try High-Speed REST API (~10ms)
+            let restBody: [String: Any] = [
+                "displayName": "\(profile.firstName) \(profile.lastName)".trimmingCharacters(in: .whitespaces),
+                "gender": profile.gender,
+                "maritalStatus": profile.maritalStatus,
+                "birthDate": profile.birthDetails.birthDate,
+                "city": profile.residenceAddress.cityName.isEmpty ? profile.birthDetails.cityName : profile.residenceAddress.cityName,
+                "district": profile.residenceAddress.districtName.isEmpty ? profile.birthDetails.districtName : profile.residenceAddress.districtName,
+                "hometown": profile.hometown.cityName
+            ]
+            
+            if let apiRes = try? await PAGApiClient.shared.put(endpoint: "/profile", body: restBody),
+               let success = apiRes["success"] as? Bool, success {
+                
+                var updatedProfile = profile
+                updatedProfile.completionPercentage = 100
+                updatedProfile.scoreAwarded = true
+                self.basicProfile = updatedProfile
+                self.saveSuccessMessage = "Temel profil bilgileriniz başarıyla güncellendi."
+                isSaving = false
+                return true
+            }
+
+            // 2. Fallback to Firebase Callable
             let result = try await Functions.functions().httpsCallable("updateBasicProfile").call(payload)
             if let responseData = result.data as? [String: Any],
                let success = responseData["success"] as? Bool, success,

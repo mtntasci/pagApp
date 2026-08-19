@@ -51,7 +51,34 @@ export default function PortalUsersPage() {
     try {
       setIsLoading(true);
 
-      // 1. Instant Direct Firestore Read (~40ms)
+      // 1. Try High-Speed PostgreSQL (Neon) API first
+      try {
+        const [usersRes, orgsRes] = await Promise.all([
+          fetch('/api/v1/admin/users').then(r => r.json()).catch(() => null),
+          fetch('/api/v1/admin/organizations').then(r => r.json()).catch(() => null)
+        ]);
+
+        let hasData = false;
+        if (usersRes?.success && Array.isArray(usersRes.data?.users) && usersRes.data.users.length > 0) {
+          setUsers(usersRes.data.users);
+          hasData = true;
+        }
+        if (orgsRes?.success && Array.isArray(orgsRes.data?.organizations) && orgsRes.data.organizations.length > 0) {
+          setOrganizations(orgsRes.data.organizations);
+          if (!newOrgId) {
+            setNewOrgId(orgsRes.data.organizations[0].organizationId);
+          }
+          hasData = true;
+        }
+        if (hasData) {
+          setIsLoading(false);
+          return;
+        }
+      } catch (neonErr) {
+        // Fallback
+      }
+
+      // 2. Instant Direct Firestore Read (~40ms)
       try {
         const [usersSnap, orgsSnap] = await Promise.all([
           getDocs(collection(db, 'portalUsers')).catch(() => null),

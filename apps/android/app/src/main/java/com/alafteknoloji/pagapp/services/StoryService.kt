@@ -20,6 +20,40 @@ class StoryService {
     suspend fun fetchStories() {
         _isLoading.value = true
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val apiRes = PAGApiClient.get("/home")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataObj = apiRes.optJSONObject("data")
+                val rawList = dataObj?.optJSONArray("stories")
+                if (rawList != null) {
+                    val parsed = mutableListOf<StoryMock>()
+                    for (i in 0 until rawList.length()) {
+                        val item = rawList.getJSONObject(i)
+                        val sid = item.optString("surveyId", java.util.UUID.randomUUID().toString())
+                        val surveyId = item.optString("surveyId")
+                        val label = item.optString("label", "Anket")
+                        val imageCategory = item.optString("category", "story_tech")
+
+                        parsed.add(
+                            StoryMock(
+                                id = sid,
+                                type = StoryType.SURVEY,
+                                surveyId = surveyId,
+                                image = imageCategory,
+                                imageUrl = null,
+                                shortLabel = label,
+                                position = i + 1,
+                                isActive = true
+                            )
+                        )
+                    }
+                    _stories.value = parsed
+                    _isLoading.value = false
+                    return
+                }
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("getEligibleStories").call().await()
             @Suppress("UNCHECKED_CAST")
             val resMap = result.getData() as? Map<String, Any>

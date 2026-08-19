@@ -62,9 +62,35 @@ export default function OrganizationsPage() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations (Instant Firestore Direct Read)
+  // 1. Fetch Organizations (PostgreSQL Neon API first)
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
+    // 1. Try High-Speed PostgreSQL API
+    try {
+      const res = await fetch('/api/v1/admin/organizations');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data?.organizations) && data.data.organizations.length > 0) {
+        setOrganizations(data.data.organizations.map((o: any) => ({
+          id: o.organizationId,
+          organizationId: o.organizationId,
+          name: o.name,
+          sector: 'Genel',
+          contactEmail: null,
+          contactPhone: null,
+          status: o.isActive ? 'ACTIVE' : 'DISABLED',
+          isVerificationAuthorized: true,
+          surveyCount: 0,
+          portalUserCount: 0,
+          createdAt: o.createdAt
+        })));
+        setIsLoading(false);
+        return;
+      }
+    } catch (neonErr) {
+      // Fallback
+    }
+
+    // 2. Instant Firestore Direct Read
     try {
       const snap = await getDocs(collection(db, 'organizations'));
       const orgsList: OrganizationItem[] = [];

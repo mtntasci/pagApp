@@ -40,6 +40,78 @@ class RewardService {
     suspend fun fetchUserRewards() {
         _isLoading.value = true
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val apiRes = PAGApiClient.get("/wallet")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataDict = apiRes.optJSONObject("data")
+                if (dataDict != null) {
+                    _rewardBalance.value = dataDict.optString("rewardBalance").toDoubleOrNull()?.toInt() ?: 0
+                    _profileScore.value = dataDict.optInt("profileScore", 0)
+
+                    val rawLedgers = dataDict.optJSONArray("rewardHistory")
+                    if (rawLedgers != null) {
+                        val parsedLedgers = mutableListOf<PAGRewardLedgerEntry>()
+                        for (i in 0 until rawLedgers.length()) {
+                            val l = rawLedgers.getJSONObject(i)
+                            parsedLedgers.add(
+                                PAGRewardLedgerEntry(
+                                    id = l.optString("id"),
+                                    surveyId = l.optString("surveyId"),
+                                    type = l.optString("rewardType", "MONEY"),
+                                    amount = l.optString("amount").toDoubleOrNull()?.toInt() ?: 0,
+                                    reason = "Anket Ödülü",
+                                    createdAt = l.optString("createdAt")
+                                )
+                            )
+                        }
+                        _rewardLedgers.value = parsedLedgers
+                    }
+
+                    val rawVouchers = dataDict.optJSONArray("vouchers")
+                    if (rawVouchers != null) {
+                        val parsedVouchers = mutableListOf<PAGVoucher>()
+                        for (i in 0 until rawVouchers.length()) {
+                            val v = rawVouchers.getJSONObject(i)
+                            parsedVouchers.add(
+                                PAGVoucher(
+                                    voucherId = v.optString("id"),
+                                    poolId = v.optString("surveyId"),
+                                    title = v.optString("poolName", "Hediye Çeki"),
+                                    code = v.optString("code"),
+                                    valueAmount = v.optString("amount").toDoubleOrNull()?.toInt() ?: 0,
+                                    status = v.optString("status", "ASSIGNED"),
+                                    assignedAt = v.optString("assignedAt"),
+                                    expiresAt = null
+                                )
+                            )
+                        }
+                        _vouchers.value = parsedVouchers
+                    }
+
+                    val rawScores = dataDict.optJSONArray("scoreHistory")
+                    if (rawScores != null) {
+                        val parsedScores = mutableListOf<PAGScoreLedgerEntry>()
+                        for (i in 0 until rawScores.length()) {
+                            val s = rawScores.getJSONObject(i)
+                            parsedScores.add(
+                                PAGScoreLedgerEntry(
+                                    id = s.optString("id"),
+                                    sourceType = s.optString("sourceType", "SURVEY"),
+                                    amount = s.optInt("scoreDelta", 0),
+                                    reason = "Profil Puanı",
+                                    createdAt = s.optString("createdAt")
+                                )
+                            )
+                        }
+                        _scoreLedgers.value = parsedScores
+                    }
+
+                    _isLoading.value = false
+                    return
+                }
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("getUserRewards").call().await()
             @Suppress("UNCHECKED_CAST")
             val resMap = result.getData() as? Map<String, Any>

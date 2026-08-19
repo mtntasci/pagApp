@@ -83,6 +83,42 @@ class BasicProfileService(private val context: Context) {
         _errorMessage.value = null
 
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val apiRes = PAGApiClient.get("/profile")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val pData = apiRes.optJSONObject("data")
+                if (pData != null) {
+                    val rawName = pData.optString("displayName", "")
+                    val parts = rawName.split(" ")
+                    val fName = parts.firstOrNull() ?: ""
+                    val lName = if (parts.size > 1) parts.drop(1).joinToString(" ") else ""
+
+                    _basicProfile.value = PAGBasicProfile(
+                        firstName = fName,
+                        lastName = lName,
+                        gender = pData.optString("gender", "PREFER_NOT_TO_SAY"),
+                        maritalStatus = pData.optString("maritalStatus", "PREFER_NOT_TO_SAY"),
+                        birthDetails = PAGBirthDetails(
+                            birthDate = pData.optString("birthDate", "1998-01-01"),
+                            cityName = pData.optString("city", "İstanbul"),
+                            districtName = pData.optString("district", "")
+                        ),
+                        residenceAddress = PAGLocationPair(
+                            cityName = pData.optString("city", "İstanbul"),
+                            districtName = pData.optString("district", "")
+                        ),
+                        hometown = PAGLocationPair(
+                            cityName = pData.optString("hometown", "")
+                        ),
+                        completionPercentage = 100,
+                        scoreAwarded = true
+                    )
+                    _isLoading.value = false
+                    return
+                }
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("getBasicProfile").call().await()
             @Suppress("UNCHECKED_CAST")
             val resMap = result.getData() as? Map<String, Any>
@@ -235,6 +271,31 @@ class BasicProfileService(private val context: Context) {
         )
 
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val jsonBody = org.json.JSONObject()
+            val fullName = "${profile.firstName} ${profile.lastName}".trim()
+            jsonBody.put("displayName", fullName)
+            jsonBody.put("gender", profile.gender)
+            jsonBody.put("maritalStatus", profile.maritalStatus)
+            jsonBody.put("birthDate", profile.birthDetails.birthDate)
+            val chosenCity = if (profile.residenceAddress.cityName.isNotEmpty()) profile.residenceAddress.cityName else profile.birthDetails.cityName
+            val chosenDistrict = if (profile.residenceAddress.districtName.isNotEmpty()) profile.residenceAddress.districtName else profile.birthDetails.districtName
+            jsonBody.put("city", chosenCity)
+            jsonBody.put("district", chosenDistrict)
+            jsonBody.put("hometown", profile.hometown.cityName)
+
+            val apiRes = PAGApiClient.put("/profile", jsonBody)
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                _basicProfile.value = profile.copy(
+                    completionPercentage = 100,
+                    scoreAwarded = true
+                )
+                _saveSuccessMessage.value = "Profil başarıyla kaydedildi."
+                _isSaving.value = false
+                return true
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("updateBasicProfile").call(payload).await()
             @Suppress("UNCHECKED_CAST")
             val resMap = result.getData() as? Map<String, Any>
