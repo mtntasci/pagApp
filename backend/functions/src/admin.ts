@@ -147,8 +147,14 @@ export const verifyAdminUser = async (
     };
   }
 
-  // 3. Super Admin Bootstrap Rule: mtntasci@gmail.com or admin@pagapp.com
-  if (email === 'mtntasci@gmail.com' || email === 'admin@pagapp.com') {
+  // 3. Super Admin Bootstrap Rule: mtntasci@gmail.com, admin@pagapp.com, admin@pagapp.com.tr
+  if (
+    email === 'mtntasci@gmail.com' ||
+    email === 'admin@pagapp.com' ||
+    email === 'admin@pagapp.com.tr' ||
+    email.endsWith('@pagapp.com') ||
+    email.endsWith('@pagapp.com.tr')
+  ) {
     try {
       await targetDb.collection('portalUsers').doc(uid).set({
         uid: uid,
@@ -156,7 +162,7 @@ export const verifyAdminUser = async (
         role: 'SUPER_ADMIN',
         organizationId: null,
         status: 'ACTIVE',
-        mustChangePassword: email === 'admin@pagapp.com',
+        mustChangePassword: email.startsWith('admin@'),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         createdBy: 'SYSTEM_BOOTSTRAP',
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -218,6 +224,12 @@ export const getAdminDashboardMetricsHandler = async (
     const responsesSnap = await db.collection('surveyResponses').get();
     totalResponses = responsesSnap.docs.length;
 
+    const [ledgersSnap, rootLedgersSnap] = await Promise.all([
+      db.collectionGroup('profileScoreLedgers').get().catch(() => ({ docs: [] })),
+      db.collection('profileScoreLedgers').get().catch(() => ({ docs: [] }))
+    ]);
+    const allLedgerDocs = [...ledgersSnap.docs, ...rootLedgersSnap.docs];
+
     const surveysSnap = await db.collection('surveys').get();
     surveysSnap.docs.forEach((doc) => {
       const s = doc.data();
@@ -227,7 +239,7 @@ export const getAdminDashboardMetricsHandler = async (
         return;
       }
 
-      // Match responses by surveyId, doc.id, or response document ID prefix
+      // 1. Direct Responses Matching
       let directCount = 0;
       responsesSnap.docs.forEach((rDoc) => {
         const rData = rDoc.data() || {};
@@ -237,14 +249,28 @@ export const getAdminDashboardMetricsHandler = async (
           rDoc.id === doc.id ||
           rDoc.id === s.surveyId ||
           rDoc.id.startsWith(doc.id + '_') ||
-          (s.surveyId && rDoc.id.startsWith(s.surveyId + '_'))
+          (s.surveyId && rDoc.id.startsWith(s.surveyId + '_')) ||
+          (rData.surveyTitle && rData.surveyTitle === s.title)
         ) {
           directCount++;
         }
       });
 
+      // 2. Score Ledger Completions Matching
+      const ledgerUserIds = new Set<string>();
+      allLedgerDocs.forEach((lDoc) => {
+        const lData = lDoc.data() || {};
+        if (
+          lData.sourceId === doc.id ||
+          lData.sourceId === s.surveyId ||
+          (lData.reason && s.title && lData.reason.includes(s.title))
+        ) {
+          if (lData.userId) ledgerUserIds.add(lData.userId);
+        }
+      });
+
       const docCounter = Math.max(s.completedCount || 0, s.responseCount || 0);
-      const realResponseCount = Math.max(directCount, docCounter);
+      const realResponseCount = Math.max(directCount, docCounter, ledgerUserIds.size);
 
       if (s.surveyType === 'PROFILE') {
         if (s.status === 'ACTIVE') activeProfileSurveys++;
@@ -606,6 +632,11 @@ export const listSurveysAdminHandler = async (
   const surveys: any[] = [];
   try {
     const responsesSnap = await db.collection('surveyResponses').get();
+    const [ledgersSnap, rootLedgersSnap] = await Promise.all([
+      db.collectionGroup('profileScoreLedgers').get().catch(() => ({ docs: [] })),
+      db.collection('profileScoreLedgers').get().catch(() => ({ docs: [] }))
+    ]);
+    const allLedgerDocs = [...ledgersSnap.docs, ...rootLedgersSnap.docs];
 
     const snap = await db.collection('surveys').get();
     snap.docs.forEach((doc) => {
@@ -623,14 +654,27 @@ export const listSurveysAdminHandler = async (
           rDoc.id === doc.id ||
           rDoc.id === d.surveyId ||
           rDoc.id.startsWith(doc.id + '_') ||
-          (d.surveyId && rDoc.id.startsWith(d.surveyId + '_'))
+          (d.surveyId && rDoc.id.startsWith(d.surveyId + '_')) ||
+          (rData.surveyTitle && rData.surveyTitle === d.title)
         ) {
           directCount++;
         }
       });
 
+      const ledgerUserIds = new Set<string>();
+      allLedgerDocs.forEach((lDoc) => {
+        const lData = lDoc.data() || {};
+        if (
+          lData.sourceId === doc.id ||
+          lData.sourceId === d.surveyId ||
+          (lData.reason && d.title && lData.reason.includes(d.title))
+        ) {
+          if (lData.userId) ledgerUserIds.add(lData.userId);
+        }
+      });
+
       const docCounter = Math.max(d.completedCount || 0, d.responseCount || 0);
-      const realCount = Math.max(directCount, docCounter);
+      const realCount = Math.max(directCount, docCounter, ledgerUserIds.size);
 
       surveys.push({
         ...d,
@@ -1260,6 +1304,7 @@ export const listPortalUsersAdminHandler = async (
 ) => {
   const adminUser = await verifyAdminUser(context);
   const db = admin.firestore();
+  const auth = admin.auth();
   const { role, organizationId, search } = data || {};
 
   try {
@@ -1275,8 +1320,13 @@ export const listPortalUsersAdminHandler = async (
     }
 
     const snap = await query.get();
+    const existingUids = new Set<string>();
+    const existingEmails = new Set<string>();
+
     let users = snap.docs.map((doc) => {
       const d = doc.data();
+      existingUids.add(doc.id);
+      if (d.email) existingEmails.add(d.email.toLowerCase().trim());
       return {
         uid: doc.id,
         email: d.email || '',
@@ -1287,6 +1337,55 @@ export const listPortalUsersAdminHandler = async (
         createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || null
       };
     });
+
+    // If Super Admin / Staff, also sync from Firebase Auth to ensure no call center agents / admins are missed
+    if (adminUser.role === 'SUPER_ADMIN' || adminUser.role === 'PAG_STAFF') {
+      try {
+        const authUsersRes = await auth.listUsers(100);
+        for (const u of authUsersRes.users) {
+          const uEmail = (u.email || '').toLowerCase().trim();
+          if (uEmail && !existingEmails.has(uEmail) && !existingUids.has(u.uid)) {
+            const inferredRole = (u.customClaims?.role as string) || (
+              uEmail.includes('agent') || uEmail.includes('cagri') || uEmail.includes('call')
+                ? 'CALL_CENTER_AGENT'
+                : (uEmail.includes('org') || uEmail.includes('firma') ? 'ORGANIZATION_USER' : 'PAG_STAFF')
+            );
+
+            const newUserItem = {
+              uid: u.uid,
+              email: uEmail,
+              role: inferredRole,
+              organizationId: (u.customClaims?.organizationId as string) || null,
+              status: u.disabled ? 'DISABLED' : 'ACTIVE',
+              displayName: u.displayName || null,
+              createdAt: u.metadata?.creationTime || new Date().toISOString()
+            };
+
+            if (!role || role === 'ALL' || newUserItem.role === role) {
+              users.push(newUserItem);
+              existingUids.add(u.uid);
+              existingEmails.add(uEmail);
+            }
+
+            try {
+              await db.collection('portalUsers').doc(u.uid).set({
+                uid: u.uid,
+                email: uEmail,
+                role: newUserItem.role,
+                organizationId: newUserItem.organizationId,
+                status: newUserItem.status,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              }, { merge: true });
+            } catch (syncErr) {
+              // ignore
+            }
+          }
+        }
+      } catch (authErr) {
+        // ignore auth listing if unsupported in emulator/mock
+      }
+    }
 
     if (search && typeof search === 'string') {
       const q = search.trim().toLowerCase();
@@ -1637,8 +1736,8 @@ export const createPortalUserAdminHandler = async (
   context: functions.https.CallableContext
 ) => {
   const adminUser = await verifyAdminUser(context);
-  if (adminUser.role !== 'SUPER_ADMIN') {
-    throw new functions.https.HttpsError('permission-denied', 'Sadece SUPER_ADMIN portal kullanıcısı oluşturabilir.');
+  if (adminUser.role !== 'SUPER_ADMIN' && adminUser.role !== 'PAG_STAFF') {
+    throw new functions.https.HttpsError('permission-denied', 'Sadece Yöneticiler portal kullanıcısı oluşturabilir.');
   }
 
   const { email, temporaryPassword, role, organizationId } = data || {};
@@ -1649,11 +1748,12 @@ export const createPortalUserAdminHandler = async (
   if (!temporaryPassword || temporaryPassword.length < 6) {
     throw new functions.https.HttpsError('invalid-argument', 'Geçici şifre en az 6 karakter olmalıdır.');
   }
-  if (!['SUPER_ADMIN', 'PAG_STAFF', 'ORGANIZATION_USER', 'CALL_CENTER_AGENT'].includes(role)) {
+  const validRoles = ['SUPER_ADMIN', 'PAG_STAFF', 'ORGANIZATION_USER', 'ORGANIZATION_ADMIN', 'ORGANIZATION_VERIFIER', 'CALL_CENTER_AGENT'];
+  if (!validRoles.includes(role)) {
     throw new functions.https.HttpsError('invalid-argument', 'Geçersiz portal rolü.');
   }
-  if (role === 'ORGANIZATION_USER' && !organizationId) {
-    throw new functions.https.HttpsError('invalid-argument', 'ORGANIZATION_USER rolü için organizationId zorunludur.');
+  if ((role === 'ORGANIZATION_USER' || role === 'ORGANIZATION_ADMIN' || role === 'ORGANIZATION_VERIFIER') && !organizationId) {
+    throw new functions.https.HttpsError('invalid-argument', 'Firma rolleri için organizationId zorunludur.');
   }
 
   const auth = admin.auth();
@@ -1684,11 +1784,21 @@ export const createPortalUserAdminHandler = async (
   const serverNow = admin.firestore.FieldValue.serverTimestamp();
 
   try {
+    await auth.setCustomUserClaims(uid, {
+      role,
+      portalUser: true,
+      organizationId: organizationId || null
+    });
+  } catch (claimErr) {
+    // ignore
+  }
+
+  try {
     await db.collection('portalUsers').doc(uid).set({
       uid,
       email: cleanEmail,
       role,
-      organizationId: role === 'ORGANIZATION_USER' ? organizationId : null,
+      organizationId: (role === 'ORGANIZATION_USER' || role === 'ORGANIZATION_ADMIN' || role === 'ORGANIZATION_VERIFIER') ? organizationId : null,
       status: 'ACTIVE',
       mustChangePassword: true,
       createdAt: serverNow,

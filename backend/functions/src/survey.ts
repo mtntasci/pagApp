@@ -704,6 +704,30 @@ export const updateProfileSurveyResponseHandler = async (
     };
     transaction.set(responseRef, responsePayload, { merge: true });
 
+    // Atomically increment completedCount & responseCount on the Survey document
+    transaction.set(surveyDoc.ref, {
+      completedCount: admin.firestore.FieldValue.increment(1),
+      responseCount: admin.firestore.FieldValue.increment(1),
+      updatedAt: serverNow
+    }, { merge: true });
+
+    // Also write to user subcollection profileScoreLedgers
+    if (!existingLedger.exists && awardedScore > 0) {
+      const userSubLedgerRef = db.collection('users').doc(uid).collection('profileScoreLedgers').doc(ledgerId);
+      transaction.set(userSubLedgerRef, {
+        id: ledgerId,
+        userId: uid,
+        sourceType: 'PROFILE_SURVEY',
+        sourceId: surveyId,
+        amount: awardedScore,
+        reason: survey.title || 'COMPLETED_PROFILE_SURVEY',
+        createdAt: serverNow,
+        metadata: {
+          surveyType: 'PROFILE'
+        }
+      });
+    }
+
     const finalScore = existingUserScore + awardedScore;
     functions.logger.info(`PROFILE_SURVEY_PROCESSED: user=${uid}, awarded=${awardedScore}, total=${finalScore}`);
 

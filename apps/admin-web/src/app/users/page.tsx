@@ -45,14 +45,18 @@ export default function PortalUsersPage() {
       const listOrgsFn = httpsCallable<any, any>(functions, 'listOrganizationsAdmin');
 
       const [usersRes, orgsRes] = await Promise.all([
-        listUsersFn({ role: roleFilter !== 'ALL' ? roleFilter : undefined, search: searchQuery }),
-        listOrgsFn()
+        listUsersFn({ role: roleFilter !== 'ALL' ? roleFilter : undefined, search: searchQuery }).catch(() => ({ data: { success: false, data: { users: [] } } })),
+        listOrgsFn().catch(() => ({ data: { success: false, data: { organizations: [] } } }))
       ]);
 
-      if (usersRes.data?.success && usersRes.data?.data?.users) {
-        setUsers(usersRes.data.data.users);
+      let userList: PortalUserItem[] = [];
+      if (usersRes.data?.success && Array.isArray(usersRes.data?.data?.users)) {
+        userList = usersRes.data.data.users;
       }
-      if (orgsRes.data?.success && orgsRes.data?.data?.organizations) {
+
+      setUsers(userList);
+
+      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations)) {
         setOrganizations(orgsRes.data.data.organizations);
         if (orgsRes.data.data.organizations.length > 0 && !newOrgId) {
           setNewOrgId(orgsRes.data.data.organizations[0].organizationId);
@@ -82,7 +86,7 @@ export default function PortalUsersPage() {
       setModalError('Geçici şifre en az 6 karakter olmalıdır.');
       return;
     }
-    if (newRole === 'ORGANIZATION_USER' && !newOrgId) {
+    if ((newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') && !newOrgId) {
       setModalError('Firma kullanıcısı için bir firma seçilmelidir.');
       return;
     }
@@ -94,11 +98,22 @@ export default function PortalUsersPage() {
         email: newEmail.trim().toLowerCase(),
         temporaryPassword: newPassword,
         role: newRole,
-        organizationId: newRole === 'ORGANIZATION_USER' ? newOrgId : null
+        organizationId: (newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') ? newOrgId : null
       });
 
       if (res.data?.success) {
-        setSuccessMessage(`✅ Kullanıcı ${newEmail} başarıyla oluşturuldu!`);
+        const createdUser: PortalUserItem = {
+          uid: res.data.data?.uid || `usr_${Date.now()}`,
+          email: newEmail.trim().toLowerCase(),
+          role: newRole,
+          organizationId: (newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') ? newOrgId : null,
+          status: 'ACTIVE',
+          createdAt: new Date().toISOString()
+        };
+
+        // Add to local state immediately
+        setUsers(prev => [createdUser, ...prev.filter(u => u.email !== createdUser.email)]);
+        setSuccessMessage(`✅ Kullanıcı ${newEmail} (${getRoleBadge(newRole).label}) başarıyla oluşturuldu!`);
         setShowAddModal(false);
         setNewEmail('');
         setNewPassword('Pag2026!');
@@ -122,7 +137,10 @@ export default function PortalUsersPage() {
       case 'CALL_CENTER_AGENT':
         return { label: '📞 Çağrı Merkezi Temsilcisi', bg: 'rgba(16, 185, 129, 0.15)', color: '#10B981' };
       case 'ORGANIZATION_USER':
+      case 'ORGANIZATION_ADMIN':
         return { label: '🏢 Firma Kullanıcısı', bg: 'rgba(245, 158, 11, 0.15)', color: '#F59E0B' };
+      case 'ORGANIZATION_VERIFIER':
+        return { label: '🎯 Firma Kalite Uzmanı', bg: 'rgba(139, 92, 246, 0.15)', color: '#8B5CF6' };
       default:
         return { label: role, bg: 'rgba(100, 116, 139, 0.15)', color: 'var(--text-secondary)' };
     }
@@ -435,14 +453,16 @@ export default function PortalUsersPage() {
                     fontWeight: 600
                   }}
                 >
-                  <option value="CALL_CENTER_AGENT">📞 Çağrı Merkezi Temsilcisi (Arama Portalı & Dashboard)</option>
-                  <option value="ORGANIZATION_USER">🏢 Firma Kullanıcısı (Firma Anketleri & Kalite Doğrulama)</option>
-                  <option value="PAG_STAFF">🛡️ PAG Ekibi (Operasyonel Yönetim)</option>
+                  <option value="CALL_CENTER_AGENT">📞 Çağrı Merkezi Temsilcisi (Arama Portalı & Çağrı Yönetimi)</option>
+                  <option value="ORGANIZATION_USER">🏢 Firma Kullanıcısı (Firma Anketleri & Katılımcı Havuzu)</option>
+                  <option value="ORGANIZATION_ADMIN">🏢 Firma Yöneticisi (Firma Yönetimi & Anketler)</option>
+                  <option value="ORGANIZATION_VERIFIER">🎯 Firma Kalite & Katılımcı Uzmanı (Katılımcı Seçme & Raporlar)</option>
+                  <option value="PAG_STAFF">🛡️ PAG Operasyon Ekibi (Operasyonel Yönetim)</option>
                   <option value="SUPER_ADMIN">👑 Süper Admin (Tam Yetki)</option>
                 </select>
               </div>
 
-              {newRole === 'ORGANIZATION_USER' && (
+              {(newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') && (
                 <div>
                   <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
                     Bağlanacağı Firma *
