@@ -2038,16 +2038,23 @@ export const getEligibleStoriesHandler = async (
       .where('isActive', '==', true)
       .get();
 
+    // Batch fetch associated survey documents in 1 roundtrip
+    const surveyIds = Array.from(new Set(snap.docs.map(d => d.data().surveyId).filter(Boolean)));
+    const surveyDocs = await Promise.all(surveyIds.map(sId => db.collection('surveys').doc(sId).get().catch(() => null)));
+    const surveyMap = new Map<string, any>();
+    surveyDocs.forEach(sDoc => {
+      if (sDoc && sDoc.exists) surveyMap.set(sDoc.id, sDoc.data());
+    });
+
     for (const doc of snap.docs) {
       const d = doc.data();
       const surveyId = d.surveyId;
       let startAtTime: number = 0;
 
       if (surveyId) {
-        const surveyDoc = await db.collection('surveys').doc(surveyId).get();
-        if (!surveyDoc.exists) continue;
+        const sData = surveyMap.get(surveyId);
+        if (!sData) continue;
 
-        const sData = surveyDoc.data() || {};
         const activeStatuses = ['ACTIVE', 'SCHEDULED'];
         if (!activeStatuses.includes(sData.status) || sData.isArchived) continue;
 

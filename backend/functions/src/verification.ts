@@ -81,6 +81,30 @@ export function generateAnonymousParticipantRef(userId: string, surveyId: string
   return `Katılımcı #${hex}`;
 }
 
+export function extractIsoDate(val: any): string | null {
+  if (!val) return null;
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') {
+    const d = new Date(val > 1e11 ? val : val * 1000);
+    return isNaN(d.getTime()) ? null : d.toISOString();
+  }
+  if (typeof val === 'object') {
+    if (typeof val.toDate === 'function') {
+      const d = val.toDate();
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    if (typeof val._seconds === 'number') {
+      const d = new Date(val._seconds * 1000);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+    if (typeof val.seconds === 'number') {
+      const d = new Date(val.seconds * 1000);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    }
+  }
+  return null;
+}
+
 /**
  * Server-side random selection helper without duplicates.
  */
@@ -237,7 +261,7 @@ export const getCompletedRespondentsForVerificationHandler = async (
       gender: rawGender,
       rawGenderCode: typeof profile.gender === 'string' ? profile.gender : 'ALL',
       age: Number(age) || 26,
-      completedAt: rData.serverCompletedAt?.toDate ? rData.serverCompletedAt.toDate().toISOString() : (rData.submittedAt?.toDate ? rData.submittedAt.toDate().toISOString() : (rData.createdAt || null))
+      completedAt: extractIsoDate(rData.serverCompletedAt) || extractIsoDate(rData.submittedAt) || extractIsoDate(rData.createdAt) || new Date().toISOString()
     };
   });
 

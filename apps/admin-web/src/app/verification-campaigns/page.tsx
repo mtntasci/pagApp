@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { httpsCallable } from 'firebase/functions';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
@@ -60,8 +61,47 @@ function formatCityName(val: any): string {
   return String(val);
 }
 
-export default function VerificationCampaignsPage() {
+function formatSafeDateString(val: any): string {
+  if (!val) return '—';
+  try {
+    if (typeof val === 'string') {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    if (typeof val === 'number') {
+      const d = new Date(val > 1e11 ? val : val * 1000);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+    }
+    if (typeof val === 'object') {
+      if (typeof val.toDate === 'function') {
+        const d = val.toDate();
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      if (typeof val._seconds === 'number') {
+        const d = new Date(val._seconds * 1000);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+      if (typeof val.seconds === 'number') {
+        const d = new Date(val.seconds * 1000);
+        if (!isNaN(d.getTime())) return d.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+      }
+    }
+  } catch (e) {
+    // fallback
+  }
+  return '—';
+}
+
+function VerificationCampaignsContent() {
   const { isAdmin, isOrgUser, portalUser } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const currentView = searchParams.get('view') || (isOrgUser ? 'ORG' : 'PAG');
+  const isOrgView = currentView === 'ORG' || isOrgUser;
   const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'CREATE_CAMPAIGN'>('CREATE_CAMPAIGN');
 
   // Campaigns List
@@ -180,12 +220,14 @@ export default function VerificationCampaignsPage() {
       list = list.filter(s => s.organizationId === portalUser.organizationId);
     }
 
-    // Sort: surveys where hasVerification or isVerificationEnabled is true come first
-    list.sort((a, b) => {
-      const aVer = (a.hasVerification || a.isVerificationEnabled || a.verificationConfig?.enabled) ? 1 : 0;
-      const bVer = (b.hasVerification || b.isVerificationEnabled || b.verificationConfig?.enabled) ? 1 : 0;
-      return bVer - aVer;
-    });
+    // STRICT FILTER: Only surveys marked for Quality Verification
+    list = list.filter(s =>
+      s.hasVerification === true ||
+      s.isVerificationEnabled === true ||
+      s.verificationConfig?.enabled === true ||
+      (typeof s.verificationTargetCount === 'number' && s.verificationTargetCount > 0) ||
+      s.surveyType === 'VERIFICATION'
+    );
 
     setAvailableSurveys(list);
 
@@ -220,19 +262,26 @@ export default function VerificationCampaignsPage() {
     }
   };
 
-  // 3. Load respondents with filters
-  const loadRespondents = useCallback(async (surveyId: string) => {
-    if (!surveyId) return;
+  // 3. Load respondents with filters (manual search trigger)
+  const loadRespondents = useCallback(async (surveyId?: string, overrideFilters?: any) => {
+    const targetId = surveyId || selectedSurveyId;
+    if (!targetId) return;
     setIsLoadingRespondents(true);
     try {
       const getRespFn = httpsCallable(functions, 'getCompletedRespondentsForVerification');
+      const cCity = overrideFilters?.city !== undefined ? overrideFilters.city : filterCity;
+      const cGender = overrideFilters?.gender !== undefined ? overrideFilters.gender : filterGender;
+      const cMinAge = overrideFilters?.minAge !== undefined ? overrideFilters.minAge : filterMinAge;
+      const cMaxAge = overrideFilters?.maxAge !== undefined ? overrideFilters.maxAge : filterMaxAge;
+      const cSearch = overrideFilters?.search !== undefined ? overrideFilters.search : searchQuery;
+
       const payload: any = {
-        surveyId,
-        city: filterCity !== 'ALL' ? filterCity : undefined,
-        gender: filterGender !== 'ALL' ? filterGender : undefined,
-        minAge: filterMinAge ? parseInt(filterMinAge, 10) : undefined,
-        maxAge: filterMaxAge ? parseInt(filterMaxAge, 10) : undefined,
-        search: searchQuery.trim() || undefined
+        surveyId: targetId,
+        city: cCity !== 'ALL' ? cCity : undefined,
+        gender: cGender !== 'ALL' ? cGender : undefined,
+        minAge: cMinAge ? parseInt(cMinAge, 10) : undefined,
+        maxAge: cMaxAge ? parseInt(cMaxAge, 10) : undefined,
+        search: cSearch.trim() || undefined
       };
 
       const res: any = await getRespFn(payload);
@@ -258,27 +307,29 @@ export default function VerificationCampaignsPage() {
     } finally {
       setIsLoadingRespondents(false);
     }
-  }, [filterCity, filterGender, filterMinAge, filterMaxAge, searchQuery]);
+  }, [selectedSurveyId, filterCity, filterGender, filterMinAge, filterMaxAge, searchQuery]);
 
   useEffect(() => {
     fetchCampaigns();
     fetchSurveys();
   }, [fetchCampaigns, fetchSurveys]);
 
+  // Initial load when survey changes
   useEffect(() => {
     if (selectedSurveyId && activeTab === 'CREATE_CAMPAIGN') {
       loadRespondents(selectedSurveyId);
     }
-  }, [selectedSurveyId, activeTab, loadRespondents]);
+  }, [selectedSurveyId, activeTab]);
 
   // Toggle Single User
   const handleToggleUser = (uid: string) => {
+    const maxQuota = isOrgView ? surveyMetadata.orgSelectionQuota : Math.max(1, surveyMetadata.pagTargetCount - surveyMetadata.orgSelectionQuota);
     setSelectedUserIds(prev => {
       if (prev.includes(uid)) {
         return prev.filter(id => id !== uid);
       } else {
-        if (prev.length >= surveyMetadata.orgSelectionQuota) {
-          alert(`Firma seçim kotası maksimum ${surveyMetadata.orgSelectionQuota} katılımcıdır.`);
+        if (prev.length >= maxQuota) {
+          alert(`${isOrgView ? 'Firma' : 'PAG'} seçim kotası maksimum ${maxQuota} katılımcıdır.`);
           return prev;
         }
         return [...prev, uid];
@@ -293,8 +344,37 @@ export default function VerificationCampaignsPage() {
       return;
     }
 
+    if (isOrgView) {
+      const confirmMsg = `Firmanız adına seçilen ${selectedUserIds.length} katılımcı listesi PAG yetkililerine iletilsin mı?\n\n- Firma Tarafından Seçilen: ${selectedUserIds.length} / ${surveyMetadata.orgSelectionQuota} Katılımcı\n- Kalan PAG Tamamlaması: ${Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} Katılımcı\n- Toplam Arama Hedefi: ${surveyMetadata.pagTargetCount} Katılımcı`;
+      if (!confirm(confirmMsg)) return;
+
+      setIsCreating(true);
+      try {
+        const createFn = httpsCallable(functions, 'createVerificationCampaign');
+        const res: any = await createFn({
+          masterSurveyId: selectedSurveyId,
+          customerSelectedUserIds: selectedUserIds,
+          randomSelectedCount: Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length),
+          verificationRewardSummary: surveyMetadata.verificationRewardSummary
+        });
+
+        if (res.data?.success) {
+          setSuccessBanner(`✅ Firma katılımcı seçiminiz (${selectedUserIds.length} kişi) başarıyla kaydedildi ve PAG onayına iletildi.`);
+          setActiveTab('CAMPAIGNS');
+          await fetchCampaigns();
+        }
+      } catch (err: any) {
+        console.error('Create Campaign Error:', err);
+        alert('İşlem sırasında hata: ' + (err.message || 'Bilinmeyen hata'));
+      } finally {
+        setIsCreating(false);
+      }
+      return;
+    }
+
+    // Super Admin Launch Flow
     const remainingToFill = Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length);
-    const confirmMsg = `Kalite Doğrulama Kampanyası Başlatılsın mı?\n\n- Firma Tarafından Seçilen: ${selectedUserIds.length} Katılımcı\n- PAG Tarafından Random Tamamlanacak: ${remainingToFill} Katılımcı\n- Toplam Arama Havuzu: ${surveyMetadata.pagTargetCount} Katılımcı\n- Ödül: ${surveyMetadata.verificationRewardSummary}`;
+    const confirmMsg = `PAG Kalite Doğrulama Kampanyası Başlatılsın mı?\n\n- Firma Seçimi: ${selectedUserIds.length} Katılımcı\n- PAG Tarafından Random Tamamlanacak: ${remainingToFill} Katılımcı\n- Toplam Arama Havuzu: ${surveyMetadata.pagTargetCount} Katılımcı\n- Ödül: ${surveyMetadata.verificationRewardSummary}`;
 
     if (!confirm(confirmMsg)) return;
 
@@ -309,7 +389,7 @@ export default function VerificationCampaignsPage() {
       });
 
       if (res.data?.success) {
-        setSuccessBanner(`✅ Kalite Doğrulama Kampanyası başarıyla oluşturuldu! Toplam ${res.data.data.requestedCount} katılımcı arama havuzuna aktarıldı.`);
+        setSuccessBanner(`✅ Kalite Doğrulama Kampanyası başarıyla oluşturuldu! Toplam ${res.data.data.requestedCount} katılımcı çağrı merkezine aktarıldı.`);
         setSelectedUserIds([]);
         setActiveTab('CAMPAIGNS');
         await fetchCampaigns();
@@ -343,16 +423,65 @@ export default function VerificationCampaignsPage() {
     <div>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
-            🛡️ Kalite Doğrulama & Katılımcı Seçimi
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
+              {isOrgView ? '🏢 Firma Kalite Doğrulama — Katılımcı Belirleme' : '🛡️ PAG Kalite Doğrulama Yönetimi'}
+            </h2>
+            <span style={{
+              padding: '3px 10px',
+              borderRadius: '6px',
+              fontSize: '11px',
+              fontWeight: 800,
+              backgroundColor: isOrgView ? 'rgba(59, 130, 246, 0.15)' : 'rgba(183, 243, 74, 0.2)',
+              color: isOrgView ? '#3B82F6' : 'var(--brand-navy)'
+            }}>
+              {isOrgView ? 'FİRMA MODU' : 'SUPER ADMIN / PAG'}
+            </span>
+          </div>
           <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500, margin: 0 }}>
-            Anket katılımcı havuzunu demografik kriterlerle filtreleyin, firma seçimlerinizi yapın ve doğrulama aramalarını başlatın
+            {isOrgView
+              ? `Firmanıza ayrılan ${surveyMetadata.orgSelectionQuota} kişilik kotayı belirleyip PAG onayına gönderin.`
+              : 'Firma katılımcı seçimlerini inceleyin, PAG havuzunu onaylayın ve çağrı merkezine aktarın.'}
           </p>
         </div>
 
-        {/* Action Button: Yeni Kampanya Başlat */}
-        <div style={{ display: 'flex', gap: '10px' }}>
+        {/* Action Button: Yeni Kampanya Başlat & Görünüm Değiştirici */}
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {isAdmin && (
+            <div style={{ display: 'flex', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', padding: '3px', border: '1px solid var(--border-color)' }}>
+              <button
+                onClick={() => router.push('/verification-campaigns?view=PAG')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: !isOrgView ? 'var(--brand-navy)' : 'transparent',
+                  color: !isOrgView ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                🛡️ PAG Yönetimi
+              </button>
+              <button
+                onClick={() => router.push('/verification-campaigns?view=ORG')}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  backgroundColor: isOrgView ? 'var(--brand-navy)' : 'transparent',
+                  color: isOrgView ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '12px',
+                  cursor: 'pointer'
+                }}
+              >
+                🏢 Firma Ekranı
+              </button>
+            </div>
+          )}
+
           <button
             onClick={() => setActiveTab(activeTab === 'CAMPAIGNS' ? 'CREATE_CAMPAIGN' : 'CAMPAIGNS')}
             style={{
@@ -367,7 +496,7 @@ export default function VerificationCampaignsPage() {
               boxShadow: 'var(--shadow-sm)'
             }}
           >
-            {activeTab === 'CREATE_CAMPAIGN' ? '📋 Kampanya Listesine Dön' : '➕ Yeni Katılımcı Seçimi & Doğrulama Başlat'}
+            {activeTab === 'CREATE_CAMPAIGN' ? '📋 Kampanya Listesine Dön' : '➕ Yeni Katılımcı Seçimi'}
           </button>
         </div>
       </header>
@@ -437,7 +566,7 @@ export default function VerificationCampaignsPage() {
                   <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
                     <span>Hedef: <strong>{c.requestedCount} Kişi</strong></span>
                     <span>🏢 Firma: <strong>{c.customerSelectedCount}</strong></span>
-                    <span>🎲 PAG Random: <strong>{c.randomSelectedCount}</strong></span>
+                    <span>🎲 PAG: <strong>{c.randomSelectedCount}</strong></span>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
@@ -547,19 +676,23 @@ export default function VerificationCampaignsPage() {
                 alignItems: 'center'
               }}>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Firma Seçim Kotası</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {isOrgView ? 'Firma Kotanız' : 'Firma Kotası'}
+                  </span>
                   <p style={{ fontSize: '16px', fontWeight: 800, color: 'var(--brand-navy)', margin: 0 }}>
                     {selectedUserIds.length} / {surveyMetadata.orgSelectionQuota} Kişi
                   </p>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>PAG Random Tamamlama</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                    {isOrgView ? 'PAG Kalan Havuzu' : 'PAG Kotası'}
+                  </span>
                   <p style={{ fontSize: '16px', fontWeight: 800, color: '#10B981', margin: 0 }}>
-                    {Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} Kişi
+                    {Math.max(0, surveyMetadata.pagTargetCount - surveyMetadata.orgSelectionQuota)} Kişi
                   </p>
                 </div>
                 <div>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Toplam Doğrulama Hedefi</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Toplam Arama Hedefi</span>
                   <p style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                     {surveyMetadata.pagTargetCount} Kişi
                   </p>
@@ -570,7 +703,7 @@ export default function VerificationCampaignsPage() {
             {/* Demografik Filtreleme Barı */}
             <div>
               <span style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                2. Katılımcı Havuzu Demografik Filtreleri (1000+ Katılımcı Ölçeği)
+                2. Katılımcı Havuzu Demografik Filtreleri
               </span>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
                 {/* İl Filtresi */}
@@ -610,7 +743,7 @@ export default function VerificationCampaignsPage() {
                     placeholder="Min Yaş"
                     value={filterMinAge}
                     onChange={(e) => setFilterMinAge(e.target.value)}
-                    style={{ width: '50%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
                   />
                   <span style={{ color: 'var(--text-secondary)' }}>-</span>
                   <input
@@ -618,25 +751,81 @@ export default function VerificationCampaignsPage() {
                     placeholder="Max Yaş"
                     value={filterMaxAge}
                     onChange={(e) => setFilterMaxAge(e.target.value)}
-                    style={{ width: '50%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
                   />
                 </div>
 
-                {/* İsim / Tel Arama */}
+                {/* Arama Kutusu */}
                 <div>
                   <input
                     type="text"
-                    placeholder="Maskeli İsim / Şehir ara..."
+                    placeholder="İsim veya Katılımcı No ara..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        loadRespondents(selectedSurveyId);
+                      }
+                    }}
                     style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
                   />
+                </div>
+
+                {/* Filtrele ve Sıfırla Butonları */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => loadRespondents(selectedSurveyId)}
+                    disabled={isLoadingRespondents}
+                    style={{
+                      flex: 1,
+                      padding: '8px 16px',
+                      backgroundColor: 'var(--brand-navy)',
+                      color: '#FFFFFF',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 800,
+                      fontSize: '13px',
+                      cursor: isLoadingRespondents ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: 'var(--shadow-sm)'
+                    }}
+                  >
+                    {isLoadingRespondents ? '⏳ Aranıyor...' : '🔍 Katılımcıları Ara'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilterCity('ALL');
+                      setFilterGender('ALL');
+                      setFilterMinAge('');
+                      setFilterMaxAge('');
+                      setSearchQuery('');
+                      loadRespondents(selectedSurveyId, { city: 'ALL', gender: 'ALL', minAge: '', maxAge: '', search: '' });
+                    }}
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: 'var(--bg-surface-secondary)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: '8px',
+                      fontWeight: 700,
+                      fontSize: '12px',
+                      cursor: 'pointer'
+                    }}
+                    title="Filtreleri Sıfırla"
+                  >
+                    🔄 Sıfırla
+                  </button>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Adım 3: Maskeli Katılımcı Tablosu */}
+          {/* Adım 3: Maskelenmiş Katılımcı Listesi */}
           <div style={{
             backgroundColor: 'var(--bg-surface)',
             borderRadius: '12px',
@@ -644,38 +833,43 @@ export default function VerificationCampaignsPage() {
             boxShadow: 'var(--shadow-sm)',
             overflow: 'hidden'
           }}>
-            <div style={{ padding: '14px 20px', backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                👥 Katılımcı Listesi ({respondents.length} Uygun Katılımcı Bulundu)
-              </span>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => {
-                    const quotaRemaining = surveyMetadata.orgSelectionQuota - selectedUserIds.length;
-                    const unselected = respondents.filter(r => !selectedUserIds.includes(r.userId)).slice(0, quotaRemaining);
-                    setSelectedUserIds(prev => [...prev, ...unselected.map(u => u.userId)]);
-                  }}
-                  style={{ padding: '5px 10px', fontSize: '12px', fontWeight: 700, borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', cursor: 'pointer', color: 'var(--brand-navy)' }}
-                >
-                  Filtrelenenleri Kotaya Ekle (+{Math.max(0, surveyMetadata.orgSelectionQuota - selectedUserIds.length)})
-                </button>
-                <button
-                  onClick={() => setSelectedUserIds([])}
-                  style={{ padding: '5px 10px', fontSize: '12px', fontWeight: 700, borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', cursor: 'pointer', color: 'var(--text-secondary)' }}
-                >
-                  Seçimi Temizle
-                </button>
+            <div style={{
+              padding: '16px 20px',
+              borderBottom: '1px solid var(--border-color)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div>
+                <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  3. Katılımcı Listesi & Seçim ({respondents.length} Uygun Katılımcı)
+                </span>
+                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, marginTop: '2px' }}>
+                  {isOrgView
+                    ? `Firmanıza ayrılan ${surveyMetadata.orgSelectionQuota} katılımcıyı seçin.`
+                    : 'Listeden seçim yapabilir veya doğrudan PAG kampanyasını başlatabilirsiniz.'}
+                </p>
               </div>
+
+              <span style={{
+                fontSize: '12px',
+                fontWeight: 700,
+                color: selectedUserIds.length >= surveyMetadata.orgSelectionQuota ? '#10B981' : 'var(--brand-navy)'
+              }}>
+                Seçilen: {selectedUserIds.length} / {isOrgView ? surveyMetadata.orgSelectionQuota : (surveyMetadata.pagTargetCount - surveyMetadata.orgSelectionQuota)} Kişi
+              </span>
             </div>
 
             {isLoadingRespondents ? (
-              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Katılımcılar taranıyor...</div>
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Katılımcı havuzu taranıyor ve filtreler uygulanıyor...
+              </div>
             ) : respondents.length === 0 ? (
               <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                Seçilen filtrelere uygun katılımcı bulunamadı.
+                Seçilen filtrelere uygun tamamlanmış katılımcı bulunamadı.
               </div>
             ) : (
-              <div style={{ overflowX: 'auto', maxHeight: '420px' }}>
+              <div style={{ maxHeight: '480px', overflowY: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
                   <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-surface-secondary)', zIndex: 10 }}>
                     <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
@@ -735,7 +929,7 @@ export default function VerificationCampaignsPage() {
                             {r.age} Yaş
                           </td>
                           <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '12px' }}>
-                            {r.completedAt ? new Date(r.completedAt).toLocaleDateString('tr-TR') : '—'}
+                            {formatSafeDateString(r.completedAt)}
                           </td>
                         </tr>
                       );
@@ -761,10 +955,14 @@ export default function VerificationCampaignsPage() {
           }}>
             <div>
               <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Seçim Özeti: {selectedUserIds.length} Firma Seçimi + {Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} PAG Random = {surveyMetadata.pagTargetCount} Toplam Arama
+                {isOrgView
+                  ? `Seçim Özeti: ${selectedUserIds.length} Firma Seçimi / ${surveyMetadata.orgSelectionQuota} Katılımcı Kotası`
+                  : `Seçim Özeti: ${selectedUserIds.length} Firma Seçimi + ${Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} PAG Random = ${surveyMetadata.pagTargetCount} Toplam Arama`}
               </span>
               <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', margin: 0 }}>
-                Firma tarafından seçilmeyen kalan adet, PAG tarafından filtrelere uygun havuzdan firmanın seçtikleri hariç tutularak otomatik tamamlanır.
+                {isOrgView
+                  ? 'Seçtiğiniz katılımcılar PAG ekibine iletilir ve doğrulama aramaları başlatılır.'
+                  : 'Firma tarafından seçilmeyen kalan adet, PAG tarafından filtrelere uygun havuzdan otomatik tamamlanır.'}
               </p>
             </div>
 
@@ -784,7 +982,11 @@ export default function VerificationCampaignsPage() {
                 opacity: isCreating ? 0.7 : 1
               }}
             >
-              {isCreating ? 'Kampanya Oluşturuluyor...' : '🚀 Firma Seçimini Onayla & Kalanı PAG Random Seçimine Bırak'}
+              {isCreating
+                ? 'İşleniyor...'
+                : (isOrgView
+                    ? `📤 Seçilen Katılımcıları PAG'a Gönder (${selectedUserIds.length}/${surveyMetadata.orgSelectionQuota})`
+                    : '🚀 PAG Kalite Doğrulama Kampanyasını Başlat')}
             </button>
           </div>
         </div>
@@ -847,5 +1049,13 @@ export default function VerificationCampaignsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function VerificationCampaignsPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>Yükleniyor...</div>}>
+      <VerificationCampaignsContent />
+    </Suspense>
   );
 }

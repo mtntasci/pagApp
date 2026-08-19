@@ -52,7 +52,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/surveys', label: 'Anketler', icon: '📋' },
         { href: '/profile-surveys', label: 'Profil Anketleri', icon: '❓' },
-        { href: '/verification-campaigns', label: 'Kalite Doğrulama', icon: '🛡️' },
+        { href: '/verification-campaigns?view=PAG', label: 'PAG Kalite Doğrulama', icon: '🛡️' },
         { href: '/verification-calls', label: 'Arama Portalı', icon: '📞' }
       ]
     },
@@ -71,7 +71,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
       items: [
         { href: '/organizations', label: 'Firma Listesi', icon: '🏢' },
         { href: '/applications', label: 'Başvurular', icon: '📥' },
-        { href: '/verification-campaigns', label: 'Kalite Doğrulama', icon: '🛡️' }
+        { href: '/verification-campaigns?view=ORG', label: 'Firma Kalite Doğrulama', icon: '🛡️' }
       ]
     },
     {

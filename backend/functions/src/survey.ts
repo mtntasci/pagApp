@@ -75,15 +75,11 @@ export const getEligibleSurveysHandler = async (
   const db = admin.firestore();
   const now = admin.firestore.Timestamp.now();
 
-  const surveysSnapshot = await db
-    .collection('surveys')
-    .where('status', 'in', ['ACTIVE', 'APPROVED', 'SCHEDULED'])
-    .get();
-
-  const userResponsesSnapshot = await db
-    .collection('surveyResponses')
-    .where('userId', '==', uid)
-    .get();
+  const [surveysSnapshot, userResponsesSnapshot, basicProfileSnap] = await Promise.all([
+    db.collection('surveys').where('status', 'in', ['ACTIVE', 'APPROVED', 'SCHEDULED']).get(),
+    db.collection('surveyResponses').where('userId', '==', uid).get(),
+    db.collection('users').doc(uid).collection('profile').doc('basic').get().catch(() => ({ exists: false, data: () => null } as any))
+  ]);
 
   const completedSurveyIds = new Set<string>();
   userResponsesSnapshot.docs.forEach((doc) => {
@@ -94,9 +90,6 @@ export const getEligibleSurveysHandler = async (
   });
 
   const eligibleSurveys: any[] = [];
-
-  // Fetch user's Basic Profile for server-authoritative targeting evaluation
-  const basicProfileSnap = await db.collection('users').doc(uid).collection('profile').doc('basic').get();
   const userBasicProfile = basicProfileSnap.exists ? basicProfileSnap.data() : null;
 
   surveysSnapshot.docs.forEach((doc) => {
