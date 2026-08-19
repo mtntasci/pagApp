@@ -192,11 +192,37 @@ export const getCompletedRespondentsForVerificationHandler = async (
     const userId = rData.userId;
     const profile = userMap.get(userId) || {};
 
-    const rawName = profile.fullName || profile.displayName || 'Mehmet Taş';
-    const rawPhone = profile.phoneNumber || profile.phone || '05321234509';
-    const rawCity = profile.city || profile.hometown || 'İstanbul';
+    let rawName = 'Mehmet Taş';
+    if (typeof profile.fullName === 'string' && profile.fullName.trim()) {
+      rawName = profile.fullName.trim();
+    } else if (typeof profile.displayName === 'string' && profile.displayName.trim()) {
+      rawName = profile.displayName.trim();
+    }
+
+    let rawPhone = '05321234509';
+    if (typeof profile.phoneNumber === 'string' && profile.phoneNumber.trim()) {
+      rawPhone = profile.phoneNumber.trim();
+    } else if (typeof profile.phone === 'string' && profile.phone.trim()) {
+      rawPhone = profile.phone.trim();
+    }
+
+    let rawCity = 'İstanbul';
+    if (typeof profile.city === 'string' && profile.city.trim()) {
+      rawCity = profile.city.trim();
+    } else if (profile.city && typeof profile.city === 'object') {
+      rawCity = profile.city.cityName || profile.city.name || profile.city.districtName || 'İstanbul';
+    } else if (typeof profile.hometown === 'string' && profile.hometown.trim()) {
+      rawCity = profile.hometown.trim();
+    } else if (profile.hometown && typeof profile.hometown === 'object') {
+      rawCity = profile.hometown.cityName || profile.hometown.name || 'İstanbul';
+    } else if (typeof rData.city === 'string' && rData.city.trim()) {
+      rawCity = rData.city.trim();
+    } else if (rData.city && typeof rData.city === 'object') {
+      rawCity = rData.city.cityName || rData.city.name || 'İstanbul';
+    }
+
     const rawGender = profile.gender === 'MALE' ? 'Erkek' : profile.gender === 'FEMALE' ? 'Kadın' : 'Belirtilmedi';
-    const age = profile.birthYear ? currentYear - Number(profile.birthYear) : (profile.age || 26);
+    const age = profile.birthYear ? (currentYear - Number(profile.birthYear)) : (typeof profile.age === 'number' ? profile.age : 26);
 
     const userDisplayName = maskDisplayName(rawName);
     const maskedPhone = maskPhoneNumber(rawPhone);
@@ -207,11 +233,11 @@ export const getCompletedRespondentsForVerificationHandler = async (
       anonymousRef,
       userDisplayName,
       maskedPhone,
-      city: rawCity,
+      city: String(rawCity),
       gender: rawGender,
-      rawGenderCode: profile.gender || 'ALL',
-      age: age,
-      completedAt: rData.serverCompletedAt || rData.submittedAt || rData.createdAt || null
+      rawGenderCode: typeof profile.gender === 'string' ? profile.gender : 'ALL',
+      age: Number(age) || 26,
+      completedAt: rData.serverCompletedAt?.toDate ? rData.serverCompletedAt.toDate().toISOString() : (rData.submittedAt?.toDate ? rData.submittedAt.toDate().toISOString() : (rData.createdAt || null))
     };
   });
 

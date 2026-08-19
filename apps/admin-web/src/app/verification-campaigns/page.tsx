@@ -26,7 +26,7 @@ export interface MaskedRespondent {
   anonymousRef: string;
   userDisplayName: string;
   maskedPhone: string;
-  city: string;
+  city: any;
   gender: string;
   age: number;
   completedAt: string | null;
@@ -49,6 +49,15 @@ export interface CampaignStats {
   completed: number;
   completionRate: number;
   reachRate: number;
+}
+
+function formatCityName(val: any): string {
+  if (!val) return 'İstanbul';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    return val.cityName || val.name || val.city || val.districtName || 'İstanbul';
+  }
+  return String(val);
 }
 
 export default function VerificationCampaignsPage() {
@@ -228,7 +237,16 @@ export default function VerificationCampaignsPage() {
 
       const res: any = await getRespFn(payload);
       if (res.data?.success && res.data.data) {
-        setRespondents(res.data.data.respondents || []);
+        const rawList = res.data.data.respondents || [];
+        const normalized = rawList.map((r: any) => ({
+          ...r,
+          userDisplayName: typeof r.userDisplayName === 'object' ? (r.userDisplayName?.name || 'Katılımcı') : String(r.userDisplayName || 'Katılımcı'),
+          maskedPhone: typeof r.maskedPhone === 'object' ? (r.maskedPhone?.phone || '053x xxx xx 00') : String(r.maskedPhone || '053x xxx xx 00'),
+          city: formatCityName(r.city),
+          gender: typeof r.gender === 'object' ? (r.gender?.label || 'Belirtilmedi') : String(r.gender || 'Belirtilmedi'),
+          age: typeof r.age === 'number' ? r.age : (typeof r.age === 'object' ? 25 : Number(r.age) || 25)
+        }));
+        setRespondents(normalized);
         setSurveyMetadata({
           pagTargetCount: res.data.data.pagTargetCount || 50,
           orgSelectionQuota: res.data.data.orgSelectionQuota || 20,
@@ -699,7 +717,7 @@ export default function VerificationCampaignsPage() {
                             {r.maskedPhone}
                           </td>
                           <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            📍 {r.city}
+                            📍 {formatCityName(r.city)}
                           </td>
                           <td style={{ padding: '12px 16px' }}>
                             <span style={{

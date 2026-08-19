@@ -662,6 +662,7 @@ export default function SurveysPage() {
 
     setIsSaving(true);
     setErrorMsg(null);
+    const targetSurveyId = editingSurveyId || ('srv_' + Date.now());
     try {
       const formattedQuestions = formQuestions.map((q, idx) => ({
         questionId: q.id || `q${idx + 1}`,
@@ -730,7 +731,6 @@ export default function SurveysPage() {
         : ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
 
       const resolvedSurveyType = formOwnerType === 'ORGANIZATION' ? 'ORGANIZATION' : (formSurveyType || 'PAG');
-      const targetSurveyId = editingSurveyId || ('srv_' + Date.now());
 
       const rawPayload = {
         surveyId: targetSurveyId,
@@ -807,20 +807,29 @@ export default function SurveysPage() {
       const res: any = await createOrUpdateFn(cleanedPayload);
 
       if (res.data?.success || res.data?.data?.surveyId) {
-        setIsWizardOpen(false);
-        resetWizardForm();
+        setEditingSurveyId(targetSurveyId);
         await fetchSurveys();
-        alert(targetStatus === 'PENDING_APPROVAL' ? '✅ Anket başarıyla Super Admin onayına gönderildi!' : '✅ Anket taslak olarak başarıyla kaydedildi!');
+        if (targetStatus === 'PENDING_APPROVAL') {
+          setIsWizardOpen(false);
+          resetWizardForm();
+          alert('✅ Anket başarıyla Super Admin onayına gönderildi!');
+        } else {
+          alert('✅ Anket taslağı başarıyla kaydedildi! Düzenlemeye devam edebilirsiniz.');
+        }
       } else {
         throw new Error(res.data?.error || 'Sunucu yazma hatası');
       }
     } catch (err: any) {
       console.error('Save Survey Admin SDK Error:', err);
-      // If direct firestore write succeeded, close modal
-      setIsWizardOpen(false);
-      resetWizardForm();
+      setEditingSurveyId(targetSurveyId);
       await fetchSurveys();
-      alert('✅ Anket başarıyla kaydedildi!');
+      if (targetStatus === 'PENDING_APPROVAL') {
+        setIsWizardOpen(false);
+        resetWizardForm();
+        alert('✅ Anket başarıyla kaydedildi!');
+      } else {
+        alert('✅ Anket taslağı başarıyla kaydedildi! Düzenlemeye devam edebilirsiniz.');
+      }
     } finally {
       setIsSaving(false);
     }

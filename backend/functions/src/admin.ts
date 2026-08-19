@@ -797,13 +797,6 @@ export const listSurveysAdminHandler = async (
 
   const surveys: any[] = [];
   try {
-    const responsesSnap = await db.collection('surveyResponses').get();
-    const [ledgersSnap, rootLedgersSnap] = await Promise.all([
-      db.collectionGroup('profileScoreLedgers').get().catch(() => ({ docs: [] })),
-      db.collection('profileScoreLedgers').get().catch(() => ({ docs: [] }))
-    ]);
-    const allLedgerDocs = [...ledgersSnap.docs, ...rootLedgersSnap.docs];
-
     const snap = await db.collection('surveys').get();
     snap.docs.forEach((doc) => {
       const d = doc.data();
@@ -811,36 +804,7 @@ export const listSurveysAdminHandler = async (
         return;
       }
 
-      let directCount = 0;
-      responsesSnap.docs.forEach((rDoc) => {
-        const rData = rDoc.data() || {};
-        if (
-          rData.surveyId === doc.id ||
-          rData.surveyId === d.surveyId ||
-          rDoc.id === doc.id ||
-          rDoc.id === d.surveyId ||
-          rDoc.id.startsWith(doc.id + '_') ||
-          (d.surveyId && rDoc.id.startsWith(d.surveyId + '_')) ||
-          (rData.surveyTitle && rData.surveyTitle === d.title)
-        ) {
-          directCount++;
-        }
-      });
-
-      const ledgerUserIds = new Set<string>();
-      allLedgerDocs.forEach((lDoc) => {
-        const lData = lDoc.data() || {};
-        if (
-          lData.sourceId === doc.id ||
-          lData.sourceId === d.surveyId ||
-          (lData.reason && d.title && lData.reason.includes(d.title))
-        ) {
-          if (lData.userId) ledgerUserIds.add(lData.userId);
-        }
-      });
-
-      const docCounter = Math.max(d.completedCount || 0, d.responseCount || 0);
-      const realCount = Math.max(directCount, docCounter, ledgerUserIds.size);
+      const realCount = Math.max(d.completedCount || 0, d.responseCount || 0);
 
       surveys.push({
         ...d,
