@@ -74,6 +74,12 @@ public final class UserService: ObservableObject {
             }
             
             if let userData = userData {
+                let rawName = userData["displayName"] as? String ?? "Kullanıcı"
+                let nameParts = rawName.components(separatedBy: " ")
+                let fName = userData["firstName"] as? String ?? nameParts.first ?? ""
+                let lName = userData["lastName"] as? String ?? (nameParts.count > 1 ? nameParts.dropFirst().joined(separator: " ") : "")
+                let pScore = userData["profileScore"] as? Int ?? 0
+                let isProfComp = userData["profileCompleted"] as? Bool ?? false
                 
                 let commPrefsData = userData["communicationPreferences"] as? [String: Any] ?? [:]
                 let commPrefs = CommunicationPreferences(
@@ -100,44 +106,45 @@ public final class UserService: ObservableObject {
                         title: title,
                         url: url,
                         contentHash: hash,
-                        isRequired: d["isRequired"] as? Bool ?? true,
-                        isActive: d["isActive"] as? Bool ?? true,
-                        requiresReacceptance: d["requiresReacceptance"] as? Bool ?? false
+                        required: d["required"] as? Bool ?? true
                     )
                 }
-
-                let isUnderage = userData["isUnderage"] as? Bool ?? (userData["status"] as? String == "SUSPENDED_UNDERAGE" || userData["status"] as? String == "UNDERAGE")
                 
                 let user = PAGUser(
                     userId: userData["userId"] as? String ?? "",
                     email: userData["email"] as? String,
                     phone: userData["phone"] as? String,
-                    displayName: userData["displayName"] as? String,
+                    displayName: rawName,
+                    firstName: fName,
+                    lastName: lName,
                     photoUrl: userData["photoUrl"] as? String,
-                    authProviders: userData["authProviders"] as? [String] ?? [],
+                    authProviders: ["phone"],
                     status: userData["status"] as? String ?? "ACTIVE",
-                    profileScore: userData["profileScore"] as? Int ?? 0,
-                    profileCompleted: userData["profileCompleted"] as? Bool ?? false,
-                    phoneVerified: userData["phoneVerified"] as? Bool ?? false,
-                    emailVerified: userData["emailVerified"] as? Bool ?? false,
+                    profileScore: pScore,
+                    profileCompleted: isProfComp,
+                    phoneVerified: true,
+                    emailVerified: false,
                     kycStatus: userData["kycStatus"] as? String ?? "NOT_STARTED",
                     iban: userData["iban"] as? String,
                     tckn: userData["tckn"] as? String,
                     ibanVerified: userData["ibanVerified"] as? Bool ?? false,
-                    activeDeviceId: userData["activeDeviceId"] as? String,
-                    legalConsentRequired: userData["legalConsentRequired"] as? Bool ?? false,
-                    missingDocumentIds: userData["missingDocumentIds"] as? [String] ?? [],
+                    activeDeviceId: deviceId,
+                    legalConsentRequired: false,
+                    missingDocumentIds: [],
                     missingDocuments: missingDocs,
                     communicationPreferences: commPrefs,
-                    isUnderage: isUnderage,
-                    underageBlocked: isUnderage
+                    isUnderage: false,
+                    underageBlocked: false
                 )
                 
                 self.currentUser = user
+                self.currentRanking = PAGUserRanking(
+                    profileScore: pScore,
+                    rank: 1,
+                    totalEligibleUsers: 1,
+                    percentileText: "%1"
+                )
                 self.isBootstrapping = false
-                
-                // Fetch user ranking
-                await fetchUserRanking()
                 return
             }
         } catch {

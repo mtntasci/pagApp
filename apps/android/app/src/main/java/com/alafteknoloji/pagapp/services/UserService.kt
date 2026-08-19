@@ -64,12 +64,21 @@ class UserService(private val context: Context) {
             if (apiRes != null && apiRes.optBoolean("success")) {
                 val userData = apiRes.optJSONObject("data")
                 if (userData != null) {
+                    val rawName = userData.optString("displayName", "Kullanıcı")
+                    val nameParts = rawName.split(" ")
+                    val fName = userData.optString("firstName").ifEmpty { nameParts.firstOrNull() ?: "" }
+                    val lName = userData.optString("lastName").ifEmpty { if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "" }
+
                     val user = com.alafteknoloji.pagapp.models.PAGUser(
                         userId = userData.optString("userId"),
                         email = if (userData.isNull("email")) null else userData.optString("email"),
                         phone = if (userData.isNull("phone")) null else userData.optString("phone"),
-                        displayName = userData.optString("displayName", "Kullanıcı"),
+                        displayName = rawName,
+                        firstName = fName,
+                        lastName = lName,
                         profileScore = userData.optInt("profileScore", 0),
+                        profileCompleted = userData.optBoolean("profileCompleted", false),
+                        phoneVerified = true,
                         status = userData.optString("status", "ACTIVE")
                     )
                     _currentUser.value = user

@@ -39,25 +39,34 @@ export async function POST(req: NextRequest) {
       .from(surveyResponses)
       .where(eq(surveyResponses.userId, userId));
 
+    const rawName = user.displayName || 'Kullanıcı';
+    const parts = rawName.split(' ');
+    const firstName = parts[0] || '';
+    const lastName = parts.slice(1).join(' ') || '';
+    const isProfileCompleted = Boolean(user.city && user.gender && user.gender !== 'Belirtilmedi');
+
     return apiSuccess({
       userId: user.id,
       firebaseUid: user.firebaseUid,
       email: user.email,
       phone: user.phone,
-      displayName: user.displayName || 'Kullanıcı',
-      city: user.city || 'İstanbul',
-      district: user.district || '',
-      gender: user.gender || 'Belirtilmedi',
-      birthDate: user.birthDate || '1998-01-01',
+      displayName: rawName,
+      firstName,
+      lastName,
+      city: user.city || null,
+      district: user.district || null,
+      gender: user.gender || null,
+      birthDate: user.birthDate || null,
       age: user.age || 25,
-      maritalStatus: user.maritalStatus || 'SINGLE',
-      childrenStatus: user.childrenStatus || 'NO_CHILDREN',
-      hometown: user.hometown || '',
-      education: user.education || 'LISANS',
-      occupation: user.occupation || '',
+      maritalStatus: user.maritalStatus || null,
+      childrenStatus: user.childrenStatus || null,
+      hometown: user.hometown || null,
+      education: user.education || null,
+      occupation: user.occupation || null,
       kycStatus: user.kycStatus || 'NOT_STARTED',
-      profileScore: user.profileScore || 0,
+      profileScore: Number(user.profileScore) || 0,
       rewardBalance: Number(user.rewardBalance) || 0,
+      profileCompleted: isProfileCompleted,
       completedSurveysCount: Number(compCount),
       status: user.isBanned ? 'BANNED' : 'ACTIVE',
       communicationPreferences: {
