@@ -2,9 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { auth, db, functions } from '@/lib/firebase';
+import { auth, functions } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 
 export interface PortalUser {
@@ -52,40 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const fetchPortalUser = useCallback(async (currentUser: User) => {
-    // 1. Try Cloud Function getPortalUser
-    try {
-      const getPortalUserFn = httpsCallable(functions, 'getPortalUser');
-      const res: any = await getPortalUserFn({});
-      const pData = res.data?.data?.portalUser;
-
-      if (res.data?.success && pData && pData.status === 'ACTIVE') {
-        setPortalUser(pData);
-        setIsAdmin(pData.role === 'SUPER_ADMIN' || pData.role === 'PAG_STAFF');
-        setAuthError(null);
-        return pData;
-      }
-    } catch (callErr) {
-      console.warn('Callable getPortalUser warning/fallback:', callErr);
-    }
-
-    // 2. Direct Firestore Client SDK Fallback Read
-    try {
-      const docRef = doc(db, 'portalUsers', currentUser.uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const pData = docSnap.data() as PortalUser;
-        if (pData.status === 'ACTIVE') {
-          setPortalUser(pData);
-          setIsAdmin(pData.role === 'SUPER_ADMIN' || pData.role === 'PAG_STAFF');
-          setAuthError(null);
-          return pData;
-        }
-      }
-    } catch (fsErr) {
-      console.warn('Firestore client read fallback error:', fsErr);
-    }
-
-    // 3. Super Admin Bootstrap Fallback for admin@pagapp.com & mtntasci@gmail.com
+    // 1. Super Admin Bootstrap for admin@pagapp.com & mtntasci@gmail.com
     const userEmail = (currentUser.email || '').toLowerCase();
     if (userEmail === 'admin@pagapp.com' || userEmail === 'mtntasci@gmail.com') {
       const bootstrapUser: PortalUser = {
@@ -101,7 +67,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return bootstrapUser;
     }
 
-    // 4. Verification failed -> reject session
+    // 2. Fetch from Neon REST API /api/v1/admin/users
+    try {
+      const res = await fetch('/api/v1/admin/users');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.users)) {
+          const found = json.data.users.find((u: any) => u.email?.toLowerCase() === userEmail || u.uid === currentUser.uid);
+          if (found && found.status === 'ACTIVE') {
+            const pUser: PortalUser = {
+              uid: found.uid,
+              email: found.email,
+              role: found.role,
+              organizationId: found.organizationId,
+              status: found.status
+            };
+            setPortalUser(pUser);
+            setIsAdmin(pUser.role === 'SUPER_ADMIN' || pUser.role === 'PAG_STAFF');
+            setAuthError(null);
+            return pUser;
+          }
+        }
+      }
+    } catch (apiErr) {
+      console.warn('API fetch portal user error:', apiErr);
+    }
+
+    // 3. Verification failed -> reject session
     await firebaseSignOut(auth);
     setUser(null);
     setPortalUser(null);
