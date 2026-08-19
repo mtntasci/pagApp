@@ -17,8 +17,7 @@ public struct HomeView: View {
     
     private var storyItems: [StoryItemType] {
         var items: [StoryItemType] = [.home]
-        let sourceList = storyService.stories.isEmpty ? StoryMock.sampleList : storyService.stories
-        let sortedStories = sourceList
+        let sortedStories = storyService.stories
             .filter { $0.isActive }
             .sorted { $0.position < $1.position }
         items.append(contentsOf: sortedStories.map { .story($0) })

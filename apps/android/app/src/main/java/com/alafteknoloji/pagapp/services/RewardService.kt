@@ -40,7 +40,6 @@ class RewardService {
     suspend fun fetchUserRewards() {
         _isLoading.value = true
         try {
-            // 1. Try High-Speed REST API (~10ms)
             val apiRes = PAGApiClient.get("/wallet")
             if (apiRes != null && apiRes.optBoolean("success")) {
                 val dataDict = apiRes.optJSONObject("data")
@@ -49,8 +48,8 @@ class RewardService {
                     _profileScore.value = dataDict.optInt("profileScore", 0)
 
                     val rawLedgers = dataDict.optJSONArray("rewardHistory")
+                    val parsedLedgers = mutableListOf<PAGRewardLedgerEntry>()
                     if (rawLedgers != null) {
-                        val parsedLedgers = mutableListOf<PAGRewardLedgerEntry>()
                         for (i in 0 until rawLedgers.length()) {
                             val l = rawLedgers.getJSONObject(i)
                             parsedLedgers.add(
@@ -64,12 +63,12 @@ class RewardService {
                                 )
                             )
                         }
-                        _rewardLedgers.value = parsedLedgers
                     }
+                    _rewardLedgers.value = parsedLedgers
 
                     val rawVouchers = dataDict.optJSONArray("vouchers")
+                    val parsedVouchers = mutableListOf<PAGVoucher>()
                     if (rawVouchers != null) {
-                        val parsedVouchers = mutableListOf<PAGVoucher>()
                         for (i in 0 until rawVouchers.length()) {
                             val v = rawVouchers.getJSONObject(i)
                             parsedVouchers.add(
@@ -85,12 +84,12 @@ class RewardService {
                                 )
                             )
                         }
-                        _vouchers.value = parsedVouchers
                     }
+                    _vouchers.value = parsedVouchers
 
                     val rawScores = dataDict.optJSONArray("scoreHistory")
+                    val parsedScores = mutableListOf<PAGScoreLedgerEntry>()
                     if (rawScores != null) {
-                        val parsedScores = mutableListOf<PAGScoreLedgerEntry>()
                         for (i in 0 until rawScores.length()) {
                             val s = rawScores.getJSONObject(i)
                             parsedScores.add(
@@ -103,73 +102,23 @@ class RewardService {
                                 )
                             )
                         }
-                        _scoreLedgers.value = parsedScores
-                    }
-
-                    _isLoading.value = false
-                    return
-                }
-            }
-
-            // 2. Fallback to Firebase Callable
-            val result = functions.getHttpsCallable("getUserRewards").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any>
-                if (dataDict != null) {
-                    _rewardBalance.value = (dataDict["rewardBalance"] as? Number)?.toInt() ?: 0
-                    _profileScore.value = (dataDict["profileScore"] as? Number)?.toInt() ?: 0
-
-                    @Suppress("UNCHECKED_CAST")
-                    val rawLedgers = dataDict["ledgers"] as? List<Map<String, Any>> ?: emptyList()
-                    val parsedLedgers = rawLedgers.map { l ->
-                        PAGRewardLedgerEntry(
-                            id = l["id"] as? String ?: "",
-                            surveyId = l["surveyId"] as? String ?: "",
-                            type = l["type"] as? String ?: "MONEY",
-                            amount = (l["amount"] as? Number)?.toInt() ?: 0,
-                            reason = l["reason"] as? String ?: "Anket Ödülü",
-                            createdAt = l["createdAt"] as? String ?: ""
-                        )
-                    }
-                    _rewardLedgers.value = parsedLedgers
-
-                    @Suppress("UNCHECKED_CAST")
-                    val rawVouchers = dataDict["vouchers"] as? List<Map<String, Any>> ?: emptyList()
-                    val parsedVouchers = rawVouchers.map { v ->
-                        PAGVoucher(
-                            voucherId = v["voucherId"] as? String ?: "",
-                            poolId = v["poolId"] as? String ?: "",
-                            title = v["title"] as? String ?: "Hediye Çeki",
-                            code = v["code"] as? String ?: "",
-                            valueAmount = (v["valueAmount"] as? Number)?.toInt() ?: 0,
-                            status = v["status"] as? String ?: "ASSIGNED",
-                            assignedAt = v["assignedAt"] as? String ?: "",
-                            expiresAt = v["expiresAt"] as? String
-                        )
-                    }
-                    _vouchers.value = parsedVouchers
-
-                    @Suppress("UNCHECKED_CAST")
-                    val rawScores = dataDict["scoreLedgers"] as? List<Map<String, Any>> ?: emptyList()
-                    val parsedScores = rawScores.map { s ->
-                        PAGScoreLedgerEntry(
-                            id = s["id"] as? String ?: "",
-                            sourceType = s["sourceType"] as? String ?: "BASIC_PROFILE",
-                            amount = (s["amount"] as? Number)?.toInt() ?: 0,
-                            reason = s["reason"] as? String ?: "Profil Puanı Ödülü",
-                            createdAt = s["createdAt"] as? String ?: ""
-                        )
                     }
                     _scoreLedgers.value = parsedScores
                 }
+            } else {
+                _rewardBalance.value = 0
+                _profileScore.value = 0
+                _rewardLedgers.value = emptyList()
+                _vouchers.value = emptyList()
+                _scoreLedgers.value = emptyList()
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            _rewardBalance.value = 0
+            _profileScore.value = 0
+            _rewardLedgers.value = emptyList()
+            _vouchers.value = emptyList()
+            _scoreLedgers.value = emptyList()
         } finally {
             _isLoading.value = false
         }

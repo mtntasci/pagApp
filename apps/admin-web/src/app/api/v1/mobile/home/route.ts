@@ -113,12 +113,12 @@ export async function GET(req: NextRequest) {
 
     // 5. Extract Stories
     const stories = activeSurveys
-      .filter(s => s.storyConfig && (s.storyConfig as any).showInStory)
+      .filter(s => s.storyConfig && ((s.storyConfig as any).showInStory || (s.storyConfig as any).isStory))
       .map(s => ({
         surveyId: s.id,
         title: s.title,
-        label: (s.storyConfig as any).storyLabel || s.category || 'Öne Çıkan',
-        category: (s.storyConfig as any).imageCategory || s.category || 'Otomotiv',
+        label: (s.storyConfig as any).label || (s.storyConfig as any).storyLabel || s.category || 'Öne Çıkan',
+        category: (s.storyConfig as any).category || (s.storyConfig as any).imageCategory || 'story_tech',
         profileScoreReward: s.profileScoreReward,
         isCompleted: completedSurveyIds.includes(s.id)
       }));

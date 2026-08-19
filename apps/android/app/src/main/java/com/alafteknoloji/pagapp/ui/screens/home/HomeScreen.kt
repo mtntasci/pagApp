@@ -87,7 +87,7 @@ fun HomeScreen(
     }
 
     val storyItems = mutableListOf<StoryItemType>(StoryItemType.Home)
-    val activeStoryList: List<StoryMock> = if (fetchedStories.isNotEmpty()) fetchedStories else StoryMock.sampleList
+    val activeStoryList: List<StoryMock> = fetchedStories
     val sortedStories = activeStoryList.filter { it.isActive }.sortedBy { it.position }
     storyItems.addAll(sortedStories.map { StoryItemType.Story(it) })
 

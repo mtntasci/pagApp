@@ -20,13 +20,12 @@ class StoryService {
     suspend fun fetchStories() {
         _isLoading.value = true
         try {
-            // 1. Try High-Speed REST API (~10ms)
             val apiRes = PAGApiClient.get("/home")
             if (apiRes != null && apiRes.optBoolean("success")) {
                 val dataObj = apiRes.optJSONObject("data")
                 val rawList = dataObj?.optJSONArray("stories")
+                val parsed = mutableListOf<StoryMock>()
                 if (rawList != null) {
-                    val parsed = mutableListOf<StoryMock>()
                     for (i in 0 until rawList.length()) {
                         val item = rawList.getJSONObject(i)
                         val sid = item.optString("surveyId", java.util.UUID.randomUUID().toString())
@@ -47,43 +46,6 @@ class StoryService {
                             )
                         )
                     }
-                    _stories.value = parsed
-                    _isLoading.value = false
-                    return
-                }
-            }
-
-            // 2. Fallback to Firebase Callable
-            val result = functions.getHttpsCallable("getEligibleStories").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any>
-                @Suppress("UNCHECKED_CAST")
-                val rawList = dataDict?.get("stories") as? List<Map<String, Any>> ?: emptyList()
-
-                val parsed = rawList.mapNotNull { item ->
-                    val sid = (item["storyId"] as? String) ?: (item["id"] as? String) ?: return@mapNotNull null
-                    val surveyId = item["surveyId"] as? String
-                    val label = (item["shortLabel"] as? String) ?: (item["label"] as? String) ?: "Anket"
-                    val imageUrl = item["imageUrl"] as? String
-                    val imageCategory = (item["imageCategory"] as? String) ?: "story_tech"
-                    val pos = (item["position"] as? Number)?.toInt() ?: 1
-                    val isActive = item["isActive"] as? Boolean ?: true
-
-                    StoryMock(
-                        id = sid,
-                        type = StoryType.SURVEY,
-                        surveyId = surveyId,
-                        image = imageCategory,
-                        imageUrl = imageUrl,
-                        shortLabel = label,
-                        position = pos,
-                        isActive = isActive
-                    )
                 }
                 _stories.value = parsed
             } else {

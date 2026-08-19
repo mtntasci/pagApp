@@ -31,13 +31,12 @@ class SurveyService {
         _errorMessage.value = null
 
         try {
-            // 1. Try High-Speed REST API (~10ms)
             val apiRes = PAGApiClient.get("/home")
             if (apiRes != null && apiRes.optBoolean("success")) {
                 val dataObj = apiRes.optJSONObject("data")
                 val rawSurveys = dataObj?.optJSONArray("surveys")
+                val parsed = mutableListOf<PAGSurvey>()
                 if (rawSurveys != null) {
-                    val parsed = mutableListOf<PAGSurvey>()
                     for (i in 0 until rawSurveys.length()) {
                         val item = rawSurveys.getJSONObject(i)
                         val surveyId = item.optString("id").ifEmpty { item.optString("surveyId") }
@@ -60,51 +59,14 @@ class SurveyService {
                             )
                         }
                     }
-                    _eligibleSurveys.value = parsed
-                    _isLoading.value = false
-                    return
                 }
-            }
-
-            // 2. Fallback to Firebase Callable
-            val result = functions.getHttpsCallable("getEligibleSurveys").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any>
-                @Suppress("UNCHECKED_CAST")
-                val rawSurveys = dataDict?.get("surveys") as? List<Map<String, Any>> ?: emptyList()
-
-                val parsed = rawSurveys.mapNotNull { item ->
-                    val surveyId = item["surveyId"] as? String ?: return@mapNotNull null
-                    val title = item["title"] as? String ?: return@mapNotNull null
-                    val description = item["description"] as? String ?: ""
-
-                    PAGSurvey(
-                        surveyId = surveyId,
-                        ownerType = item["ownerType"] as? String ?: "PAG",
-                        organizationId = item["organizationId"] as? String,
-                        surveyType = item["surveyType"] as? String ?: "PAG",
-                        title = title,
-                        description = description,
-                        status = item["status"] as? String ?: "ACTIVE",
-                        questionCount = (item["questionCount"] as? Number)?.toInt() ?: 3,
-                        profileScoreReward = (item["profileScoreReward"] as? Number)?.toInt() ?: 50,
-                        isCompleted = item["isCompleted"] as? Boolean ?: false,
-                        isHighlighted = item["isHighlighted"] as? Boolean ?: false
-                    )
-                }
-
                 _eligibleSurveys.value = parsed
             } else {
-                _errorMessage.value = "Anketler alınamadı."
+                _eligibleSurveys.value = emptyList()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            _errorMessage.value = "Anketler yüklenirken hata oluştu."
+            _eligibleSurveys.value = emptyList()
         } finally {
             _isLoading.value = false
         }

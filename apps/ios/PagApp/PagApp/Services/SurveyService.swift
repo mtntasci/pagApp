@@ -67,47 +67,15 @@ public class SurveyService: ObservableObject {
                 }
                 
                 self.eligibleSurveys = parsedList
-                self.isLoading = false
-                return
+            } else {
+                self.eligibleSurveys = []
             }
-            
-            // 2. Fallback to Firebase Callable
-            let result = try await Functions.functions().httpsCallable("getEligibleSurveys").call()
-            guard let dict = result.data as? [String: Any],
-                  let success = dict["success"] as? Bool, success,
-                  let dataDict = dict["data"] as? [String: Any],
-                  let rawSurveys = dataDict["surveys"] as? [[String: Any]] else {
-                throw NSError(domain: "SurveyService", code: 500, userInfo: [NSLocalizedDescriptionKey: "Sunucudan geçersiz yanıt alındı."])
-            }
-            
-            var parsedList: [PAGSurvey] = []
-            for item in rawSurveys {
-                if let surveyId = item["surveyId"] as? String,
-                   let title = item["title"] as? String,
-                   let description = item["description"] as? String {
-                    let survey = PAGSurvey(
-                        surveyId: surveyId,
-                        ownerType: item["ownerType"] as? String ?? "PAG",
-                        organizationId: item["organizationId"] as? String,
-                        surveyType: item["surveyType"] as? String ?? "PAG",
-                        title: title,
-                        description: description,
-                        status: item["status"] as? String ?? "ACTIVE",
-                        questionCount: item["questionCount"] as? Int ?? 3,
-                        profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
-                        isCompleted: item["isCompleted"] as? Bool ?? false,
-                        isHighlighted: item["isHighlighted"] as? Bool ?? false
-                    )
-                    parsedList.append(survey)
-                }
-            }
-            
-            self.eligibleSurveys = parsedList
             self.isLoading = false
         } catch {
             print("[SurveyService] Fetch eligible surveys error: \(error.localizedDescription)")
-            self.errorMessage = "Anketler yüklenirken bir sorun oluştu. Lütfen tekrar deneyin."
             self.eligibleSurveys = []
+            self.isLoading = false
+        }
             self.isLoading = false
         }
     }
