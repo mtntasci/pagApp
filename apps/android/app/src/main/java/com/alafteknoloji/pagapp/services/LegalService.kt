@@ -50,7 +50,8 @@ class LegalService {
 
     suspend fun recordLegalAcceptances(
         acceptedDocuments: List<LegalDocument>,
-        preferences: CommunicationPreferences
+        preferences: CommunicationPreferences,
+        birthYear: Int? = null
     ): Boolean {
         return try {
             val acceptancesArray = JSONArray()
@@ -72,6 +73,9 @@ class LegalService {
             payload.put("acceptances", acceptancesArray)
             payload.put("communicationPreferences", commPrefsObj)
             payload.put("source", "ANDROID")
+            if (birthYear != null) {
+                payload.put("birthYear", birthYear)
+            }
 
             val apiRes = PAGApiClient.post("/legal/acceptances", payload)
             apiRes != null && apiRes.optBoolean("success")

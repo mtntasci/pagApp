@@ -3,7 +3,6 @@ package com.alafteknoloji.pagapp.ui.screens.legal
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,7 +32,9 @@ import com.alafteknoloji.pagapp.services.LegalService
 import com.alafteknoloji.pagapp.services.UserService
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConsentGateScreen(
     userService: UserService,
@@ -45,11 +46,15 @@ fun ConsentGateScreen(
     // Local accepted documents map during the gate flow
     var acceptedDocs by remember { mutableStateOf<Map<String, LegalDocument>>(emptyMap()) }
 
-    // Optional marketing switches (defaults to FALSE)
-    var pushMarketing by remember { mutableStateOf(false) }
-    var smsMarketing by remember { mutableStateOf(false) }
-    var emailMarketing by remember { mutableStateOf(false) }
-    var phoneMarketing by remember { mutableStateOf(false) }
+    // Unified commercial communication permission
+    var allowCommunication by remember { mutableStateOf(false) }
+
+    // 18+ Age & Birth Year Verification
+    val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
+    val availableYears = remember { (1940..(currentYear - 18)).reversed().toList() }
+    var selectedBirthYear by remember { mutableStateOf(2000) }
+    var isAgeConfirmed by remember { mutableStateOf(false) }
+    var yearDropdownExpanded by remember { mutableStateOf(false) }
 
     var selectedDocumentForReading by remember { mutableStateOf<LegalDocument?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
@@ -59,9 +64,7 @@ fun ConsentGateScreen(
     // Android 13+ Notification Permission Launcher
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
-        onResult = { _ ->
-            // Permission result handled
-        }
+        onResult = { _ -> }
     )
 
     LaunchedEffect(Unit) {
@@ -86,6 +89,8 @@ fun ConsentGateScreen(
     val areAllRequiredDocsAccepted = remember(requiredDocuments, acceptedDocs) {
         requiredDocuments.isNotEmpty() && requiredDocuments.all { acceptedDocs.containsKey(it.documentId) }
     }
+
+    val isFormValid = areAllRequiredDocsAccepted && isAgeConfirmed && !isSubmitting
 
     Scaffold(
         topBar = {
@@ -150,23 +155,23 @@ fun ConsentGateScreen(
                 ) {
                     Button(
                         onClick = {
-                            if (areAllRequiredDocsAccepted && !isSubmitting) {
+                            if (isFormValid) {
                                 isSubmitting = true
                                 submissionError = null
                                 scope.launch {
                                     val commPrefs = CommunicationPreferences(
-                                        pushMarketing = pushMarketing,
-                                        smsMarketing = smsMarketing,
-                                        emailMarketing = emailMarketing,
-                                        phoneMarketing = phoneMarketing
+                                        pushMarketing = false,
+                                        smsMarketing = allowCommunication,
+                                        emailMarketing = allowCommunication,
+                                        phoneMarketing = allowCommunication
                                     )
                                     val success = legalService.recordLegalAcceptances(
                                         acceptedDocuments = acceptedDocs.values.toList(),
-                                        preferences = commPrefs
+                                        preferences = commPrefs,
+                                        birthYear = selectedBirthYear
                                     )
                                     if (success) {
-                                        // Request native Android 13+ push permission only if push marketing is chosen
-                                        if (pushMarketing && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                             notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                                         }
                                         userService.completeLegalConsent(commPrefs)
@@ -177,7 +182,7 @@ fun ConsentGateScreen(
                                 }
                             }
                         },
-                        enabled = areAllRequiredDocsAccepted && !isSubmitting,
+                        enabled = isFormValid,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PAGTheme.colors.brandLime,
                             contentColor = PAGTheme.colors.brandMidnight,
@@ -302,80 +307,178 @@ fun ConsentGateScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = PAGTheme.colors.textSecondary
+                            tint = PAGTheme.colors.textMuted
                         )
                     }
                 }
             }
 
-            // 2. Optional Commercial Communication Section
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column {
+            // 2. 18+ Age & Birth Year Verification
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(PAGTheme.colors.surfacePrimary)
+                    .border(
+                        1.dp,
+                        if (isAgeConfirmed) PAGTheme.colors.brandLime.copy(alpha = 0.4f) else PAGTheme.colors.borderDefault,
+                        RoundedCornerShape(14.dp)
+                    )
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "18+ Yaş Uygunluğu ve Doğum Yılı",
+                    style = PAGTheme.typography.heading,
+                    color = PAGTheme.colors.textPrimary
+                )
+                Text(
+                    text = "PAG platformunda nakit ve hediye çeki para ödülleri dağıtıldığından yasal olarak 18 yaşından büyük olmanız gerekmektedir.",
+                    style = PAGTheme.typography.caption,
+                    color = PAGTheme.colors.textSecondary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "İletişim Tercihleri (İsteğe Bağlı)",
-                        style = PAGTheme.typography.heading,
+                        text = "Doğum Yılınız:",
+                        style = PAGTheme.typography.body,
                         color = PAGTheme.colors.textPrimary
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Kampanya, fırsat ve anket duyurularını almak istediğiniz kanalları seçebilirsiniz.",
-                        style = PAGTheme.typography.caption,
-                        color = PAGTheme.colors.textSecondary
-                    )
+
+                    Box {
+                        Button(
+                            onClick = { yearDropdownExpanded = true },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PAGTheme.colors.surfaceSecondary,
+                                contentColor = PAGTheme.colors.brandLime
+                            ),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = selectedBirthYear.toString(), fontWeight = FontWeight.Bold)
+                        }
+
+                        DropdownMenu(
+                            expanded = yearDropdownExpanded,
+                            onDismissRequest = { yearDropdownExpanded = false }
+                        ) {
+                            availableYears.forEach { year ->
+                                DropdownMenuItem(
+                                    text = { Text(text = year.toString()) },
+                                    onClick = {
+                                        selectedBirthYear = year
+                                        yearDropdownExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
                 }
 
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = PAGTheme.colors.surfacePrimary),
-                    shape = RoundedCornerShape(14.dp),
-                    border = BorderStroke(1.dp, PAGTheme.colors.borderDefault)
+                Divider(color = PAGTheme.colors.borderDefault)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isAgeConfirmed = !isAgeConfirmed },
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Column {
-                        CommercialSwitchRow(
-                            title = "Push Bildirimleri",
-                            subtitle = "Mobil anlık kampanya ve fırsat bildirimleri",
-                            checked = pushMarketing,
-                            onCheckedChange = { pushMarketing = it }
+                    Checkbox(
+                        checked = isAgeConfirmed,
+                        onCheckedChange = { isAgeConfirmed = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = PAGTheme.colors.brandLime,
+                            checkmarkColor = PAGTheme.colors.brandMidnight
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
+                    )
+                    Text(
+                        text = "18 yaşından büyük olduğumu ve ödül kazanımı için doğum yılımın doğruluğunu beyan ederim.",
+                        style = PAGTheme.typography.body,
+                        color = PAGTheme.colors.textPrimary,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+            }
 
-                        CommercialSwitchRow(
-                            title = "SMS ile Bildirim",
-                            subtitle = "Kısa mesaj ile özel anket ve kampanya duyuruları",
-                            checked = smsMarketing,
-                            onCheckedChange = { smsMarketing = it }
+            // 3. Commercial Communication Channels (Unified single toggle)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "İletişim Tercihleri (İsteğe Bağlı)",
+                    style = PAGTheme.typography.heading,
+                    color = PAGTheme.colors.textPrimary
+                )
+                Text(
+                    text = "Kampanya, fırsat ve anket duyurularını almak istediğiniz kanalları seçebilirsiniz. İstediğiniz zaman ayarlardan değiştirebilirsiniz.",
+                    style = PAGTheme.typography.caption,
+                    color = PAGTheme.colors.textSecondary
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(PAGTheme.colors.surfacePrimary)
+                        .border(1.dp, PAGTheme.colors.borderDefault, RoundedCornerShape(14.dp))
+                        .padding(16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = if (allowCommunication) PAGTheme.colors.brandLime else PAGTheme.colors.textSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
-
-                        CommercialSwitchRow(
-                            title = "E-Posta ile Bülten",
-                            subtitle = "Haftalık fırsatlar ve anket özetleri",
-                            checked = emailMarketing,
-                            onCheckedChange = { emailMarketing = it }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
-
-                        CommercialSwitchRow(
-                            title = "Telefon ile İletişim",
-                            subtitle = "Özel araştırma davetleri ve bilgilendirme",
-                            checked = phoneMarketing,
-                            onCheckedChange = { phoneMarketing = it }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "İletişime İzin Veriyorum",
+                                style = PAGTheme.typography.body,
+                                fontWeight = FontWeight.Bold,
+                                color = PAGTheme.colors.textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Sms, E-Posta ve Telefon ile Fırsat, Bildirim almayı kabul ediyorum",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textSecondary
+                            )
+                        }
+                        Switch(
+                            checked = allowCommunication,
+                            onCheckedChange = { allowCommunication = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PAGTheme.colors.brandMidnight,
+                                checkedTrackColor = PAGTheme.colors.brandLime
+                            )
                         )
                     }
                 }
             }
 
-            // Error display
             if (submissionError != null) {
-                Text(
-                    text = submissionError ?: "",
-                    style = PAGTheme.typography.caption,
-                    color = PAGTheme.colors.brandOrange
-                )
+                Surface(
+                    color = PAGTheme.colors.brandOrange.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = submissionError ?: "",
+                        color = PAGTheme.colors.brandOrange,
+                        style = PAGTheme.typography.body,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
             }
         }
     }
 
-    // Document Reader Dialog
     selectedDocumentForReading?.let { doc ->
         FullScreenDocumentReader(
             document = doc,
@@ -383,49 +486,8 @@ fun ConsentGateScreen(
             onDismiss = { selectedDocumentForReading = null },
             onAccept = { acceptedDoc ->
                 acceptedDocs = acceptedDocs + (acceptedDoc.documentId to acceptedDoc)
+                selectedDocumentForReading = null
             }
-        )
-    }
-}
-
-@Composable
-fun CommercialSwitchRow(
-    title: String,
-    subtitle: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = PAGTheme.typography.body,
-                fontWeight = FontWeight.SemiBold,
-                color = PAGTheme.colors.textPrimary
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = subtitle,
-                style = PAGTheme.typography.caption,
-                color = PAGTheme.colors.textSecondary
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = PAGTheme.colors.brandMidnight,
-                checkedTrackColor = PAGTheme.colors.brandLime,
-                uncheckedThumbColor = PAGTheme.colors.textMuted,
-                uncheckedTrackColor = PAGTheme.colors.surfaceSecondary
-            )
         )
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -30,7 +31,6 @@ import com.alafteknoloji.pagapp.models.CommunicationPreferences
 import com.alafteknoloji.pagapp.models.LegalDocument
 import com.alafteknoloji.pagapp.services.LegalService
 import com.alafteknoloji.pagapp.services.UserService
-import com.alafteknoloji.pagapp.ui.screens.legal.CommercialSwitchRow
 import com.alafteknoloji.pagapp.ui.screens.legal.FullScreenDocumentReader
 import com.alafteknoloji.pagapp.ui.theme.PAGTheme
 import kotlinx.coroutines.launch
@@ -45,10 +45,13 @@ fun LegalSettingsScreen(
     val currentUser by userService.currentUser.collectAsState()
     val scope = rememberCoroutineScope()
 
-    var pushMarketing by remember { mutableStateOf(currentUser?.communicationPreferences?.pushMarketing ?: false) }
-    var smsMarketing by remember { mutableStateOf(currentUser?.communicationPreferences?.smsMarketing ?: false) }
-    var emailMarketing by remember { mutableStateOf(currentUser?.communicationPreferences?.emailMarketing ?: false) }
-    var phoneMarketing by remember { mutableStateOf(currentUser?.communicationPreferences?.phoneMarketing ?: false) }
+    var allowCommunication by remember {
+        mutableStateOf(
+            currentUser?.communicationPreferences?.smsMarketing == true ||
+            currentUser?.communicationPreferences?.emailMarketing == true ||
+            currentUser?.communicationPreferences?.phoneMarketing == true
+        )
+    }
 
     var selectedDocumentForReading by remember { mutableStateOf<LegalDocument?>(null) }
     var activeDocumentsList by remember { mutableStateOf<List<LegalDocument>>(emptyList()) }
@@ -64,10 +67,10 @@ fun LegalSettingsScreen(
 
     fun savePreferences() {
         val prefs = CommunicationPreferences(
-            pushMarketing = pushMarketing,
-            smsMarketing = smsMarketing,
-            emailMarketing = emailMarketing,
-            phoneMarketing = phoneMarketing
+            pushMarketing = areNotificationsEnabled,
+            smsMarketing = allowCommunication,
+            emailMarketing = allowCommunication,
+            phoneMarketing = allowCommunication
         )
         scope.launch {
             legalService.updateCommunicationPreferences(prefs)
@@ -125,8 +128,8 @@ fun LegalSettingsScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Notification warning if push marketing is ON but Android notification is disabled
-            if (pushMarketing && !areNotificationsEnabled) {
+            // Notification warning if Android notification is disabled
+            if (!areNotificationsEnabled) {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = PAGTheme.colors.surfacePrimary),
                     border = BorderStroke(1.dp, PAGTheme.colors.borderDefault),
@@ -154,7 +157,7 @@ fun LegalSettingsScreen(
                         }
 
                         Text(
-                            text = "PAG içinde anlık bildirimleri açtınız, ancak Android cihaz ayarlarından PAG bildirimlerine izin verilmemiş görünüyor. Fırsat bildirimlerini alabilmek için lütfen sistem ayarlarını açınız.",
+                            text = "Android cihaz ayarlarından PAG bildirimlerine izin verilmemiş görünüyor. Kampanya ve anket bildirimlerini anlık alabilmek için lütfen sistem ayarlarını açınız.",
                             style = PAGTheme.typography.caption,
                             color = PAGTheme.colors.textSecondary,
                             lineHeight = 18.sp
@@ -184,17 +187,17 @@ fun LegalSettingsScreen(
                 }
             }
 
-            // 1. Commercial Communication Channels
+            // 1. Commercial Communication Channels (Single unified switch)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column {
                     Text(
-                        text = "Ticari İletişim Tercihleri",
+                        text = "İletişim Tercihleri (İsteğe Bağlı)",
                         style = PAGTheme.typography.heading,
                         color = PAGTheme.colors.textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Pazarlama ve anket bilgilendirme kanallarınızı dilediğiniz an açıp kapatabilirsiniz.",
+                        text = "Kampanya, fırsat ve anket duyurularını almak istediğiniz kanalları seçebilirsiniz. İstediğiniz zaman ayarlardan değiştirebilirsiniz.",
                         style = PAGTheme.typography.caption,
                         color = PAGTheme.colors.textSecondary
                     )
@@ -205,48 +208,43 @@ fun LegalSettingsScreen(
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, PAGTheme.colors.borderDefault)
                 ) {
-                    Column {
-                        CommercialSwitchRow(
-                            title = "Push Bildirimleri",
-                            subtitle = "Mobil anlık kampanya ve fırsat bildirimleri",
-                            checked = pushMarketing,
-                            onCheckedChange = {
-                                pushMarketing = it
-                                savePreferences()
-                            }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Notifications,
+                            contentDescription = null,
+                            tint = if (allowCommunication) PAGTheme.colors.brandLime else PAGTheme.colors.textSecondary,
+                            modifier = Modifier.size(24.dp)
                         )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
-
-                        CommercialSwitchRow(
-                            title = "SMS ile Bildirim",
-                            subtitle = "Kısa mesaj ile önemli fırsat ve davetler",
-                            checked = smsMarketing,
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "İletişime İzin Veriyorum",
+                                style = PAGTheme.typography.body,
+                                fontWeight = FontWeight.Bold,
+                                color = PAGTheme.colors.textPrimary
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "Sms, E-Posta ve Telefon ile Fırsat, Bildirim almayı kabul ediyorum",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textSecondary
+                            )
+                        }
+                        Switch(
+                            checked = allowCommunication,
                             onCheckedChange = {
-                                smsMarketing = it
+                                allowCommunication = it
                                 savePreferences()
-                            }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
-
-                        CommercialSwitchRow(
-                            title = "E-Posta ile Bülten",
-                            subtitle = "Haftalık anket ve ödül özetleri",
-                            checked = emailMarketing,
-                            onCheckedChange = {
-                                emailMarketing = it
-                                savePreferences()
-                            }
-                        )
-                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = PAGTheme.colors.borderDefault)
-
-                        CommercialSwitchRow(
-                            title = "Telefon ile İletişim",
-                            subtitle = "Özel araştırma davetleri",
-                            checked = phoneMarketing,
-                            onCheckedChange = {
-                                phoneMarketing = it
-                                savePreferences()
-                            }
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = PAGTheme.colors.brandMidnight,
+                                checkedTrackColor = PAGTheme.colors.brandLime
+                            )
                         )
                     }
                 }

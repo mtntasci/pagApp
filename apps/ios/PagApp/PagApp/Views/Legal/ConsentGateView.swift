@@ -8,11 +8,12 @@ public struct ConsentGateView: View {
     // Accepted documents tracking in local state during the gate flow
     @State private var acceptedDocs: [String: LegalDocument] = [:]
     
-    // Optional Commercial Communication Preferences (all default to FALSE)
-    @State private var pushMarketing: Bool = false
-    @State private var smsMarketing: Bool = false
-    @State private var emailMarketing: Bool = false
-    @State private var phoneMarketing: Bool = false
+    // Single Unified Commercial Communication Preference (SMS, E-Posta, Telefon)
+    @State private var allowCommunication: Bool = false
+    
+    // 18+ Age Verification & Birth Year Selection
+    @State private var selectedBirthYear: Int = 2000
+    @State private var isAgeConfirmed: Bool = false
     
     // Active document selection for full-screen reader
     @State private var selectedDocumentForReading: LegalDocument? = nil
@@ -22,6 +23,12 @@ public struct ConsentGateView: View {
     
     public init() {}
     
+    private var availableBirthYears: [Int] {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let maxYear = currentYear - 18 // e.g. 2008
+        return Array((1940...maxYear).reversed())
+    }
+    
     private var requiredDocuments: [LegalDocument] {
         if let missing = userService.currentUser?.missingDocuments, !missing.isEmpty {
             return missing
@@ -29,7 +36,6 @@ public struct ConsentGateView: View {
         if !legalService.activeDocuments.isEmpty {
             return legalService.activeDocuments.filter { $0.isRequired }
         }
-        // Fallback required documents baseline
         return [
             LegalDocument(
                 documentId: "TERMS",
@@ -37,7 +43,7 @@ public struct ConsentGateView: View {
                 version: "1.0",
                 title: "Kullanım Koşulları ve Üyelik Sözleşmesi",
                 url: "https://www.pagapp.com.tr/terms",
-                contentHash: "PAG_TERMS_V1.0_20260817_PRODUCTION_ALAF_TEKNOLOJI",
+                contentHash: "PAG_TERMS_V1.0",
                 isRequired: true
             ),
             LegalDocument(
@@ -46,7 +52,7 @@ public struct ConsentGateView: View {
                 version: "1.0",
                 title: "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni",
                 url: "https://www.pagapp.com.tr/user-privacy",
-                contentHash: "PAG_KVKK_NOTICE_V1.0_20260817_PRODUCTION_ALAF_TEKNOLOJI",
+                contentHash: "PAG_KVKK_NOTICE_V1.0",
                 isRequired: true
             ),
             LegalDocument(
@@ -55,7 +61,7 @@ public struct ConsentGateView: View {
                 version: "1.0",
                 title: "Ödül ve Kampanya Katılım Koşulları",
                 url: "https://www.pagapp.com.tr/reward-terms",
-                contentHash: "PAG_REWARD_TERMS_V1.0_20260817_PRODUCTION_ALAF_TEKNOLOJI",
+                contentHash: "PAG_REWARD_TERMS_V1.0",
                 isRequired: true
             )
         ]
@@ -68,6 +74,10 @@ public struct ConsentGateView: View {
             }
         }
         return !requiredDocuments.isEmpty
+    }
+    
+    private var isFormValidToContinue: Bool {
+        return areAllRequiredDocsAccepted && isAgeConfirmed && !isSubmitting
     }
     
     public var body: some View {
@@ -143,7 +153,78 @@ public struct ConsentGateView: View {
                             }
                         }
                         
-                        // 2. Optional Commercial Communication Section
+                        // 2. 18+ Age & Birth Year Verification
+                        VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "person.badge.shield.checkmark.fill")
+                                        .foregroundColor(PAGTheme.brandLime)
+                                        .font(.system(size: 15))
+                                    
+                                    Text("18+ Yaş Uygunluğu ve Doğum Yılı")
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                }
+                                
+                                Text("PAG platformunda nakit ve hediye çeki para ödülleri dağıtıldığından yasal olarak 18 yaşından büyük olmanız gerekmektedir.")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(PAGTheme.textSecondary)
+                                    .lineSpacing(2)
+                            }
+                            
+                            VStack(spacing: 12) {
+                                HStack {
+                                    Text("Doğum Yılınız:")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                    
+                                    Spacer()
+                                    
+                                    Picker("Doğum Yılı", selection: $selectedBirthYear) {
+                                        ForEach(availableBirthYears, id: \.self) { year in
+                                            Text("\(String(year))")
+                                                .tag(year)
+                                        }
+                                    }
+                                    .pickerStyle(MenuPickerStyle())
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 6)
+                                    .background(PAGTheme.surfaceSecondary)
+                                    .cornerRadius(8)
+                                    .accentColor(PAGTheme.brandLime)
+                                }
+                                
+                                Divider().background(PAGTheme.borderColor)
+                                
+                                Button(action: {
+                                    isAgeConfirmed.toggle()
+                                }) {
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Image(systemName: isAgeConfirmed ? "checkmark.square.fill" : "square")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(isAgeConfirmed ? PAGTheme.brandLime : PAGTheme.textSecondary)
+                                        
+                                        Text("18 yaşından büyük olduğumu ve ödül kazanımı için doğum yılımın doğruluğunu beyan ederim.")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                            .multilineTextAlignment(.leading)
+                                            .lineSpacing(2)
+                                        
+                                        Spacer()
+                                    }
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                            .padding(16)
+                            .background(PAGTheme.surfacePrimary)
+                            .cornerRadius(14)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(isAgeConfirmed ? PAGTheme.brandLime.opacity(0.4) : PAGTheme.borderColor, lineWidth: 1)
+                            )
+                        }
+                        
+                        // 3. Optional Commercial Communication Section
                         VStack(alignment: .leading, spacing: 12) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("İletişim Tercihleri (İsteğe Bağlı)")
@@ -157,45 +238,37 @@ public struct ConsentGateView: View {
                             }
                             
                             VStack(spacing: 0) {
-                                CommercialToggleRow(
-                                    icon: "bell.badge.fill",
-                                    title: "Push Bildirimleri",
-                                    subtitle: "Mobil anlık kampanya ve fırsat bildirimleri",
-                                    isOn: $pushMarketing
-                                )
-                                
-                                Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                                
-                                CommercialToggleRow(
-                                    icon: "message.fill",
-                                    title: "SMS ile Bildirim",
-                                    subtitle: "Kısa mesaj ile özel anket ve kampanya duyuruları",
-                                    isOn: $smsMarketing
-                                )
-                                
-                                Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                                
-                                CommercialToggleRow(
-                                    icon: "envelope.fill",
-                                    title: "E-Posta ile Bülten",
-                                    subtitle: "Haftalık fırsatlar ve anket özetleri",
-                                    isOn: $emailMarketing
-                                )
-                                
-                                Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                                
-                                CommercialToggleRow(
-                                    icon: "phone.fill",
-                                    title: "Telefon ile İletişim",
-                                    subtitle: "Özel araştırma davetleri ve bilgilendirme",
-                                    isOn: $phoneMarketing
-                                )
+                                HStack(spacing: 14) {
+                                    Image(systemName: "bell.badge.fill")
+                                        .font(.system(size: 20))
+                                        .foregroundColor(allowCommunication ? PAGTheme.brandLime : PAGTheme.textSecondary)
+                                        .frame(width: 28)
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("İletişime İzin Veriyorum")
+                                            .font(.system(size: 14, weight: .bold))
+                                            .foregroundColor(PAGTheme.textPrimary)
+                                        
+                                        Text("Sms, E-Posta ve Telefon ile Fırsat, Bildirim almayı kabul ediyorum")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(PAGTheme.textSecondary)
+                                            .lineSpacing(2)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Toggle("", isOn: $allowCommunication)
+                                        .labelsHidden()
+                                        .tint(PAGTheme.brandLime)
+                                }
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 14)
                             }
                             .background(PAGTheme.surfacePrimary)
                             .cornerRadius(14)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
-                                    .stroke(PAGTheme.borderColor, lineWidth: 1)
+                                    .stroke(allowCommunication ? PAGTheme.brandLime.opacity(0.3) : PAGTheme.borderColor, lineWidth: 1)
                             )
                         }
                         
@@ -235,13 +308,13 @@ public struct ConsentGateView: View {
                             Text(isSubmitting ? "Kaydediliyor..." : "Onayla ve Devam Et")
                                 .font(.system(size: 16, weight: .bold))
                         }
-                        .foregroundColor(areAllRequiredDocsAccepted && !isSubmitting ? PAGTheme.brandMidnight : PAGTheme.textMuted)
+                        .foregroundColor(isFormValidToContinue ? PAGTheme.brandMidnight : PAGTheme.textMuted)
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
-                        .background(areAllRequiredDocsAccepted && !isSubmitting ? PAGTheme.brandLime : PAGTheme.surfaceSecondary)
+                        .background(isFormValidToContinue ? PAGTheme.brandLime : PAGTheme.surfaceSecondary)
                         .cornerRadius(14)
                     }
-                    .disabled(!areAllRequiredDocsAccepted || isSubmitting)
+                    .disabled(!isFormValidToContinue)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 12)
                 }
@@ -263,36 +336,34 @@ public struct ConsentGateView: View {
     }
     
     private func handleContinue() async {
-        guard areAllRequiredDocsAccepted else { return }
+        guard isFormValidToContinue else { return }
         
         isSubmitting = true
         submissionError = nil
         
         let acceptedList = Array(acceptedDocs.values)
         let commPrefs = CommunicationPreferences(
-            pushMarketing: pushMarketing,
-            smsMarketing: smsMarketing,
-            emailMarketing: emailMarketing,
-            phoneMarketing: phoneMarketing
+            pushMarketing: false, // Push is handled natively by Apple system prompt
+            smsMarketing: allowCommunication,
+            emailMarketing: allowCommunication,
+            phoneMarketing: allowCommunication
         )
         
         let success = await legalService.recordLegalAcceptances(
             acceptedDocuments: acceptedList,
-            preferences: commPrefs
+            preferences: commPrefs,
+            birthYear: selectedBirthYear
         )
         
         if success {
-            // Check native notification permission sequencing:
-            // Request native notification ONLY if user opted in for push marketing
-            if pushMarketing {
-                let center = UNUserNotificationCenter.current()
-                let settings = await center.notificationSettings()
-                if settings.authorizationStatus == .notDetermined {
-                    do {
-                        _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                    } catch {
-                        print("Push authorization request error: \(error.localizedDescription)")
-                    }
+            // Request native Apple Push Notification dialog after login
+            let center = UNUserNotificationCenter.current()
+            let settings = await center.notificationSettings()
+            if settings.authorizationStatus == .notDetermined {
+                do {
+                    _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                } catch {
+                    print("Apple Push authorization request error: \(error.localizedDescription)")
                 }
             }
             
@@ -370,42 +441,5 @@ struct LegalDocumentRow: View {
             )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-}
-
-/**
- * Toggle row for optional commercial electronic communication permissions.
- */
-struct CommercialToggleRow: View {
-    let icon: String
-    let title: String
-    let subtitle: String
-    @Binding var isOn: Bool
-    
-    var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: icon)
-                .font(.system(size: 18))
-                .foregroundColor(isOn ? PAGTheme.brandLime : PAGTheme.textSecondary)
-                .frame(width: 28)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(PAGTheme.textPrimary)
-                
-                Text(subtitle)
-                    .font(.system(size: 12))
-                    .foregroundColor(PAGTheme.textSecondary)
-            }
-            
-            Spacer()
-            
-            Toggle("", isOn: $isOn)
-                .labelsHidden()
-                .tint(PAGTheme.brandLime)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
     }
 }

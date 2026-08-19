@@ -66,7 +66,8 @@ public final class LegalService: ObservableObject {
     
     public func recordLegalAcceptances(
         acceptedDocuments: [LegalDocument],
-        preferences: CommunicationPreferences
+        preferences: CommunicationPreferences,
+        birthYear: Int? = nil
     ) async -> Bool {
         isLoading = true
         errorMessage = nil
@@ -86,11 +87,15 @@ public final class LegalService: ObservableObject {
             "phoneMarketing": preferences.phoneMarketing
         ]
         
-        let payload: [String: Any] = [
+        var payload: [String: Any] = [
             "acceptances": acceptancesPayload,
             "communicationPreferences": commPrefsPayload,
             "source": "IOS"
         ]
+        
+        if let birthYear = birthYear {
+            payload["birthYear"] = birthYear
+        }
         
         do {
             if let response = try? await PAGApiClient.shared.post(endpoint: "/legal/acceptances", body: payload),

@@ -5,15 +5,9 @@ public struct LegalSettingsView: View {
     @StateObject private var legalService = LegalService.shared
     @StateObject private var userService = UserService.shared
     
-    @State private var pushMarketing: Bool = false
-    @State private var smsMarketing: Bool = false
-    @State private var emailMarketing: Bool = false
-    @State private var phoneMarketing: Bool = false
-    
+    @State private var allowCommunication: Bool = false
     @State private var isOsNotificationDenied: Bool = false
     @State private var selectedDocumentForReading: LegalDocument? = nil
-    @State private var isSavingPreferences: Bool = false
-    @State private var saveMessage: String? = nil
     
     public init() {}
     
@@ -25,8 +19,8 @@ public struct LegalSettingsView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     
-                    // OS Notification Warning Banner if push marketing is ON but OS notifications are disabled
-                    if pushMarketing && isOsNotificationDenied {
+                    // OS Notification Warning Banner if OS notifications are disabled
+                    if isOsNotificationDenied {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 8) {
                                 Image(systemName: "exclamationmark.triangle.fill")
@@ -36,7 +30,7 @@ public struct LegalSettingsView: View {
                                     .foregroundColor(PAGTheme.textPrimary)
                             }
                             
-                            Text("PAG içinde anlık bildirimleri açtınız, ancak iOS sistem ayarlarından PAG bildirimlerine izin verilmemiş görünüyor. Kampanya ve anket bildirimlerini alabilmek için lütfen sistem ayarlarını açınız.")
+                            Text("iOS sistem ayarlarından PAG bildirimlerine izin verilmemiş görünüyor. Kampanya ve anket bildirimlerini anlık alabilmek için lütfen sistem ayarlarını açınız.")
                                 .font(.system(size: 13))
                                 .foregroundColor(PAGTheme.textSecondary)
                                 .lineSpacing(3)
@@ -72,55 +66,48 @@ public struct LegalSettingsView: View {
                     // 1. Commercial Communication Channels
                     VStack(alignment: .leading, spacing: 12) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Ticari İletişim Tercihleri")
+                            Text("İletişim Tercihleri (İsteğe Bağlı)")
                                 .font(.system(size: 16, weight: .bold))
                                 .foregroundColor(PAGTheme.textPrimary)
                             
-                            Text("Pazarlama, kampanya ve anket bilgilendirme kanallarınızı dilediğiniz an açıp kapatabilirsiniz.")
+                            Text("Kampanya, fırsat ve anket duyurularını almak istediğiniz kanalları seçebilirsiniz. İstediğiniz zaman ayarlardan değiştirebilirsiniz.")
                                 .font(.system(size: 13))
                                 .foregroundColor(PAGTheme.textSecondary)
+                                .lineSpacing(2)
                         }
                         
                         VStack(spacing: 0) {
-                            CommercialToggleRow(
-                                icon: "bell.badge.fill",
-                                title: "Push Bildirimleri",
-                                subtitle: "Mobil anlık kampanya ve fırsat bildirimleri",
-                                isOn: $pushMarketing
-                            )
-                            
-                            Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                            
-                            CommercialToggleRow(
-                                icon: "message.fill",
-                                title: "SMS ile Bildirim",
-                                subtitle: "Kısa mesaj ile önemli fırsat ve davetler",
-                                isOn: $smsMarketing
-                            )
-                            
-                            Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                            
-                            CommercialToggleRow(
-                                icon: "envelope.fill",
-                                title: "E-Posta ile Bülten",
-                                subtitle: "Haftalık anket ve ödül özetleri",
-                                isOn: $emailMarketing
-                            )
-                            
-                            Divider().background(PAGTheme.borderColor).padding(.leading, 52)
-                            
-                            CommercialToggleRow(
-                                icon: "phone.fill",
-                                title: "Telefon ile İletişim",
-                                subtitle: "Özel araştırma davetleri",
-                                isOn: $phoneMarketing
-                            )
+                            HStack(spacing: 14) {
+                                Image(systemName: "bell.badge.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(allowCommunication ? PAGTheme.brandLime : PAGTheme.textSecondary)
+                                    .frame(width: 28)
+                                
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("İletişime İzin Veriyorum")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(PAGTheme.textPrimary)
+                                    
+                                    Text("Sms, E-Posta ve Telefon ile Fırsat, Bildirim almayı kabul ediyorum")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(PAGTheme.textSecondary)
+                                        .lineSpacing(2)
+                                }
+                                
+                                Spacer()
+                                
+                                Toggle("", isOn: $allowCommunication)
+                                    .labelsHidden()
+                                    .tint(PAGTheme.brandLime)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 14)
                         }
                         .background(PAGTheme.surfacePrimary)
                         .cornerRadius(14)
                         .overlay(
                             RoundedRectangle(cornerRadius: 14)
-                                .stroke(PAGTheme.borderColor, lineWidth: 1)
+                                .stroke(allowCommunication ? PAGTheme.brandLime.opacity(0.3) : PAGTheme.borderColor, lineWidth: 1)
                         )
                     }
                     
@@ -193,10 +180,7 @@ public struct LegalSettingsView: View {
             initPreferences()
             checkOsNotificationStatus()
         }
-        .onChange(of: pushMarketing) { _ in savePreferences() }
-        .onChange(of: smsMarketing) { _ in savePreferences() }
-        .onChange(of: emailMarketing) { _ in savePreferences() }
-        .onChange(of: phoneMarketing) { _ in savePreferences() }
+        .onChange(of: allowCommunication) { _ in savePreferences() }
         .task {
             _ = await legalService.fetchActiveLegalDocuments()
         }
@@ -204,10 +188,7 @@ public struct LegalSettingsView: View {
     
     private func initPreferences() {
         if let prefs = userService.currentUser?.communicationPreferences {
-            self.pushMarketing = prefs.pushMarketing
-            self.smsMarketing = prefs.smsMarketing
-            self.emailMarketing = prefs.emailMarketing
-            self.phoneMarketing = prefs.phoneMarketing
+            self.allowCommunication = prefs.smsMarketing || prefs.emailMarketing || prefs.phoneMarketing
         }
     }
     
@@ -221,28 +202,15 @@ public struct LegalSettingsView: View {
     
     private func savePreferences() {
         let prefs = CommunicationPreferences(
-            pushMarketing: pushMarketing,
-            smsMarketing: smsMarketing,
-            emailMarketing: emailMarketing,
-            phoneMarketing: phoneMarketing
+            pushMarketing: !isOsNotificationDenied,
+            smsMarketing: allowCommunication,
+            emailMarketing: allowCommunication,
+            phoneMarketing: allowCommunication
         )
         
         Task {
             _ = await legalService.updateCommunicationPreferences(preferences: prefs)
             userService.updateCommunicationPreferencesState(preferences: prefs)
-            
-            if pushMarketing {
-                let center = UNUserNotificationCenter.current()
-                let settings = await center.notificationSettings()
-                if settings.authorizationStatus == .notDetermined {
-                    do {
-                        _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                    } catch {
-                        print("Push auth error: \(error.localizedDescription)")
-                    }
-                }
-                checkOsNotificationStatus()
-            }
         }
     }
     
