@@ -4,8 +4,7 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationCampaign {
@@ -136,55 +135,45 @@ function VerificationCampaignsContent() {
   const [filterMaxAge, setFilterMaxAge] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // 1. Fetch campaigns (Instant Direct Firestore Read ~40ms)
+  // 1. Fetch campaigns
   const fetchCampaigns = useCallback(async () => {
     setIsLoading(true);
     try {
-      const snap = await getDocs(collection(db, 'surveyVerificationCampaigns'));
-      if (!snap.empty) {
-        let list = snap.docs.map(docSnap => {
-          const d = docSnap.data();
-          return {
-            id: docSnap.id,
-            masterSurveyId: d.masterSurveyId || '',
-            masterSurveyTitle: d.masterSurveyTitle || '',
-            organizationId: d.organizationId || null,
-            status: d.status || 'ACTIVE',
-            requestedCount: d.pagTargetCount || d.requestedCount || 0,
-            customerSelectedCount: d.customerSelectedCount || 0,
-            randomSelectedCount: d.randomSelectedCount || 0,
-            verificationSurveyId: d.verificationSurveyId || '',
-            verificationRewardSummary: d.verificationRewardSummary || '',
-            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || ''
-          } as VerificationCampaign;
-        });
+      const res = await fetch('/api/v1/admin/surveys');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.surveys)) {
+          let list = json.data.surveys
+            .filter((s: any) => s.hasVerification)
+            .map((s: any) => ({
+              id: s.id,
+              masterSurveyId: s.id,
+              masterSurveyTitle: s.title,
+              organizationId: s.organizationId || null,
+              status: s.status,
+              requestedCount: s.verificationTargetCount || 50,
+              customerSelectedCount: s.verificationOrgQuota || 20,
+              randomSelectedCount: (s.verificationTargetCount || 50) - (s.verificationOrgQuota || 20),
+              verificationSurveyId: s.id,
+              verificationRewardSummary: s.rewardDefinition?.description || 'Ödül',
+              createdAt: s.createdAt
+            }));
 
-        // Tenant isolation for org user
-        if (isOrgUser && portalUser?.organizationId) {
-          list = list.filter(c => c.organizationId === portalUser.organizationId);
+          if (isOrgUser && portalUser?.organizationId) {
+            list = list.filter((c: any) => c.organizationId === portalUser.organizationId);
+          }
+          setCampaigns(list);
+        } else {
+          setCampaigns([]);
         }
-
-        setCampaigns(list);
-      }
-    } catch (fsErr) {
-      console.warn('Direct Firestore verification campaigns read error:', fsErr);
-    } finally {
-      setIsLoading(false);
-    }
-
-    // Background sync
-    try {
-      const listFn = httpsCallable(functions, 'listVerificationCampaigns');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.campaigns) && res.data.data.campaigns.length > 0) {
-        let list = res.data.data.campaigns;
-        if (isOrgUser && portalUser?.organizationId) {
-          list = list.filter((c: any) => c.organizationId === portalUser.organizationId);
-        }
-        setCampaigns(list);
+      } else {
+        setCampaigns([]);
       }
     } catch (err) {
-      // background fallback
+      console.warn('Fetch verification campaigns error:', err);
+      setCampaigns([]);
+    } finally {
+      setIsLoading(false);
     }
   }, [isOrgUser, portalUser]);
 
@@ -192,27 +181,15 @@ function VerificationCampaignsContent() {
   const fetchSurveys = useCallback(async () => {
     let list: any[] = [];
     try {
-      const snap = await getDocs(collection(db, 'surveys'));
-      if (!snap.empty) {
-        list = snap.docs.map(docSnap => ({
-          ...docSnap.data(),
-          surveyId: docSnap.id
-        }));
-      }
-    } catch (fsErr) {
-      console.warn('Direct Firestore surveys read error:', fsErr);
-    }
-
-    if (list.length === 0) {
-      try {
-        const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
-        const res: any = await listSurveysFn({});
-        if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
-          list = res.data.data.surveys;
+      const res = await fetch('/api/v1/admin/surveys');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.surveys)) {
+          list = json.data.surveys;
         }
-      } catch (err) {
-        console.warn('listSurveysAdmin fallback error:', err);
       }
+    } catch (neonErr) {
+      console.warn('Fetch surveys error:', neonErr);
     }
 
     // Tenant isolation for org user

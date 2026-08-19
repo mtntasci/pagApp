@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
 
 interface ActiveSurveyOption {
   surveyId: string;
@@ -36,152 +33,34 @@ export default function DashboardPage() {
     try {
       setIsRefreshing(true);
 
-      // 1. Instant Direct Firestore Read (50ms)
-      const [directResponsesSnap, directSurveysSnap, directUsersSnap] = await Promise.all([
-        getDocs(collection(db, 'surveyResponses')).catch(() => null),
-        getDocs(collection(db, 'surveys')).catch(() => null),
-        getDocs(collection(db, 'users')).catch(() => null)
-      ]);
-
-      const surveyMap = new Map<string, ActiveSurveyOption>();
-
-      // Populate from direct Firestore surveys collection
-      if (directSurveysSnap && !directSurveysSnap.empty) {
-        directSurveysSnap.forEach(docSnap => {
-          const sData = docSnap.data();
-          const sId = docSnap.id;
-          surveyMap.set(sId, {
-            surveyId: sId,
-            title: sData.title || docSnap.id,
-            responseCount: Math.max(sData.responseCount || 0, sData.completedCount || 0),
-            status: sData.status || 'ACTIVE',
-            ownerType: sData.ownerType || 'PAG',
-            organizationId: sData.organizationId || null
+      const res = await fetch('/api/v1/admin/dashboard/metrics');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          const data = json.data;
+          setMetrics({
+            activeSurveys: data.activeSurveys || 0,
+            activeProfileSurveys: data.activeProfileSurveys || 0,
+            totalUsers: data.totalUsers || 0,
+            activePushUsers: data.activePushUsers || 0,
+            totalResponses: data.totalResponses || 0,
+            basicProfileCompletedCount: data.basicProfileCompletedCount || 0,
+            phoneVerifiedCount: data.phoneVerifiedCount || 0,
+            kycVerifiedCount: data.kycVerifiedCount || 0,
+            ibanSubmittedCount: data.ibanSubmittedCount || 0,
+            activeSurveysList: data.activeSurveysList || []
           });
-        });
-      }
 
-
-
-      // Collect all direct responses from Firestore
-      const directResponses: Array<{ id: string; data: any }> = [];
-      if (directResponsesSnap && !directResponsesSnap.empty) {
-        directResponsesSnap.forEach(docSnap => {
-          directResponses.push({ id: docSnap.id, data: docSnap.data() });
-        });
-      }
-
-      // Match responses to surveys
-      directResponses.forEach(r => {
-        const rData = r.data || {};
-        const rId = r.id; // e.g. srv_ev_yasam_2026_ggJuezBmDSfpkq7PILuQ1A48lRw2
-
-        // Identify matching survey ID from responseId or response data
-        let matchedSurveyId: string | null = rData.surveyId || null;
-        if (!matchedSurveyId && rId.includes('_')) {
-          // Check against known surveyMap keys
-          for (const sKey of Array.from(surveyMap.keys())) {
-            if (rId.startsWith(sKey + '_') || rId === sKey) {
-              matchedSurveyId = sKey;
-              break;
-            }
-          }
-          if (!matchedSurveyId) {
-            // Extract prefix before user uid
-            const parts = rId.split('_');
-            if (parts.length > 1) {
-              // Last part is likely the 28-char firebase UID
-              parts.pop();
-              matchedSurveyId = parts.join('_');
-            }
-          }
-        }
-
-        if (matchedSurveyId) {
-          if (surveyMap.has(matchedSurveyId)) {
-            const item = surveyMap.get(matchedSurveyId)!;
-            item.responseCount = Math.max(item.responseCount || 0, 1);
-          } else {
-            // Auto-create survey item if response exists for it
-            const inferredTitle = matchedSurveyId.includes('ev_yasam') ? 'Ev & Yaşam Tercihleri' : matchedSurveyId;
-            surveyMap.set(matchedSurveyId, {
-              surveyId: matchedSurveyId,
-              title: inferredTitle,
-              responseCount: 1,
-              status: 'ACTIVE',
-              ownerType: 'PAG',
-              organizationId: null
+          if (data.activeSurveysList && data.activeSurveysList.length > 0) {
+            setSelectedSurveyId(prev => {
+              const exists = data.activeSurveysList.some((s: any) => s.surveyId === prev);
+              return exists ? prev : data.activeSurveysList[0].surveyId;
             });
           }
         }
-      });
-
-      // Recalculate precise response counts per survey using response list
-      Array.from(surveyMap.values()).forEach(srv => {
-        let countForSrv = 0;
-        directResponses.forEach(r => {
-          const rData = r.data || {};
-          const rId = r.id;
-          if (
-            rData.surveyId === srv.surveyId ||
-            rId === srv.surveyId ||
-            rId.startsWith(srv.surveyId + '_') ||
-            (srv.surveyId.includes('ev_yasam') && (rId.includes('ev_yasam') || rData.surveyId?.includes('ev_yasam'))) ||
-            (rData.surveyTitle && rData.surveyTitle === srv.title)
-          ) {
-            countForSrv++;
-          }
-        });
-        srv.responseCount = Math.max(srv.responseCount || 0, countForSrv);
-      });
-
-      const finalSurveyList = Array.from(surveyMap.values());
-      finalSurveyList.sort((a, b) => (b.responseCount || 0) - (a.responseCount || 0));
-
-      // Compute user distribution metrics from direct users
-      let totalUsersCount = 0;
-      let basicProfileCount = 0;
-      let phoneCount = 0;
-      let kycCount = 0;
-      let ibanCount = 0;
-
-      if (directUsersSnap && !directUsersSnap.empty) {
-        totalUsersCount = directUsersSnap.size;
-        directUsersSnap.forEach(uDoc => {
-          const u = uDoc.data();
-          if (u.profileCompleted || u.isBasicProfileCompleted) basicProfileCount++;
-          if (u.isPhoneVerified || u.phoneVerified) phoneCount++;
-          if (u.kycStatus === 'VERIFIED' || u.isKycVerified) kycCount++;
-          if (u.iban || u.isIbanSubmitted) ibanCount++;
-        });
-      }
-
-      const totalResponsesCount = Math.max(
-        directResponses.length,
-        finalSurveyList.reduce((sum, s) => sum + (s.responseCount || 0), 0)
-      );
-
-      setMetrics({
-        activeSurveys: finalSurveyList.filter(s => s.status === 'ACTIVE').length,
-        activeProfileSurveys: Math.max(finalSurveyList.filter(s => s.status === 'ACTIVE' && s.surveyId.includes('profile')).length, 1),
-        totalUsers: Math.max(totalUsersCount, 1),
-        activePushUsers: Math.max(totalUsersCount, 1),
-        totalResponses: totalResponsesCount,
-        basicProfileCompletedCount: basicProfileCount,
-        phoneVerifiedCount: phoneCount,
-        kycVerifiedCount: kycCount,
-        ibanSubmittedCount: ibanCount,
-        activeSurveysList: finalSurveyList
-      });
-
-      if (finalSurveyList.length > 0) {
-        setSelectedSurveyId(prev => {
-          const exists = finalSurveyList.some(s => s.surveyId === prev);
-          return exists ? prev : finalSurveyList[0].surveyId;
-        });
       }
     } catch (err) {
-      console.warn('Backend metrics call fallback to local state:', err);
+      console.warn('Dashboard metrics fetch error:', err);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

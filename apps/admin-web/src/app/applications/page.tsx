@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 
 export interface CompanyApplication {
   applicationId: string;
@@ -36,40 +35,23 @@ export default function ApplicationsPage() {
 
   const fetchApplications = useCallback(async () => {
     setIsLoading(true);
-    // 1. Instant Direct Firestore Read (~30ms)
     try {
-      const snap = await getDocs(collection(db, 'companyApplications'));
-      if (!snap.empty) {
-        const appsList: CompanyApplication[] = snap.docs.map(docSnap => {
-          const d = docSnap.data();
-          return {
-            ...d,
-            applicationId: docSnap.id,
-            companyName: d.companyName || d.name || 'Firma',
-            contactName: d.contactName || '',
-            contactEmail: d.contactEmail || '',
-            contactPhone: d.contactPhone || '',
-            status: d.status || 'PENDING',
-            createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || ''
-          } as CompanyApplication;
-        });
-        setApplications(appsList);
-      }
-    } catch (fsErr) {
-      console.warn('Direct Firestore applications read error:', fsErr);
-    } finally {
-      setIsLoading(false);
-    }
-
-    // 2. Background Callable Functions sync (non-blocking)
-    try {
-      const listFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.applications) && res.data.data.applications.length > 0) {
-        setApplications(res.data.data.applications);
+      const res = await fetch('/api/v1/admin/applications');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.applications)) {
+          setApplications(json.data.applications);
+        } else {
+          setApplications([]);
+        }
+      } else {
+        setApplications([]);
       }
     } catch (err: any) {
-      // background
+      console.warn('Fetch applications error:', err);
+      setApplications([]);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
@@ -80,24 +62,26 @@ export default function ApplicationsPage() {
   const handleUpdateStatus = async (applicationId: string, status: 'APPROVED' | 'REJECTED') => {
     setIsUpdating(true);
     try {
-      const updateFn = httpsCallable(functions, 'updateCompanyApplicationStatusAdmin');
-      const res: any = await updateFn({ applicationId, status });
-      
+      const res = await fetch('/api/v1/admin/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applicationId, status })
+      });
+
       if (status === 'APPROVED') {
-        const createOrgFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
         const targetApp = applications.find(a => a.applicationId === applicationId) || selectedApp;
         if (targetApp) {
           const cleanName = (targetApp.companyName || 'Firma').trim();
           const orgId = `org_${cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
           try {
-            await createOrgFn({
-              organizationId: orgId,
-              name: cleanName,
-              sector: (targetApp as any).sector || 'Genel',
-              contactEmail: targetApp.contactEmail || null,
-              contactPhone: targetApp.contactPhone || null,
-              isVerificationAuthorized: true,
-              status: 'ACTIVE'
+            await fetch('/api/v1/admin/organizations', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                organizationId: orgId,
+                name: cleanName,
+                isActive: true
+              })
             });
           } catch (cErr) {
             console.warn('Auto create org error:', cErr);
@@ -105,15 +89,12 @@ export default function ApplicationsPage() {
         }
       }
 
-      if (res.data?.success) {
-        if (selectedApp && selectedApp.applicationId === applicationId) {
-          setSelectedApp({ ...selectedApp, status });
-        }
-        await fetchApplications();
+      if (selectedApp && selectedApp.applicationId === applicationId) {
+        setSelectedApp({ ...selectedApp, status });
       }
+      await fetchApplications();
     } catch (err: any) {
-      console.error('Update Application Status Error:', err);
-      alert('Başvuru durumu güncellenirken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+      alert('Güncelleme hatası: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setIsUpdating(false);
     }

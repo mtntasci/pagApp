@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
 
 function removeUndefinedFields<T>(obj: T): T {
   if (obj === null || obj === undefined) return obj;
@@ -353,8 +350,6 @@ export default function SurveysPage() {
       const items = Array.isArray(parsed) ? parsed : [parsed];
       setIsJsonImporting(true);
 
-      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-
       for (const surveyObj of items) {
         if (!surveyObj.title || !Array.isArray(surveyObj.questions) || surveyObj.questions.length === 0) {
           throw new Error('Geçersiz anket formatı. "title" ve en az 1 soru ("questions") gereklidir.');
@@ -372,25 +367,30 @@ export default function SurveysPage() {
           }))
         }));
 
-        const cleanedPayload = removeUndefinedFields({
-          surveyId: surveyObj.surveyId || undefined,
-          ownerType: surveyObj.ownerType || 'PAG',
-          organizationId: surveyObj.organizationId || undefined,
-          surveyType: surveyObj.surveyType || 'PAG',
-          category: surveyObj.category || 'Genel',
-          title: surveyObj.title.trim(),
-          description: surveyObj.description || undefined,
-          status: 'PENDING_APPROVAL',
-          startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
-          endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : undefined,
-          questions: formattedQuestions,
-          targeting: surveyObj.targeting || { type: 'ALL' },
-          profileScoreReward: Number(surveyObj.profileScoreReward) || 50,
-          rewardDefinition: surveyObj.rewardDefinition || { rewardType: 'NONE' },
-          storyConfig: surveyObj.storyConfig || undefined
+        const srvId = surveyObj.surveyId || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+        await fetch('/api/v1/admin/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surveyId: srvId,
+            ownerType: surveyObj.ownerType || 'PAG',
+            organizationId: surveyObj.organizationId || null,
+            surveyType: surveyObj.surveyType || 'PAG',
+            category: surveyObj.category || 'Genel',
+            title: surveyObj.title.trim(),
+            description: surveyObj.description || '',
+            status: 'PENDING_APPROVAL',
+            startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
+            endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : null,
+            questions: formattedQuestions.map((q: any) => ({
+              id: q.questionId,
+              text: q.text,
+              type: q.type,
+              options: q.options.map((o: any) => o.label)
+            })),
+            profileScoreReward: Number(surveyObj.profileScoreReward) || 50
+          })
         });
-
-        await createOrUpdateFn(cleanedPayload);
       }
 
       setIsJsonModalOpen(false);
@@ -407,45 +407,23 @@ export default function SurveysPage() {
 
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
-    // 1. Try high-performance PostgreSQL (Neon) API first
     try {
       const res = await fetch('/api/v1/admin/surveys');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data?.surveys) && data.data.surveys.length > 0) {
-        setSurveys(data.data.surveys);
-        setIsLoading(false);
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.surveys)) {
+          setSurveys(data.data.surveys);
+        } else {
+          setSurveys([]);
+        }
+      } else {
+        setSurveys([]);
       }
     } catch (neonErr) {
-      // Fallback
-    }
-
-    try {
-      // 2. Direct Firestore Instant Load (~50ms)
-      const snap = await getDocs(collection(db, 'surveys'));
-      const list = snap.docs.map(docSnap => {
-        const d = docSnap.data();
-        return {
-          ...d,
-          surveyId: docSnap.id
-        };
-      });
-      setSurveys(list);
-    } catch (fsErr) {
-      console.warn('Fetch Surveys Firestore direct read:', fsErr);
+      console.warn('Fetch Surveys error:', neonErr);
+      setSurveys([]);
     } finally {
       setIsLoading(false);
-    }
-
-    // 3. Background Callable Function sync (non-blocking)
-    try {
-      const listFn = httpsCallable(functions, 'listSurveysAdmin');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
-        setSurveys(res.data.data.surveys);
-      }
-    } catch (err: any) {
-      // Background fallback
     }
   }, []);
 
@@ -453,46 +431,30 @@ export default function SurveysPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const getCatsFn = httpsCallable(functions, 'manageSurveyCategoriesAdmin');
-      const res: any = await getCatsFn({ action: 'GET' });
-      if (res.data?.success && Array.isArray(res.data.data?.categories) && res.data.data.categories.length > 0) {
-        setAvailableCategories(res.data.data.categories);
-        return;
+      const res = await fetch('/api/v1/admin/categories');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.categories)) {
+          setAvailableCategories(data.data.categories);
+          return;
+        }
       }
     } catch (err) {
-      console.warn('Fetch survey categories Cloud Function error/fallback:', err);
-    }
-
-    try {
-      const snap = await getDocs(collection(db, 'surveyCategories'));
-      const list = snap.docs.map(docSnap => {
-        const d = docSnap.data();
-        return {
-          id: docSnap.id,
-          name: d.name || docSnap.id,
-          isVisible: typeof d.isVisible === 'boolean' ? d.isVisible : true,
-          sortOrder: typeof d.sortOrder === 'number' ? d.sortOrder : 1
-        };
-      });
-      list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-      setAvailableCategories(list);
-    } catch (fsErr) {
-      console.error('Fetch survey categories Firestore fallback error:', fsErr);
+      console.warn('Fetch survey categories error:', err);
     }
   }, []);
 
   const fetchOrganizations = useCallback(async () => {
     try {
-      const snap = await getDocs(collection(db, 'organizations'));
-      if (!snap.empty) {
-        const list = snap.docs.map(docSnap => {
-          const d = docSnap.data();
-          return {
-            organizationId: d.organizationId || docSnap.id,
-            name: d.name || docSnap.id
-          };
-        });
-        setRegisteredOrganizations(list);
+      const res = await fetch('/api/v1/admin/organizations');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.organizations)) {
+          setRegisteredOrganizations(data.data.organizations.map((o: any) => ({
+            organizationId: o.organizationId || o.id,
+            name: o.name
+          })));
+        }
       }
     } catch (err) {
       console.warn('Fetch registered organizations error:', err);
@@ -809,54 +771,40 @@ export default function SurveysPage() {
       const cleanedPayload = removeUndefinedFields(rawPayload);
 
       // 1. Neon PostgreSQL API save (~10ms)
-      try {
-        await fetch('/api/v1/admin/surveys', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            surveyId: targetSurveyId,
-            title: formTitle,
-            description: formDesc || '',
-            ownerType: formOwnerType,
-            organizationId: formOrgId || null,
-            surveyType: formSurveyType,
-            category: formCategory,
-            status: targetStatus,
-            isHighlighted: formIsHighlighted,
-            profileScoreReward: Number(formScoreReward) || 50,
-            targetingConfig: cleanedPayload.targeting,
-            rewardDefinition: rewardDef,
-            storyConfig: cleanedPayload.storyConfig,
-            hasVerification: Boolean(formVerificationEnabled),
-            verificationConfig: cleanedPayload.verificationConfig,
-            verificationTargetCount: Number(formPagTargetCount) || 50,
-            verificationOrgQuota: Number(formOrgSelectionQuota) || 20,
-            startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
-            endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
-            questions: formattedQuestions.map(q => ({
-              id: q.questionId,
-              text: q.text,
-              type: q.type,
-              options: q.options.map((o: any) => o.label)
-            }))
-          })
-        });
-      } catch (neonErr) {
-        console.warn('Neon save fallback:', neonErr);
-      }
+      const res = await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: targetSurveyId,
+          title: formTitle,
+          description: formDesc || '',
+          ownerType: formOwnerType,
+          organizationId: formOrgId || null,
+          surveyType: resolvedSurveyType,
+          category: formCategory,
+          status: targetStatus,
+          isHighlighted: formIsHighlighted,
+          profileScoreReward: Number(formScoreReward) || 50,
+          targetingConfig: cleanedPayload.targeting,
+          rewardDefinition: rewardDef,
+          storyConfig: cleanedPayload.storyConfig,
+          hasVerification: Boolean(formVerificationEnabled),
+          verificationConfig: cleanedPayload.verificationConfig,
+          verificationTargetCount: Number(formPagTargetCount) || 50,
+          verificationOrgQuota: Number(formOrgSelectionQuota) || 20,
+          startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
+          endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
+          questions: formattedQuestions.map(q => ({
+            id: q.questionId,
+            text: q.text,
+            type: q.type,
+            options: q.options.map((o: any) => o.label)
+          }))
+        })
+      });
 
-      // 2. Direct Firestore Instant Sync (~30ms)
-      try {
-        await setDoc(doc(db, 'surveys', targetSurveyId), cleanedPayload, { merge: true });
-      } catch (fsErr) {
-        console.warn('Direct Firestore setDoc warn:', fsErr);
-      }
-
-      // 3. Authoritative Firebase Admin SDK backend execution via Cloud Function callable
-      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-      const res: any = await createOrUpdateFn(cleanedPayload);
-
-      if (res.data?.success || res.data?.data?.surveyId) {
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.success) {
         setEditingSurveyId(targetSurveyId);
         await fetchSurveys();
         if (targetStatus === 'PENDING_APPROVAL') {
@@ -867,19 +815,11 @@ export default function SurveysPage() {
           alert('✅ Anket taslağı başarıyla kaydedildi! Düzenlemeye devam edebilirsiniz.');
         }
       } else {
-        throw new Error(res.data?.error || 'Sunucu yazma hatası');
+        setErrorMsg(resData.error || 'Anket kaydedilirken bir sorun oluştu.');
       }
     } catch (err: any) {
-      console.error('Save Survey Admin SDK Error:', err);
-      setEditingSurveyId(targetSurveyId);
-      await fetchSurveys();
-      if (targetStatus === 'PENDING_APPROVAL') {
-        setIsWizardOpen(false);
-        resetWizardForm();
-        alert('✅ Anket başarıyla kaydedildi!');
-      } else {
-        alert('✅ Anket taslağı başarıyla kaydedildi! Düzenlemeye devam edebilirsiniz.');
-      }
+      console.error('Save Survey Error:', err);
+      setErrorMsg(err.message || 'Anket kaydedilirken bir sorun oluştu.');
     } finally {
       setIsSaving(false);
     }
@@ -887,13 +827,15 @@ export default function SurveysPage() {
 
   const handleArchiveSurvey = async (surveyId: string, archive: boolean) => {
     try {
-      const archiveFn = httpsCallable(functions, 'archiveSurveyAdmin');
-      const res: any = await archiveFn({ surveyId, archive });
-      if (res.data?.success) {
-        await fetchSurveys();
-      } else {
-        alert('Arşivleme hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
-      }
+      await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId,
+          status: archive ? 'ARCHIVED' : 'ACTIVE'
+        })
+      });
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Archive Survey Error:', err);
       alert('Arşivleme hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -902,13 +844,15 @@ export default function SurveysPage() {
 
   const handleApproveSurvey = async (surveyId: string) => {
     try {
-      const approveFn = httpsCallable(functions, 'approveSurveyAdmin');
-      const res: any = await approveFn({ surveyId });
-      if (res.data?.success) {
-        await fetchSurveys();
-      } else {
-        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
-      }
+      await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId,
+          status: 'ACTIVE'
+        })
+      });
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -917,14 +861,16 @@ export default function SurveysPage() {
 
   const handleFinalApproveSurveyAdmin = async (surveyId: string) => {
     try {
-      const approveFn = httpsCallable(functions, 'finalApproveSurveyAdmin');
-      const res: any = await approveFn({ surveyId });
-      if (res.data?.success) {
-        alert('Anket süper admin onayıyla canlı yayına alındı! 🚀');
-        await fetchSurveys();
-      } else {
-        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
-      }
+      await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId,
+          status: 'ACTIVE'
+        })
+      });
+      alert('Anket süper admin onayıyla canlı yayına alındı! 🚀');
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Final Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -933,14 +879,16 @@ export default function SurveysPage() {
 
   const handleApproveSurveyByOrg = async (surveyId: string) => {
     try {
-      const approveFn = httpsCallable(functions, 'approveSurveyByOrg');
-      const res: any = await approveFn({ surveyId });
-      if (res.data?.success) {
-        alert('Anket firma tarafından onaylandı ve PAG Admin son onayına iletildi! ✅');
-        await fetchSurveys();
-      } else {
-        alert('Onaylama hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
-      }
+      await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId,
+          status: 'PENDING_APPROVAL'
+        })
+      });
+      alert('Anket firma tarafından onaylandı ve PAG Admin son onayına iletildi! ✅');
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Org Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -949,17 +897,15 @@ export default function SurveysPage() {
 
   const handleToggleHighlight = async (survey: any) => {
     try {
-      const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
-      const payload = removeUndefinedFields({
-        ...survey,
-        isHighlighted: !survey.isHighlighted
+      await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: survey.surveyId || survey.id,
+          isHighlighted: !survey.isHighlighted
+        })
       });
-      const res: any = await createOrUpdateFn(payload);
-      if (res.data?.success) {
-        await fetchSurveys();
-      } else {
-        alert('Öne çıkarma güncelleme hatası: ' + (res.data?.error || 'Bilinmeyen hata'));
-      }
+      await fetchSurveys();
     } catch (err: any) {
       console.error('Toggle Highlight Error:', err);
       alert('Öne çıkarma hatası: ' + (err.message || 'Bilinmeyen hata'));

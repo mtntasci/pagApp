@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
 
 export interface StoryBarItem {
   id: string;
@@ -36,39 +33,21 @@ export default function StoriesPage() {
     setIsLoading(true);
     setErrorMsg(null);
     try {
-      try {
-        const fn = httpsCallable(functions, 'manageStoryBarAdmin');
-        const res: any = await fn({ action: 'GET' });
-        if (res.data?.success && Array.isArray(res.data.data?.stories)) {
-          setStories(res.data.data.stories);
-          setIsLoading(false);
-          return;
+      const res = await fetch('/api/v1/admin/stories');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.stories)) {
+          setStories(json.data.stories);
+        } else {
+          setStories([]);
         }
-      } catch (cloudErr) {
-        console.warn('Cloud Function manageStoryBarAdmin unavailable, falling back to direct Firestore query:', cloudErr);
+      } else {
+        setStories([]);
       }
-
-      // Direct Firestore Fallback
-      const snap = await getDocs(collection(db, 'storyBar'));
-      const items: StoryBarItem[] = snap.docs.map((d) => {
-        const data = d.data();
-        const sOrder = typeof data.sortOrder === 'number' ? data.sortOrder : (typeof data.position === 'number' ? data.position : 999);
-        return {
-          id: d.id,
-          storyId: d.id,
-          surveyId: data.surveyId || '',
-          label: data.label || data.shortLabel || d.id,
-          imageUrl: data.imageUrl || '',
-          position: sOrder,
-          sortOrder: sOrder,
-          isActive: data.isActive !== false
-        };
-      });
-      items.sort((a, b) => a.sortOrder - b.sortOrder);
-      setStories(items);
     } catch (err: any) {
       console.error('Fetch Stories Error:', err);
-      setErrorMsg('Story verileri yüklenirken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
+      setErrorMsg('Story verileri yüklenirken hata: ' + (err.message || 'Bilinmeyen hata'));
+      setStories([]);
     } finally {
       setIsLoading(false);
     }
@@ -102,50 +81,30 @@ export default function StoriesPage() {
 
     setIsSaving(true);
     setErrorMsg(null);
-    const targetStoryId = editingStory?.storyId || (formSurveyId.trim() ? `story_${formSurveyId.trim()}` : `story_${Date.now()}`);
+    const targetSurveyId = formSurveyId.trim() || editingStory?.surveyId || '';
     const resolvedOrder = Number(formSortOrder) || 999;
 
     try {
-      try {
-        const fn = httpsCallable(functions, 'manageStoryBarAdmin');
-        const res: any = await fn({
-          action: 'SAVE',
-          storyId: targetStoryId,
-          surveyId: formSurveyId.trim(),
-          label: formLabel.trim(),
-          sortOrder: resolvedOrder,
+      const res = await fetch('/api/v1/admin/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: targetSurveyId,
+          shortLabel: formLabel.trim(),
           position: resolvedOrder,
           isActive: formIsActive
-        });
+        })
+      });
 
-        if (res.data?.success) {
-          setSuccessMsg('Story başarıyla kaydedildi!');
-          setTimeout(() => setSuccessMsg(null), 3000);
-          resetForm();
-          await fetchStories();
-          return;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloud Function save failed, falling back to direct Firestore write:', cloudErr);
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setSuccessMsg('Story başarıyla kaydedildi!');
+        setTimeout(() => setSuccessMsg(null), 3000);
+        resetForm();
+        await fetchStories();
+      } else {
+        setErrorMsg(data.error || 'Story kaydedilemedi.');
       }
-
-      // Direct Firestore Write Fallback
-      const docRef = doc(db, 'storyBar', targetStoryId);
-      await setDoc(docRef, {
-        storyId: targetStoryId,
-        surveyId: formSurveyId.trim(),
-        label: formLabel.trim(),
-        shortLabel: formLabel.trim(),
-        position: resolvedOrder,
-        sortOrder: resolvedOrder,
-        isActive: formIsActive,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      setSuccessMsg('Story başarıyla kaydedildi!');
-      setTimeout(() => setSuccessMsg(null), 3000);
-      resetForm();
-      await fetchStories();
     } catch (err: any) {
       setErrorMsg('Story kaydedilemedi: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
@@ -155,28 +114,16 @@ export default function StoriesPage() {
 
   const handleToggleActive = async (st: StoryBarItem) => {
     try {
-      try {
-        const fn = httpsCallable(functions, 'manageStoryBarAdmin');
-        await fn({
-          action: 'SAVE',
-          storyId: st.storyId,
+      const res = await fetch('/api/v1/admin/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           surveyId: st.surveyId,
-          label: st.label,
-          sortOrder: st.sortOrder,
+          shortLabel: st.label,
           position: st.position,
           isActive: !st.isActive
-        });
-        await fetchStories();
-        return;
-      } catch (cloudErr) {
-        console.warn('Cloud Function toggle failed, falling back to direct Firestore update:', cloudErr);
-      }
-
-      await setDoc(doc(db, 'storyBar', st.storyId), {
-        isActive: !st.isActive,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
+        })
+      });
       await fetchStories();
     } catch (err: any) {
       alert('Durum güncellenemedi: ' + (err.message || 'Bilinmeyen hata'));
@@ -186,16 +133,16 @@ export default function StoriesPage() {
   const handleDeleteStory = async (st: StoryBarItem) => {
     if (!confirm(`"${st.label}" başlıklı story'yi Story Bar'dan kaldırmak istediğinize emin misiniz?`)) return;
     try {
-      try {
-        const fn = httpsCallable(functions, 'manageStoryBarAdmin');
-        await fn({ action: 'DELETE', storyId: st.storyId });
-        await fetchStories();
-        return;
-      } catch (cloudErr) {
-        console.warn('Cloud Function delete failed, falling back to direct Firestore delete:', cloudErr);
-      }
-
-      await deleteDoc(doc(db, 'storyBar', st.storyId));
+      const res = await fetch('/api/v1/admin/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: st.surveyId,
+          shortLabel: st.label,
+          position: st.position,
+          isActive: false
+        })
+      });
       await fetchStories();
     } catch (err: any) {
       alert('Silme hatası: ' + (err.message || 'Bilinmeyen hata'));

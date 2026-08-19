@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { updatePassword, sendPasswordResetEmail } from 'firebase/auth';
-import { auth, db, functions } from '@/lib/firebase';
+import { auth, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 interface PortalUserItem {
@@ -51,99 +50,33 @@ export default function PortalUsersPage() {
     try {
       setIsLoading(true);
 
-      // 1. Try High-Speed PostgreSQL (Neon) API first
-      try {
-        const [usersRes, orgsRes] = await Promise.all([
-          fetch('/api/v1/admin/users').then(r => r.json()).catch(() => null),
-          fetch('/api/v1/admin/organizations').then(r => r.json()).catch(() => null)
-        ]);
-
-        let hasData = false;
-        if (usersRes?.success && Array.isArray(usersRes.data?.users) && usersRes.data.users.length > 0) {
-          setUsers(usersRes.data.users);
-          hasData = true;
-        }
-        if (orgsRes?.success && Array.isArray(orgsRes.data?.organizations) && orgsRes.data.organizations.length > 0) {
-          setOrganizations(orgsRes.data.organizations);
-          if (!newOrgId) {
-            setNewOrgId(orgsRes.data.organizations[0].organizationId);
-          }
-          hasData = true;
-        }
-        if (hasData) {
-          setIsLoading(false);
-          return;
-        }
-      } catch (neonErr) {
-        // Fallback
-      }
-
-      // 2. Instant Direct Firestore Read (~40ms)
-      try {
-        const [usersSnap, orgsSnap] = await Promise.all([
-          getDocs(collection(db, 'portalUsers')).catch(() => null),
-          getDocs(collection(db, 'organizations')).catch(() => null)
-        ]);
-
-        if (usersSnap && !usersSnap.empty) {
-          const directUsers: PortalUserItem[] = [];
-          usersSnap.forEach(d => {
-            const u = d.data();
-            directUsers.push({
-              uid: d.id,
-              email: u.email || d.id,
-              role: u.role || 'CALL_CENTER_AGENT',
-              organizationId: u.organizationId || null,
-              status: u.status || 'ACTIVE',
-              displayName: u.displayName || null,
-              createdAt: u.createdAt?.toDate ? u.createdAt.toDate().toISOString() : u.createdAt || null
-            });
-          });
-          setUsers(directUsers);
-        }
-
-        if (orgsSnap && !orgsSnap.empty) {
-          const directOrgs: OrgItem[] = [];
-          orgsSnap.forEach(d => {
-            const o = d.data();
-            directOrgs.push({
-              organizationId: o.organizationId || d.id,
-              name: o.name || d.id
-            });
-          });
-          setOrganizations(directOrgs);
-          if (directOrgs.length > 0 && !newOrgId) {
-            setNewOrgId(directOrgs[0].organizationId);
-          }
-        }
-      } catch (fsErr) {
-        console.warn('Direct Firestore users read error:', fsErr);
-      } finally {
-        setIsLoading(false);
-      }
-
-      // 2. Background Callable Functions sync (non-blocking)
-      const listUsersFn = httpsCallable<any, any>(functions, 'listPortalUsersAdmin');
-      const listOrgsFn = httpsCallable<any, any>(functions, 'listOrganizationsAdmin');
-
       const [usersRes, orgsRes] = await Promise.all([
-        listUsersFn({ role: roleFilter !== 'ALL' ? roleFilter : undefined, search: searchQuery }).catch(() => ({ data: { success: false, data: { users: [] } } })),
-        listOrgsFn().catch(() => ({ data: { success: false, data: { organizations: [] } } }))
+        fetch('/api/v1/admin/users').then(r => r.json()).catch(() => null),
+        fetch('/api/v1/admin/organizations').then(r => r.json()).catch(() => null)
       ]);
 
-      if (usersRes.data?.success && Array.isArray(usersRes.data?.data?.users) && usersRes.data.data.users.length > 0) {
-        setUsers(usersRes.data.data.users);
+      if (usersRes?.success && Array.isArray(usersRes.data?.users)) {
+        setUsers(usersRes.data.users);
+      } else {
+        setUsers([]);
       }
 
-      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations) && orgsRes.data.data.organizations.length > 0) {
-        setOrganizations(orgsRes.data.data.organizations);
+      if (orgsRes?.success && Array.isArray(orgsRes.data?.organizations)) {
+        setOrganizations(orgsRes.data.organizations);
+        if (!newOrgId && orgsRes.data.organizations.length > 0) {
+          setNewOrgId(orgsRes.data.organizations[0].organizationId);
+        }
+      } else {
+        setOrganizations([]);
       }
     } catch (err: any) {
       console.warn('Error loading portal users:', err);
+      setUsers([]);
+      setOrganizations([]);
     } finally {
       setIsLoading(false);
     }
-  }, [roleFilter, searchQuery, newOrgId]);
+  }, [newOrgId]);
 
   useEffect(() => {
     loadData();
@@ -236,14 +169,6 @@ export default function PortalUsersPage() {
     if (auth.currentUser && (auth.currentUser.uid === resetTargetUser.uid || auth.currentUser.email === resetTargetUser.email)) {
       try {
         await updatePassword(auth.currentUser, resetNewPassword);
-        try {
-          await setDoc(doc(db, 'portalUsers', resetTargetUser.uid), {
-            mustChangePassword: false,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        } catch (fsErr) {
-          // ignore
-        }
         alert(`✅ Kendi şifreniz başarıyla güncellendi!\n\nYeni Şifre: ${resetNewPassword}`);
         setShowResetModal(false);
         setResetTargetUser(null);

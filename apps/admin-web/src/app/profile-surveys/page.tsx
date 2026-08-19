@@ -1,9 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
 
 export default function ProfileSurveysPage() {
   const [questions, setQuestions] = useState<any[]>([]);
@@ -34,11 +31,11 @@ export default function ProfileSurveysPage() {
   const sampleProfileQuestionJson = JSON.stringify({
     "id": "pq_otomobil_sahipligi",
     "questionText": "Kişisel bir otomobiliniz var mı?",
-    "categoryId": "cat_automotive",
+    "categoryId": "cat_otomotiv",
     "categoryName": "Otomotiv & Ulaşım",
     "targetingGender": "ALL",
     "profileScoreReward": 50,
-    "status": "DRAFT",
+    "status": "ACTIVE",
     "showOnHome": true,
     "options": [
       { "optionId": "opt_auto_own", "label": "Evet, kendi aracıma sahibim", "order": 1 },
@@ -52,49 +49,30 @@ export default function ProfileSurveysPage() {
     setIsLoading(true);
     setErrorMessage('');
     try {
-      // 1. Fetch Profile Categories with direct Firestore fallback
-      try {
-        const getCatsFn = httpsCallable(functions, 'manageProfileCategoriesAdmin');
-        const catRes = (await getCatsFn({ action: 'GET' })) as any;
-        if (catRes.data && catRes.data.success && Array.isArray(catRes.data.data.categories) && catRes.data.data.categories.length > 0) {
-          setCategories(catRes.data.data.categories);
-        } else {
-          throw new Error('Cloud Function categories empty');
+      // 1. Fetch Categories
+      const catRes = await fetch('/api/v1/admin/categories');
+      if (catRes.ok) {
+        const catJson = await catRes.json();
+        if (catJson.success && Array.isArray(catJson.data?.categories)) {
+          setCategories(catJson.data.categories);
         }
-      } catch (cloudErr) {
-        console.warn('Cloud Function manageProfileCategoriesAdmin unavailable, fetching from Firestore directly:', cloudErr);
-        const catSnap = await getDocs(collection(db, 'profileSurveyCategories'));
-        const catList = catSnap.docs.map((d) => ({
-          id: d.id,
-          name: d.data().name || d.id,
-          isVisible: typeof d.data().isVisible === 'boolean' ? d.data().isVisible : true,
-          sortOrder: typeof d.data().sortOrder === 'number' ? d.data().sortOrder : 1
-        }));
-        catList.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-        setCategories(catList);
       }
 
-      // 2. Fetch Profile Questions with direct Firestore fallback
-      try {
-        const listFn = httpsCallable(functions, 'listProfileQuestionsAdmin');
-        const res = (await listFn({})) as any;
-        if (res.data && res.data.success && Array.isArray(res.data.data.questions)) {
-          setQuestions(res.data.data.questions);
+      // 2. Fetch Profile Surveys / Questions from Neon
+      const srvRes = await fetch('/api/v1/admin/surveys');
+      if (srvRes.ok) {
+        const srvJson = await srvRes.json();
+        if (srvJson.success && Array.isArray(srvJson.data?.surveys)) {
+          const profileSurveys = srvJson.data.surveys.filter((s: any) => s.surveyType === 'PROFILE' || s.id.startsWith('pq_'));
+          setQuestions(profileSurveys);
         } else {
-          throw new Error('Cloud Function questions empty');
+          setQuestions([]);
         }
-      } catch (cloudErr) {
-        console.warn('Cloud Function listProfileQuestionsAdmin unavailable, fetching from Firestore directly:', cloudErr);
-        const qSnap = await getDocs(collection(db, 'profileQuestions'));
-        const qList = qSnap.docs.map((d) => ({
-          id: d.id,
-          ...d.data()
-        }));
-        setQuestions(qList);
       }
     } catch (err: any) {
       console.error(err);
       setErrorMessage(err.message || 'Veriler yüklenirken hata oluştu.');
+      setQuestions([]);
     } finally {
       setIsLoading(false);
     }
@@ -104,10 +82,10 @@ export default function ProfileSurveysPage() {
     fetchQuestionsAndCategories();
   }, []);
 
-  const handleOpenNewModal = (mode: 'FORM' | 'JSON' = 'FORM') => {
+  const handleOpenCreateModal = (mode: 'FORM' | 'JSON' = 'FORM') => {
     setEditingQuestion(null);
     setQuestionText('');
-    setSelectedCatId(categories.length > 0 ? categories[0].id : 'cat_lifestyle');
+    setSelectedCatId(categories.length > 0 ? categories[0].id : 'cat_genel');
     setTargetingGender('ALL');
     setScoreReward(50);
     setShowOnHome(false);
@@ -119,14 +97,14 @@ export default function ProfileSurveysPage() {
     setIsModalOpen(true);
   };
 
-  const handleOpenEditModal = (q: any) => {
+  const handleEditQuestion = (q: any) => {
     setEditingQuestion(q);
-    setQuestionText(q.questionText || '');
-    setSelectedCatId(q.categoryId || '');
+    setQuestionText(q.questionText || q.title || '');
+    setSelectedCatId(q.categoryId || q.category || (categories.length > 0 ? categories[0].id : 'cat_genel'));
     setTargetingGender(q.targetingGender || 'ALL');
     setScoreReward(q.profileScoreReward || 50);
     setShowOnHome(Boolean(q.showOnHome));
-    setStatus(q.status === 'ACTIVE' ? 'ACTIVE' : 'DRAFT');
+    setStatus(q.status || 'ACTIVE');
     setOptionsList(Array.isArray(q.options) ? q.options.map((o: any) => o.label || o) : ['', '']);
     setModalMode('FORM');
     setIsModalOpen(true);
@@ -151,31 +129,40 @@ export default function ProfileSurveysPage() {
     const catObj = categories.find((c) => c.id === selectedCatId);
     const catName = catObj ? catObj.name : 'Genel';
 
-    const mappedOpts = validOpts.map((optText, idx) => ({
-      optionId: 'opt_' + (idx + 1),
-      label: optText,
-      order: idx + 1
-    }));
-
-    const payload = {
-      id: editingQuestion ? editingQuestion.id : undefined,
-      questionText: questionText.trim(),
-      categoryId: selectedCatId,
-      categoryName: catName,
-      targetingGender: targetingGender,
-      options: mappedOpts,
-      profileScoreReward: Number(scoreReward) || 50,
-      showOnHome: showOnHome,
-      status: status
-    };
+    const srvId = editingQuestion ? editingQuestion.id : `pq_${Date.now()}`;
 
     try {
-      const saveFn = httpsCallable(functions, 'createOrUpdateProfileQuestionAdmin');
-      const res = (await saveFn(payload)) as any;
-      if (res.data && res.data.success) {
+      const res = await fetch('/api/v1/admin/surveys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyId: srvId,
+          title: questionText.trim(),
+          description: 'Profil Anketi',
+          ownerType: 'PAG',
+          surveyType: 'PROFILE',
+          category: catName,
+          status: status,
+          isHighlighted: showOnHome,
+          profileScoreReward: Number(scoreReward) || 50,
+          questions: [
+            {
+              id: `q_${srvId}`,
+              text: questionText.trim(),
+              type: 'SINGLE_SELECT',
+              options: validOpts
+            }
+          ]
+        })
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (res.ok && resData.success) {
         setSuccessMessage('Profil sorusu başarıyla kaydedildi.');
         setIsModalOpen(false);
         fetchQuestionsAndCategories();
+      } else {
+        setErrorMessage(resData.error || 'Kaydetme hatası.');
       }
     } catch (err: any) {
       console.error(err);
@@ -197,36 +184,39 @@ export default function ProfileSurveysPage() {
       const items = Array.isArray(parsed) ? parsed : [parsed];
       setIsSaving(true);
 
-      const saveFn = httpsCallable(functions, 'createOrUpdateProfileQuestionAdmin');
-
       for (const q of items) {
         if (!q.questionText || !Array.isArray(q.options) || q.options.length < 2) {
-          throw new Error('Geçersiz soru formatı. "questionText" ve en az 2 "options" (seçenek) gereklidir.');
+          throw new Error('Geçersiz soru formatı. "questionText" ve en az 2 "options" gereklidir.');
         }
 
         const catObj = categories.find((c) => c.id === q.categoryId) || categories[0];
         const catName = q.categoryName || (catObj ? catObj.name : 'Genel');
-        const catId = q.categoryId || (catObj ? catObj.id : 'cat_lifestyle');
+        const srvId = q.id || `pq_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+        const validOpts = q.options.map((o: any) => typeof o === 'string' ? o : (o.label || 'Seçenek'));
 
-        const mappedOpts = q.options.map((opt: any, idx: number) => ({
-          optionId: typeof opt === 'object' ? (opt.optionId || 'opt_' + (idx + 1)) : 'opt_' + (idx + 1),
-          label: typeof opt === 'string' ? opt : (opt.label || `Seçenek ${idx + 1}`),
-          order: typeof opt === 'object' ? (opt.order || idx + 1) : idx + 1
-        }));
-
-        const payload = {
-          id: q.id || undefined,
-          questionText: q.questionText.trim(),
-          categoryId: catId,
-          categoryName: catName,
-          targetingGender: q.targetingGender || 'ALL',
-          options: mappedOpts,
-          profileScoreReward: Number(q.profileScoreReward) || 50,
-          showOnHome: Boolean(q.showOnHome),
-          status: q.status || 'DRAFT'
-        };
-
-        await saveFn(payload);
+        await fetch('/api/v1/admin/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surveyId: srvId,
+            title: q.questionText.trim(),
+            description: 'Profil Anketi',
+            ownerType: 'PAG',
+            surveyType: 'PROFILE',
+            category: catName,
+            status: q.status || 'ACTIVE',
+            isHighlighted: Boolean(q.showOnHome),
+            profileScoreReward: Number(q.profileScoreReward) || 50,
+            questions: [
+              {
+                id: `q_${srvId}`,
+                text: q.questionText.trim(),
+                type: 'SINGLE_SELECT',
+                options: validOpts
+              }
+            ]
+          })
+        });
       }
 
       setSuccessMessage(`${items.length} adet profil sorusu başarıyla içeri aktarıldı.`);
@@ -256,7 +246,7 @@ export default function ProfileSurveysPage() {
 
         <div style={{ display: 'flex', gap: '12px' }}>
           <button
-            onClick={() => handleOpenNewModal('FORM')}
+            onClick={() => handleOpenCreateModal('FORM')}
             style={{
               padding: '10px 18px',
               backgroundColor: 'var(--brand-navy)',
@@ -273,7 +263,7 @@ export default function ProfileSurveysPage() {
           </button>
 
           <button
-            onClick={() => handleOpenNewModal('JSON')}
+            onClick={() => handleOpenCreateModal('JSON')}
             style={{
               padding: '10px 18px',
               backgroundColor: '#0F172A',
@@ -364,7 +354,7 @@ export default function ProfileSurveysPage() {
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
                       <button
-                        onClick={() => handleOpenEditModal(q)}
+                        onClick={() => handleEditQuestion(q)}
                         style={{
                           padding: '6px 14px',
                           borderRadius: '6px',

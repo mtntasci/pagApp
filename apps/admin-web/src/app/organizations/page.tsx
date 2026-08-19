@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface OrganizationItem {
@@ -62,58 +61,35 @@ export default function OrganizationsPage() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations (PostgreSQL Neon API first)
+  // 1. Fetch Organizations (PostgreSQL Neon API)
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
-    // 1. Try High-Speed PostgreSQL API
     try {
       const res = await fetch('/api/v1/admin/organizations');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data?.organizations) && data.data.organizations.length > 0) {
-        setOrganizations(data.data.organizations.map((o: any) => ({
-          id: o.organizationId,
-          organizationId: o.organizationId,
-          name: o.name,
-          sector: 'Genel',
-          contactEmail: null,
-          contactPhone: null,
-          status: o.isActive ? 'ACTIVE' : 'DISABLED',
-          isVerificationAuthorized: true,
-          surveyCount: 0,
-          portalUserCount: 0,
-          createdAt: o.createdAt
-        })));
-        setIsLoading(false);
-        return;
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.organizations)) {
+          setOrganizations(data.data.organizations.map((o: any) => ({
+            id: o.organizationId || o.id,
+            organizationId: o.organizationId || o.id,
+            name: o.name,
+            sector: 'Genel',
+            contactEmail: null,
+            contactPhone: null,
+            status: o.isActive ? 'ACTIVE' : 'DISABLED',
+            isVerificationAuthorized: true,
+            surveyCount: 0,
+            portalUserCount: 0,
+            createdAt: o.createdAt
+          })));
+          setIsLoading(false);
+          return;
+        }
       }
+      setOrganizations([]);
     } catch (neonErr) {
-      // Fallback
-    }
-
-    // 2. Instant Firestore Direct Read
-    try {
-      const snap = await getDocs(collection(db, 'organizations'));
-      const orgsList: OrganizationItem[] = [];
-      snap.forEach(d => {
-        const data = d.data();
-        const oId = data.organizationId || d.id;
-        orgsList.push({
-          id: d.id,
-          organizationId: oId,
-          name: data.name || d.id,
-          sector: data.sector || 'Genel',
-          contactEmail: data.contactEmail || null,
-          contactPhone: data.contactPhone || null,
-          status: data.status || 'ACTIVE',
-          isVerificationAuthorized: data.isVerificationAuthorized === true,
-          surveyCount: 0,
-          portalUserCount: 0,
-          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt || null
-        });
-      });
-      setOrganizations(orgsList);
-    } catch (err: any) {
-      console.error('Fetch Organizations Error:', err);
+      console.warn('Fetch Organizations error:', neonErr);
+      setOrganizations([]);
     } finally {
       setIsLoading(false);
     }
@@ -166,17 +142,19 @@ export default function OrganizationsPage() {
     }
     setIsSavingOrg(true);
     try {
-      const createFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
-      const res: any = await createFn({
-        name: newOrgName.trim(),
-        sector: newOrgSector,
-        contactEmail: newOrgEmail.trim() || null,
-        contactPhone: newOrgPhone.trim() || null,
-        isVerificationAuthorized: newOrgVerificationAuth,
-        status: 'ACTIVE'
+      const cleanName = newOrgName.trim();
+      const orgId = `org_${cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+      const res = await fetch('/api/v1/admin/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: orgId,
+          name: cleanName,
+          isActive: true
+        })
       });
 
-      if (res.data?.success) {
+      if (res.ok) {
         alert(`"${newOrgName}" firması başarıyla oluşturuldu!`);
         setIsCreateOrgModalOpen(false);
         setNewOrgName('');
@@ -213,37 +191,15 @@ export default function OrganizationsPage() {
     }
     setIsSavingEditOrg(true);
     try {
-      // 1. Direct Firestore update
-      try {
-        await setDoc(doc(db, 'organizations', editingOrg.organizationId), {
+      await fetch('/api/v1/admin/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           organizationId: editingOrg.organizationId,
           name: editOrgName.trim(),
-          sector: editOrgSector,
-          contactEmail: editOrgEmail.trim() || null,
-          contactPhone: editOrgPhone.trim() || null,
-          status: editOrgStatus,
-          isVerificationAuthorized: editOrgVerificationAuth,
-          updatedAt: new Date().toISOString()
-        }, { merge: true });
-      } catch (fsErr) {
-        console.warn('Firestore edit org error:', fsErr);
-      }
-
-      // 2. Cloud Function update
-      try {
-        const createFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
-        await createFn({
-          organizationId: editingOrg.organizationId,
-          name: editOrgName.trim(),
-          sector: editOrgSector,
-          contactEmail: editOrgEmail.trim() || null,
-          contactPhone: editOrgPhone.trim() || null,
-          status: editOrgStatus,
-          isVerificationAuthorized: editOrgVerificationAuth
-        });
-      } catch (fnErr) {
-        // background
-      }
+          isActive: editOrgStatus === 'ACTIVE'
+        })
+      });
 
       // Update local state immediately
       setOrganizations(prev => prev.map(o => o.organizationId === editingOrg.organizationId ? {

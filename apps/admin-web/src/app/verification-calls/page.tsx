@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationAssignmentItem {
@@ -50,103 +49,83 @@ export default function VerificationCallsPage() {
     }
   }, []);
 
-  // 1. Fetch campaigns & organizations (Instant Direct Firestore Read ~30ms)
+  // 1. Fetch campaigns & organizations
   const fetchData = useCallback(async () => {
     try {
-      const [campsSnap, orgsSnap] = await Promise.all([
-        getDocs(collection(db, 'surveyVerificationCampaigns')).catch(() => null),
-        getDocs(collection(db, 'organizations')).catch(() => null)
+      const [surveysRes, orgsRes] = await Promise.all([
+        fetch('/api/v1/admin/surveys').then(r => r.json()).catch(() => null),
+        fetch('/api/v1/admin/organizations').then(r => r.json()).catch(() => null)
       ]);
 
-      if (campsSnap && !campsSnap.empty) {
-        setCampaigns(campsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+      if (surveysRes?.success && Array.isArray(surveysRes.data?.surveys)) {
+        const vSurveys = surveysRes.data.surveys
+          .filter((s: any) => s.hasVerification)
+          .map((s: any) => ({
+            id: s.id,
+            masterSurveyId: s.id,
+            masterSurveyTitle: s.title,
+            organizationId: s.organizationId || null,
+            status: s.status,
+            requestedCount: s.verificationTargetCount || 50,
+            customerSelectedCount: s.verificationOrgQuota || 20,
+            randomSelectedCount: (s.verificationTargetCount || 50) - (s.verificationOrgQuota || 20),
+            verificationSurveyId: s.id,
+            verificationRewardSummary: s.rewardDefinition?.description || 'Ödül',
+            createdAt: s.createdAt
+          }));
+        setCampaigns(vSurveys);
+      } else {
+        setCampaigns([]);
       }
-      if (orgsSnap && !orgsSnap.empty) {
-        setOrganizations(orgsSnap.docs.map(d => ({ organizationId: d.id, ...d.data() })));
-      }
-    } catch (fsErr) {
-      console.warn('Direct Firestore fetch error:', fsErr);
-    }
 
-    try {
-      const listCampFn = httpsCallable(functions, 'listVerificationCampaigns');
-      const listOrgsFn = httpsCallable(functions, 'listOrganizationsAdmin');
-
-      const [campRes, orgsRes]: [any, any] = await Promise.all([
-        listCampFn({}).catch(() => null),
-        listOrgsFn().catch(() => null)
-      ]);
-
-      if (campRes?.data?.success && Array.isArray(campRes.data.data?.campaigns)) {
-        setCampaigns(campRes.data.data.campaigns);
-      }
-      if (orgsRes?.data?.success && Array.isArray(orgsRes.data.data?.organizations)) {
-        setOrganizations(orgsRes.data.data.organizations);
+      if (orgsRes?.success && Array.isArray(orgsRes.data?.organizations)) {
+        setOrganizations(orgsRes.data.organizations);
+      } else {
+        setOrganizations([]);
       }
     } catch (err) {
-      // background
+      console.warn('Fetch data error:', err);
+      setCampaigns([]);
+      setOrganizations([]);
     }
   }, []);
 
-  // 2. Fetch assignments (PostgreSQL Neon API first)
+  // 2. Fetch assignments (PostgreSQL Neon API)
   const fetchAssignments = useCallback(async (campId?: string) => {
     setIsLoading(true);
-    // 1. Try PostgreSQL API route
     try {
       const params = new URLSearchParams();
       if (campId) params.append('campaignId', campId);
       const apiRes = await fetch(`/api/v1/admin/verification/assignments?${params.toString()}`);
-      const apiData = await apiRes.json();
-      if (apiData.success && Array.isArray(apiData.data?.assignments) && apiData.data.assignments.length > 0) {
-        setAssignments(apiData.data.assignments.map((a: any) => ({
-          id: a.assignmentId,
-          verificationCampaignId: a.campaignId,
-          masterSurveyId: a.surveyId,
-          masterSurveyTitle: a.surveyTitle,
-          verificationSurveyId: `vsrv_${a.surveyId}`,
-          verificationRewardSummary: '250 TL Hediye Çeki',
-          userDisplayName: a.userDisplayName,
-          selectionSource: a.customerSelected ? 'CUSTOMER' : 'RANDOM',
-          status: a.status,
-          assignedAgentId: null,
-          callStartedAt: a.calledAt,
-          callEndedAt: a.completedAt,
-          agentNote: a.notes,
-          createdAt: a.calledAt
-        })));
-        setIsLoading(false);
-        return;
-      }
-    } catch (neonErr) {
-      // Fallback
-    }
-
-    try {
-      const snap = await getDocs(collection(db, 'surveyVerificationAssignments'));
-      if (!snap.empty) {
-        let list: VerificationAssignmentItem[] = snap.docs.map(d => ({
-          id: d.id,
-          ...d.data()
-        } as VerificationAssignmentItem));
-        if (campId) {
-          list = list.filter(a => a.verificationCampaignId === campId);
+      if (apiRes.ok) {
+        const apiData = await apiRes.json();
+        if (apiData.success && Array.isArray(apiData.data?.assignments)) {
+          setAssignments(apiData.data.assignments.map((a: any) => ({
+            id: a.assignmentId,
+            verificationCampaignId: a.campaignId,
+            masterSurveyId: a.surveyId,
+            masterSurveyTitle: a.surveyTitle,
+            verificationSurveyId: `vsrv_${a.surveyId}`,
+            verificationRewardSummary: '250 TL Hediye Çeki',
+            userDisplayName: a.userDisplayName,
+            selectionSource: a.customerSelected ? 'CUSTOMER' : 'RANDOM',
+            status: a.status,
+            assignedAgentId: null,
+            callStartedAt: a.calledAt,
+            callEndedAt: a.completedAt,
+            agentNote: a.notes,
+            createdAt: a.calledAt
+          })));
+          setIsLoading(false);
+          return;
         }
-        setAssignments(list);
       }
-    } catch (fsErr) {
-      console.warn('Direct Firestore assignments read error:', fsErr);
+      setAssignments([]);
+    } catch (neonErr) {
+      console.warn('Fetch assignments error:', neonErr);
+      setAssignments([]);
     } finally {
       setIsLoading(false);
-    }
-
-    try {
-      const listAssignFn = httpsCallable(functions, 'listVerificationAssignmentsForAgent');
-      const res: any = await listAssignFn({ campaignId: campId || undefined });
-      if (res.data?.success && Array.isArray(res.data?.data?.assignments) && res.data.data.assignments.length > 0) {
-        setAssignments(res.data.data.assignments);
-      }
-    } catch (err) {
-      // background
     }
   }, []);
 

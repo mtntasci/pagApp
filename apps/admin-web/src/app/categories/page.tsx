@@ -1,41 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs, doc, setDoc, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
-
-const DEFAULT_SURVEY_CATEGORIES = [
-  { id: "yasam", name: "Yaşam", isVisible: true, sortOrder: 1 },
-  { id: "alisveris-tuketim", name: "Alışveriş & Tüketim", isVisible: true, sortOrder: 2 },
-  { id: "yeme-icme", name: "Yeme & İçme", isVisible: true, sortOrder: 3 },
-  { id: "teknoloji", name: "Teknoloji", isVisible: true, sortOrder: 4 },
-  { id: "otomotiv-ulasim", name: "Otomotiv & Ulaşım", isVisible: true, sortOrder: 5 },
-  { id: "spor-saglikli-yasam", name: "Spor & Sağlıklı Yaşam", isVisible: true, sortOrder: 6 },
-  { id: "seyahat-eglence", name: "Seyahat & Eğlence", isVisible: true, sortOrder: 7 },
-  { id: "finans", name: "Finans", isVisible: true, sortOrder: 8 },
-  { id: "ev-yasam", name: "Ev & Yaşam", isVisible: true, sortOrder: 9 },
-  { id: "moda-kisisel-bakim", name: "Moda & Kişisel Bakım", isVisible: true, sortOrder: 10 },
-  { id: "medya-dijital-icerik", name: "Medya & Dijital İçerik", isVisible: true, sortOrder: 11 },
-  { id: "egitim-kariyer", name: "Eğitim & Kariyer", isVisible: true, sortOrder: 12 },
-  { id: "genel", name: "Genel", isVisible: true, sortOrder: 13 }
-];
-
-const DEFAULT_PROFILE_CATEGORIES = [
-  { id: "demografi", name: "Demografi", isVisible: true, sortOrder: 1 },
-  { id: "eitim-kariyer", name: "Eğitim & Kariyer", isVisible: true, sortOrder: 2 },
-  { id: "finans-ekonomi", name: "Finans & Ekonomi", isVisible: true, sortOrder: 3 },
-  { id: "teknoloji-dijital", name: "Teknoloji & Dijital", isVisible: true, sortOrder: 4 },
-  { id: "yasam-tarzi-hobiler", name: "Yaşam Tarzı & Hobiler", isVisible: true, sortOrder: 5 },
-  { id: "alisveris-tuketim", name: "Alışveriş & Tüketim", isVisible: true, sortOrder: 6 },
-  { id: "saglik-beslenme", name: "Sağlık & Beslenme", isVisible: true, sortOrder: 7 },
-  { id: "otomotiv-ulasim", name: "Otomotiv & Ulaşım", isVisible: true, sortOrder: 8 },
-  { id: "seyahat-turizm", name: "Seyahat & Turizm", isVisible: true, sortOrder: 9 },
-  { id: "medya-eglence", name: "Medya & Eğlence", isVisible: true, sortOrder: 10 },
-  { id: "ev-aile", name: "Ev & Aile", isVisible: true, sortOrder: 11 },
-  { id: "spor-aktivite", name: "Spor & Aktivite", isVisible: true, sortOrder: 12 },
-  { id: "genel", name: "Genel", isVisible: true, sortOrder: 13 }
-];
 
 export interface CategoryItem {
   id: string;
@@ -66,45 +31,14 @@ export default function CategoriesManagementPage() {
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     setErrorMsg(null);
-    const collName = activeTab === 'SURVEY' ? 'surveyCategories' : 'profileSurveyCategories';
     try {
-      // 1. Direct Firestore Instant Read (~30ms)
-      try {
-        const snap = await getDocs(collection(db, collName));
-        if (!snap.empty) {
-          const items: CategoryItem[] = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              name: data.name || d.id,
-              isVisible: typeof data.isVisible === 'boolean' ? data.isVisible : true,
-              sortOrder: typeof data.sortOrder === 'number' ? data.sortOrder : 1,
-              createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
-              updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt
-            };
-          });
-          items.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-
-          if (activeTab === 'SURVEY') setSurveyCategories(items);
-          else setProfileCategories(items);
+      const res = await fetch('/api/v1/admin/categories');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data?.categories)) {
+          setSurveyCategories(json.data.categories);
+          setProfileCategories(json.data.categories);
         }
-      } catch (fsErr) {
-        console.warn('Direct Firestore categories read error:', fsErr);
-      } finally {
-        setIsLoading(false);
-      }
-
-      // 2. Background Callable Functions Sync (non-blocking)
-      try {
-        const fnName = activeTab === 'SURVEY' ? 'manageSurveyCategoriesAdmin' : 'manageProfileCategoriesAdmin';
-        const fn = httpsCallable(functions, fnName);
-        const res: any = await fn({ action: 'GET' });
-        if (res.data?.success && Array.isArray(res.data.data?.categories) && res.data.data.categories.length > 0) {
-          if (activeTab === 'SURVEY') setSurveyCategories(res.data.data.categories);
-          else setProfileCategories(res.data.data.categories);
-        }
-      } catch (cloudErr) {
-        // background
       }
     } catch (err: any) {
       console.error('Fetch Categories Error:', err);
@@ -112,7 +46,7 @@ export default function CategoriesManagementPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [activeTab]);
+  }, []);
 
   useEffect(() => {
     fetchCategories();
@@ -143,48 +77,37 @@ export default function CategoriesManagementPage() {
 
     setIsSaving(true);
     setErrorMsg(null);
-    const collName = activeTab === 'SURVEY' ? 'surveyCategories' : 'profileSurveyCategories';
-    const catId = editingCategory?.id || formName.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const catId = editingCategory?.id || `cat_${Date.now()}`;
+    const updated = [...surveyCategories];
+    const existingIdx = updated.findIndex(c => c.id === catId);
+    const newItem = {
+      id: catId,
+      name: formName.trim(),
+      sortOrder: Number(formSortOrder) || 1,
+      isVisible: formIsVisible
+    };
+
+    if (existingIdx >= 0) {
+      updated[existingIdx] = newItem;
+    } else {
+      updated.push(newItem);
+    }
 
     try {
-      try {
-        const fnName = activeTab === 'SURVEY' ? 'manageSurveyCategoriesAdmin' : 'manageProfileCategoriesAdmin';
-        const fn = httpsCallable(functions, fnName);
-        const res: any = await fn({
-          action: 'SAVE',
-          category: {
-            id: editingCategory?.id,
-            name: formName.trim(),
-            sortOrder: Number(formSortOrder) || 1,
-            isVisible: formIsVisible
-          }
-        });
+      const res = await fetch('/api/v1/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: updated })
+      });
 
-        if (res.data?.success) {
-          setIsModalOpen(false);
-          setSuccessMsg('Kategori başarıyla kaydedildi.');
-          setTimeout(() => setSuccessMsg(null), 3000);
-          await fetchCategories();
-          return;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloud Function save failed, falling back to direct Firestore write:', cloudErr);
+      if (res.ok) {
+        setIsModalOpen(false);
+        setSuccessMsg('Kategori başarıyla kaydedildi.');
+        setTimeout(() => setSuccessMsg(null), 3000);
+        await fetchCategories();
+      } else {
+        setErrorMsg('Kayıt başarısız oldu.');
       }
-
-      // Direct Firestore Write Fallback
-      const docRef = doc(db, collName, catId);
-      await setDoc(docRef, {
-        id: catId,
-        name: formName.trim(),
-        sortOrder: Number(formSortOrder) || 1,
-        isVisible: formIsVisible,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
-      setIsModalOpen(false);
-      setSuccessMsg('Kategori başarıyla kaydedildi.');
-      setTimeout(() => setSuccessMsg(null), 3000);
-      await fetchCategories();
     } catch (err: any) {
       setErrorMsg('Kayıt Hatası: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
@@ -193,74 +116,46 @@ export default function CategoriesManagementPage() {
   };
 
   const handleToggleVisibility = async (cat: CategoryItem) => {
-    const collName = activeTab === 'SURVEY' ? 'surveyCategories' : 'profileSurveyCategories';
+    const updated = surveyCategories.map(c => c.id === cat.id ? { ...c, isVisible: !c.isVisible } : c);
     try {
-      try {
-        const fnName = activeTab === 'SURVEY' ? 'manageSurveyCategoriesAdmin' : 'manageProfileCategoriesAdmin';
-        const fn = httpsCallable(functions, fnName);
-        const res: any = await fn({
-          action: 'SAVE',
-          category: {
-            ...cat,
-            isVisible: !cat.isVisible
-          }
-        });
-
-        if (res.data?.success) {
-          await fetchCategories();
-          return;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloud Function toggle failed, falling back to direct Firestore update:', cloudErr);
-      }
-
-      // Direct Firestore Update Fallback
-      await setDoc(doc(db, collName, cat.id), {
-        isVisible: !cat.isVisible,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-
+      await fetch('/api/v1/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: updated })
+      });
       await fetchCategories();
     } catch (err: any) {
-      alert('Görünürlük değiştirilemedi: ' + (err.message || 'Bilinmeyen hata'));
+      alert('Görünürlük güncellenemedi: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 
   const handleSeedOfficialCategories = async () => {
-    if (!confirm('13 resmi Anket Kategorisi ve 13 resmi Profil Kategorisi veritabanına yüklensin mi?')) return;
     setIsSeeding(true);
     setErrorMsg(null);
     try {
-      try {
-        const seedFn = httpsCallable(functions, 'seedCategoriesAdmin');
-        const res: any = await seedFn({});
-        if (res.data?.success) {
-          setSuccessMsg('13 Anket ve 13 Profil Anketi Kategorisi başarıyla oluşturuldu!');
-          setTimeout(() => setSuccessMsg(null), 4000);
-          await fetchCategories();
-          return;
-        }
-      } catch (cloudErr) {
-        console.warn('Cloud Function seed failed, falling back to direct Firestore batch write:', cloudErr);
+      const defaultCats = [
+        { id: "yasam", name: "Yaşam", isVisible: true, sortOrder: 1 },
+        { id: "alisveris-tuketim", name: "Alışveriş & Tüketim", isVisible: true, sortOrder: 2 },
+        { id: "yeme-icme", name: "Yeme & İçme", isVisible: true, sortOrder: 3 },
+        { id: "teknoloji", name: "Teknoloji", isVisible: true, sortOrder: 4 },
+        { id: "otomotiv-ulasim", name: "Otomotiv & Ulaşım", isVisible: true, sortOrder: 5 },
+        { id: "spor-saglikli-yasam", name: "Spor & Sağlıklı Yaşam", isVisible: true, sortOrder: 6 },
+        { id: "seyahat-eglence", name: "Seyahat & Eğlence", isVisible: true, sortOrder: 7 },
+        { id: "finans", name: "Finans", isVisible: true, sortOrder: 8 },
+        { id: "genel", name: "Genel", isVisible: true, sortOrder: 9 }
+      ];
+
+      const res = await fetch('/api/v1/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: defaultCats })
+      });
+
+      if (res.ok) {
+        setSuccessMsg('Resmi kategoriler başarıyla oluşturuldu!');
+        setTimeout(() => setSuccessMsg(null), 3000);
+        await fetchCategories();
       }
-
-      // Direct Firestore Batch Write Fallback
-      const batch = writeBatch(db);
-      const now = serverTimestamp();
-
-      DEFAULT_SURVEY_CATEGORIES.forEach((cat) => {
-        batch.set(doc(db, 'surveyCategories', cat.id), { ...cat, createdAt: now, updatedAt: now }, { merge: true });
-      });
-
-      DEFAULT_PROFILE_CATEGORIES.forEach((cat) => {
-        batch.set(doc(db, 'profileSurveyCategories', cat.id), { ...cat, createdAt: now, updatedAt: now }, { merge: true });
-      });
-
-      await batch.commit();
-
-      setSuccessMsg('13 Anket ve 13 Profil Anketi Kategorisi başarıyla oluşturuldu!');
-      setTimeout(() => setSuccessMsg(null), 4000);
-      await fetchCategories();
     } catch (err: any) {
       setErrorMsg('Seed Hatası: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
