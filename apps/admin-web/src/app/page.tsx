@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '../lib/firebase';
+import { functions } from '@/lib/firebase';
 
 interface ActiveSurveyOption {
   surveyId: string;
@@ -10,6 +10,7 @@ interface ActiveSurveyOption {
   responseCount: number;
   status?: string;
   ownerType?: string;
+  organizationId?: string | null;
 }
 
 export default function DashboardPage() {
@@ -34,31 +35,60 @@ export default function DashboardPage() {
     try {
       setIsRefreshing(true);
       const getMetricsCallable = httpsCallable<any, any>(functions, 'getAdminDashboardMetrics');
-      const res = await getMetricsCallable();
-      if (res.data?.success && res.data?.data) {
-        const d = res.data.data;
-        const surveyList: ActiveSurveyOption[] = d.activeSurveysList || [];
+      const listSurveysCallable = httpsCallable<any, any>(functions, 'listSurveysAdmin');
 
-        setMetrics({
-          activeSurveys: d.activeSurveys ?? 0,
-          activeProfileSurveys: d.activeProfileSurveys ?? 0,
-          totalUsers: d.totalUsers ?? 0,
-          activePushUsers: d.activePushUsers ?? d.totalUsers ?? 0,
-          totalResponses: d.totalResponses ?? 0,
-          basicProfileCompletedCount: d.basicProfileCompletedCount ?? 0,
-          phoneVerifiedCount: d.phoneVerifiedCount ?? 0,
-          kycVerifiedCount: d.kycVerifiedCount ?? 0,
-          ibanSubmittedCount: d.ibanSubmittedCount ?? 0,
-          activeSurveysList: surveyList
+      const [metricsRes, surveysRes]: [any, any] = await Promise.all([
+        getMetricsCallable().catch(() => ({ data: { data: {} } })),
+        listSurveysCallable({}).catch(() => ({ data: { data: { surveys: [] } } }))
+      ]);
+
+      const d = metricsRes.data?.data || {};
+      const returnedSurveys: any[] = surveysRes.data?.data?.surveys || [];
+      
+      // Merge all active & completed surveys
+      const surveyList: ActiveSurveyOption[] = Array.isArray(d.activeSurveysList) ? [...d.activeSurveysList] : [];
+      if (returnedSurveys.length > 0) {
+        const existingIds = new Set(surveyList.map(s => s.surveyId));
+        returnedSurveys.forEach(srv => {
+          if (!existingIds.has(srv.surveyId)) {
+            surveyList.push({
+              surveyId: srv.surveyId,
+              title: srv.title || 'İsimsiz Anket',
+              responseCount: Math.max(srv.responseCount || 0, srv.completedCount || 0),
+              status: srv.status || 'ACTIVE',
+              ownerType: srv.ownerType || 'PAG',
+              organizationId: srv.organizationId || null
+            });
+          } else {
+            const item = surveyList.find(s => s.surveyId === srv.surveyId);
+            if (item) {
+              item.responseCount = Math.max(item.responseCount || 0, srv.responseCount || 0, srv.completedCount || 0);
+            }
+          }
         });
+      }
 
-        if (surveyList.length > 0) {
-          // If no survey selected yet, or previous selection is invalid, select the first survey (most active)
-          setSelectedSurveyId(prev => {
-            const exists = surveyList.some(s => s.surveyId === prev);
-            return exists ? prev : surveyList[0].surveyId;
-          });
-        }
+      // Sort surveys descending by responseCount
+      surveyList.sort((a, b) => (b.responseCount || 0) - (a.responseCount || 0));
+
+      setMetrics({
+        activeSurveys: Math.max(d.activeSurveys ?? 0, returnedSurveys.filter(s => s.status === 'ACTIVE' && s.surveyType !== 'PROFILE').length),
+        activeProfileSurveys: Math.max(d.activeProfileSurveys ?? 0, returnedSurveys.filter(s => s.status === 'ACTIVE' && s.surveyType === 'PROFILE').length),
+        totalUsers: d.totalUsers ?? 0,
+        activePushUsers: d.activePushUsers ?? d.totalUsers ?? 0,
+        totalResponses: Math.max(d.totalResponses ?? 0, surveyList.reduce((sum, s) => sum + (s.responseCount || 0), 0)),
+        basicProfileCompletedCount: d.basicProfileCompletedCount ?? 0,
+        phoneVerifiedCount: d.phoneVerifiedCount ?? 0,
+        kycVerifiedCount: d.kycVerifiedCount ?? 0,
+        ibanSubmittedCount: d.ibanSubmittedCount ?? 0,
+        activeSurveysList: surveyList
+      });
+
+      if (surveyList.length > 0) {
+        setSelectedSurveyId(prev => {
+          const exists = surveyList.some(s => s.surveyId === prev);
+          return exists ? prev : surveyList[0].surveyId;
+        });
       }
     } catch (err) {
       console.warn('Backend metrics call fallback to local state:', err);

@@ -218,18 +218,6 @@ export const getAdminDashboardMetricsHandler = async (
     const responsesSnap = await db.collection('surveyResponses').get();
     totalResponses = responsesSnap.docs.length;
 
-    const responseCountsBySurvey: Record<string, number> = {};
-    responsesSnap.docs.forEach((rDoc) => {
-      const rData = rDoc.data() || {};
-      const sId = rData.surveyId || (rDoc.id.includes('_') ? rDoc.id.substring(0, rDoc.id.lastIndexOf('_')) : rDoc.id);
-      if (sId) {
-        responseCountsBySurvey[sId] = (responseCountsBySurvey[sId] || 0) + 1;
-      }
-      if (rDoc.id) {
-        responseCountsBySurvey[rDoc.id] = (responseCountsBySurvey[rDoc.id] || 0) + 1;
-      }
-    });
-
     const surveysSnap = await db.collection('surveys').get();
     surveysSnap.docs.forEach((doc) => {
       const s = doc.data();
@@ -239,24 +227,39 @@ export const getAdminDashboardMetricsHandler = async (
         return;
       }
 
-      const byDocId = responseCountsBySurvey[doc.id] || 0;
-      const bySurveyId = s.surveyId ? (responseCountsBySurvey[s.surveyId] || 0) : 0;
+      // Match responses by surveyId, doc.id, or response document ID prefix
+      let directCount = 0;
+      responsesSnap.docs.forEach((rDoc) => {
+        const rData = rDoc.data() || {};
+        if (
+          rData.surveyId === doc.id ||
+          rData.surveyId === s.surveyId ||
+          rDoc.id === doc.id ||
+          rDoc.id === s.surveyId ||
+          rDoc.id.startsWith(doc.id + '_') ||
+          (s.surveyId && rDoc.id.startsWith(s.surveyId + '_'))
+        ) {
+          directCount++;
+        }
+      });
+
       const docCounter = Math.max(s.completedCount || 0, s.responseCount || 0);
-      const realResponseCount = Math.max(byDocId, bySurveyId, docCounter);
+      const realResponseCount = Math.max(directCount, docCounter);
 
       if (s.surveyType === 'PROFILE') {
         if (s.status === 'ACTIVE') activeProfileSurveys++;
       } else {
         if (s.status === 'ACTIVE') activeSurveys++;
-        activeSurveysList.push({
-          surveyId: doc.id,
-          title: s.title || 'İsimsiz Anket',
-          responseCount: realResponseCount,
-          status: s.status,
-          ownerType: s.ownerType || 'PAG',
-          organizationId: s.organizationId || null
-        });
       }
+
+      activeSurveysList.push({
+        surveyId: doc.id,
+        title: s.title || 'İsimsiz Anket',
+        responseCount: realResponseCount,
+        status: s.status,
+        ownerType: s.ownerType || 'PAG',
+        organizationId: s.organizationId || null
+      });
 
       switch (s.status) {
         case 'SCHEDULED': scheduledSurveys++; break;
@@ -603,14 +606,6 @@ export const listSurveysAdminHandler = async (
   const surveys: any[] = [];
   try {
     const responsesSnap = await db.collection('surveyResponses').get();
-    const responseCountsBySurvey: Record<string, number> = {};
-    responsesSnap.docs.forEach((rDoc) => {
-      const rData = rDoc.data();
-      const sId = rData?.surveyId;
-      if (sId) {
-        responseCountsBySurvey[sId] = (responseCountsBySurvey[sId] || 0) + 1;
-      }
-    });
 
     const snap = await db.collection('surveys').get();
     snap.docs.forEach((doc) => {
@@ -618,7 +613,25 @@ export const listSurveysAdminHandler = async (
       if (adminUser.role === 'ORGANIZATION_USER' && d.organizationId !== adminUser.organizationId) {
         return;
       }
-      const realCount = responseCountsBySurvey[doc.id] ?? d.completedCount ?? d.responseCount ?? 0;
+
+      let directCount = 0;
+      responsesSnap.docs.forEach((rDoc) => {
+        const rData = rDoc.data() || {};
+        if (
+          rData.surveyId === doc.id ||
+          rData.surveyId === d.surveyId ||
+          rDoc.id === doc.id ||
+          rDoc.id === d.surveyId ||
+          rDoc.id.startsWith(doc.id + '_') ||
+          (d.surveyId && rDoc.id.startsWith(d.surveyId + '_'))
+        ) {
+          directCount++;
+        }
+      });
+
+      const docCounter = Math.max(d.completedCount || 0, d.responseCount || 0);
+      const realCount = Math.max(directCount, docCounter);
+
       surveys.push({
         ...d,
         surveyId: doc.id,
@@ -1384,6 +1397,58 @@ export const listOrganizationsAdminHandler = async (
         updatedAt: d.updatedAt?.toDate ? d.updatedAt.toDate().toISOString() : d.updatedAt
       });
     });
+
+    // Also check companyApplications for any APPROVED applications not yet indexed
+    if (adminUser.role !== 'ORGANIZATION_USER') {
+      const appsSnap = await db.collection('companyApplications').where('status', '==', 'APPROVED').get();
+      const existingOrgIds = new Set(organizations.map(o => o.organizationId));
+      const existingOrgNames = new Set(organizations.map(o => (o.name || '').toLowerCase().trim()));
+
+      for (const aDoc of appsSnap.docs) {
+        const aData = aDoc.data() || {};
+        const appCompanyName = (aData.companyName || 'Firma').trim();
+        const appOrgId = aData.createdOrganizationId || `org_${appCompanyName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+
+        if (!existingOrgIds.has(appOrgId) && !existingOrgNames.has(appCompanyName.toLowerCase())) {
+          const synthesizedOrg = {
+            id: appOrgId,
+            organizationId: appOrgId,
+            name: appCompanyName,
+            sector: aData.sector || 'Genel',
+            contactEmail: aData.contactEmail || null,
+            contactPhone: aData.contactPhone || null,
+            status: 'ACTIVE',
+            isVerificationAuthorized: false,
+            surveyCount: surveyCountByOrg[appOrgId] || 0,
+            portalUserCount: userCountByOrg[appOrgId] || 0,
+            createdAt: aData.createdAt?.toDate ? aData.createdAt.toDate().toISOString() : new Date().toISOString(),
+            updatedAt: aData.updatedAt?.toDate ? aData.updatedAt.toDate().toISOString() : new Date().toISOString()
+          };
+          organizations.push(synthesizedOrg);
+          existingOrgIds.add(appOrgId);
+          existingOrgNames.add(appCompanyName.toLowerCase());
+
+          // Persist to organizations collection
+          try {
+            await db.collection('organizations').doc(appOrgId).set({
+              organizationId: appOrgId,
+              name: appCompanyName,
+              sector: aData.sector || 'Genel',
+              contactName: aData.contactName || null,
+              contactEmail: aData.contactEmail || null,
+              contactPhone: aData.contactPhone || null,
+              status: 'ACTIVE',
+              isVerificationAuthorized: false,
+              sourceApplicationId: aDoc.id,
+              createdAt: admin.firestore.FieldValue.serverTimestamp(),
+              updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+          } catch (sErr) {
+            // ignore
+          }
+        }
+      }
+    }
   } catch (err: any) {
     if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
   }

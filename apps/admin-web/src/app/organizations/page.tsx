@@ -50,15 +50,49 @@ export default function OrganizationsPage() {
   const [newUserPassword, setNewUserPassword] = useState('');
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
-  // 1. Fetch Organizations
+  // 1. Fetch Organizations & Auto-merge Approved Applications
   const fetchOrganizations = useCallback(async () => {
     setIsLoading(true);
     try {
       const listFn = httpsCallable(functions, 'listOrganizationsAdmin');
-      const res: any = await listFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.organizations)) {
-        setOrganizations(res.data.data.organizations);
+      const listAppsFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
+      
+      const [res, appsRes]: [any, any] = await Promise.all([
+        listFn({}),
+        listAppsFn({ status: 'APPROVED' }).catch(() => ({ data: { data: { applications: [] } } }))
+      ]);
+
+      const orgsList: OrganizationItem[] = Array.isArray(res.data?.data?.organizations) ? [...res.data.data.organizations] : [];
+      
+      // Auto-sync approved applications into the list
+      if (appsRes?.data?.data?.applications && Array.isArray(appsRes.data.data.applications)) {
+        const existingOrgIds = new Set(orgsList.map(o => o.organizationId));
+        const existingNames = new Set(orgsList.map(o => (o.name || '').toLowerCase().trim()));
+
+        for (const app of appsRes.data.data.applications) {
+          const name = (app.companyName || 'Firma').trim();
+          const orgId = app.createdOrganizationId || `org_${name.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+          if (!existingOrgIds.has(orgId) && !existingNames.has(name.toLowerCase())) {
+            orgsList.push({
+              id: orgId,
+              organizationId: orgId,
+              name: name,
+              sector: app.sector || 'Genel',
+              contactEmail: app.contactEmail || null,
+              contactPhone: app.contactPhone || null,
+              status: 'ACTIVE',
+              isVerificationAuthorized: false,
+              surveyCount: 0,
+              portalUserCount: 0,
+              createdAt: app.createdAt || null
+            });
+            existingOrgIds.add(orgId);
+            existingNames.add(name.toLowerCase());
+          }
+        }
       }
+
+      setOrganizations(orgsList);
     } catch (err: any) {
       console.error('Fetch Organizations Error:', err);
     } finally {
