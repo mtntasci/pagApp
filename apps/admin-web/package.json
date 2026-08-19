@@ -5,19 +5,27 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "db:push": "drizzle-kit push",
+    "db:init": "tsx src/db/migrate.ts"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "firebase": "^10.12.0",
+    "firebase-admin": "^12.1.0",
+    "jose": "^6.2.9",
     "next": "^14.2.15",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "firebase": "^10.12.0",
-    "firebase-admin": "^12.1.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.12",
     "typescript": "^5.4.0"
   }
 }

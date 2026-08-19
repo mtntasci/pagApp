@@ -268,13 +268,40 @@ function VerificationCampaignsContent() {
     if (!targetId) return;
     setIsLoadingRespondents(true);
     try {
-      const getRespFn = httpsCallable(functions, 'getCompletedRespondentsForVerification');
       const cCity = overrideFilters?.city !== undefined ? overrideFilters.city : filterCity;
       const cGender = overrideFilters?.gender !== undefined ? overrideFilters.gender : filterGender;
       const cMinAge = overrideFilters?.minAge !== undefined ? overrideFilters.minAge : filterMinAge;
       const cMaxAge = overrideFilters?.maxAge !== undefined ? overrideFilters.maxAge : filterMaxAge;
       const cSearch = overrideFilters?.search !== undefined ? overrideFilters.search : searchQuery;
 
+      // 1. Try high-performance PostgreSQL API route first
+      try {
+        const params = new URLSearchParams({
+          surveyId: targetId,
+          city: cCity !== 'ALL' ? cCity : '',
+          gender: cGender !== 'ALL' ? cGender : '',
+          minAge: cMinAge || '',
+          maxAge: cMaxAge || '',
+          search: cSearch.trim() || ''
+        });
+        const apiRes = await fetch(`/api/v1/admin/verification/respondents?${params.toString()}`);
+        const apiData = await apiRes.json();
+        if (apiData.success && apiData.data && Array.isArray(apiData.data.respondents) && apiData.data.respondents.length > 0) {
+          setRespondents(apiData.data.respondents);
+          setSurveyMetadata({
+            pagTargetCount: apiData.data.pagTargetCount || 50,
+            orgSelectionQuota: apiData.data.orgSelectionQuota || 20,
+            verificationRewardSummary: apiData.data.verificationRewardSummary || '250 TL Hediye Çeki'
+          });
+          setIsLoadingRespondents(false);
+          return;
+        }
+      } catch (neonErr) {
+        // Fallback to Firebase
+      }
+
+      // 2. Fallback to Firebase callable
+      const getRespFn = httpsCallable(functions, 'getCompletedRespondentsForVerification');
       const payload: any = {
         surveyId: targetId,
         city: cCity !== 'ALL' ? cCity : undefined,
