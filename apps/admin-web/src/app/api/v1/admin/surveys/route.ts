@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, apiUnauthorized, apiSuccess, apiError } from '@/lib/serverAuth';
 import { db, surveys, questions, surveyResponses, organizations } from '@/db';
-import { eq, desc, count, sql } from 'drizzle-orm';
+import { eq, desc, count, sql, asc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,27 +41,40 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
       .limit(2000);
 
-    // Get counts in parallel
-    const surveyList = await Promise.all(
-      allSurveys.map(async (s) => {
-        const [{ count: respCount }] = await db
-          .select({ count: count() })
-          .from(surveyResponses)
-          .where(eq(surveyResponses.surveyId, s.id));
+    // Fetch all questions to attach with options
+    const allQuestions = await db
+      .select()
+      .from(questions)
+      .orderBy(asc(questions.questionOrder));
 
-        const [{ count: qCount }] = await db
-          .select({ count: count() })
-          .from(questions)
-          .where(eq(questions.surveyId, s.id));
+    const questionsBySurvey: Record<string, any[]> = {};
+    for (const q of allQuestions) {
+      if (!questionsBySurvey[q.surveyId]) {
+        questionsBySurvey[q.surveyId] = [];
+      }
+      questionsBySurvey[q.surveyId].push({
+        id: q.id,
+        questionId: q.id,
+        order: q.questionOrder,
+        text: q.text,
+        type: q.questionType,
+        options: q.options,
+        isRequired: q.isRequired
+      });
+    }
 
-        return {
-          ...s,
-          surveyId: s.id,
-          completedCount: Number(respCount),
-          questionCount: Number(qCount)
-        };
-      })
-    );
+    const surveyList = allSurveys.map((s) => {
+      const sQuestions = questionsBySurvey[s.id] || [];
+      const firstQ = sQuestions[0];
+      return {
+        ...s,
+        surveyId: s.id,
+        questions: sQuestions,
+        questionCount: sQuestions.length,
+        options: firstQ ? firstQ.options : [],
+        completedCount: 0
+      };
+    });
 
     return apiSuccess({ surveys: surveyList });
   } catch (err: any) {
@@ -125,15 +138,29 @@ export async function POST(req: NextRequest) {
     // Replace questions
     if (questionsList.length > 0) {
       await db.delete(questions).where(eq(questions.surveyId, surveyId));
-      const qRows = questionsList.map((q, idx) => ({
-        id: q.id || `q_${surveyId}_${idx + 1}`,
-        surveyId,
-        questionOrder: idx + 1,
-        text: q.text || `${idx + 1}. Soru`,
-        questionType: q.type || 'SINGLE_SELECT',
-        options: q.options || ['Seçenek 1', 'Seçenek 2'],
-        isRequired: q.isRequired !== undefined ? Boolean(q.isRequired) : true
-      }));
+      const qRows = questionsList.map((q, idx) => {
+        const rawOpts = Array.isArray(q.options) ? q.options : (Array.isArray(q.choices) ? q.choices : []);
+        const formattedOpts = rawOpts.map((opt: any, oIdx: number) => {
+          if (typeof opt === 'string') {
+            return { optionId: `opt_${oIdx + 1}`, label: opt, order: oIdx + 1 };
+          }
+          return {
+            optionId: opt.optionId || opt.id || `opt_${oIdx + 1}`,
+            label: opt.label || opt.text || opt.title || `Seçenek ${oIdx + 1}`,
+            order: typeof opt.order === 'number' ? opt.order : oIdx + 1
+          };
+        });
+
+        return {
+          id: q.id || `q_${surveyId}_${idx + 1}`,
+          surveyId,
+          questionOrder: idx + 1,
+          text: q.text || q.questionText || q.title || `${idx + 1}. Soru`,
+          questionType: q.type || q.questionType || 'SINGLE_SELECT',
+          options: formattedOpts,
+          isRequired: q.isRequired !== undefined ? Boolean(q.isRequired) : true
+        };
+      });
 
       await db.insert(questions).values(qRows);
     }
@@ -145,5 +172,33 @@ export async function POST(req: NextRequest) {
   } catch (err: any) {
     console.error('Save Survey Error:', err);
     return apiError('Anket kaydedilirken hata: ' + (err.message || 'Bilinmeyen hata'));
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    return apiUnauthorized();
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const surveyId = searchParams.get('id') || searchParams.get('surveyId');
+    const surveyType = searchParams.get('type') || searchParams.get('surveyType');
+
+    if (surveyType === 'PROFILE') {
+      await db.delete(surveys).where(eq(surveys.surveyType, 'PROFILE'));
+      return apiSuccess({}, 'Tüm profil anketleri başarıyla silindi.');
+    }
+
+    if (!surveyId) {
+      return apiError('Silinecek anket ID si belirtilmedi.');
+    }
+
+    await db.delete(surveys).where(eq(surveys.id, surveyId));
+    return apiSuccess({ surveyId }, 'Anket başarıyla silindi.');
+  } catch (err: any) {
+    console.error('Delete Survey Error:', err);
+    return apiError('Anket silinirken hata: ' + (err.message || 'Bilinmeyen hata'));
   }
 }

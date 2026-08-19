@@ -262,6 +262,38 @@ export default function ProfileSurveysPage() {
     }
   };
 
+  const handleDeleteQuestion = async (surveyId: string) => {
+    if (!confirm('Bu profil sorusunu silmek istediğinizden emin misiniz?')) return;
+    try {
+      const res = await fetch(`/api/v1/admin/surveys?id=${surveyId}`, { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setSuccessMessage('Profil sorusu silindi.');
+        fetchQuestionsAndCategories();
+      } else {
+        setErrorMessage(data.error || 'Silme hatası.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Silme hatası.');
+    }
+  };
+
+  const handleDeleteAllQuestions = async () => {
+    if (!confirm('TÜM profil sorularını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz!')) return;
+    try {
+      const res = await fetch('/api/v1/admin/surveys?type=PROFILE', { method: 'DELETE' });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setSuccessMessage('Tüm profil soruları silindi.');
+        fetchQuestionsAndCategories();
+      } else {
+        setErrorMessage(data.error || 'Silme hatası.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Silme hatası.');
+    }
+  };
+
   return (
     <div style={{ maxWidth: '1200px', margin: '0 auto', paddingBottom: '40px' }}>
       {/* Header */}
@@ -276,6 +308,24 @@ export default function ProfileSurveysPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
+          {questions.length > 0 && (
+            <button
+              onClick={handleDeleteAllQuestions}
+              style={{
+                padding: '10px 16px',
+                backgroundColor: 'transparent',
+                color: '#EF4444',
+                fontWeight: 700,
+                borderRadius: '8px',
+                border: '1px solid #EF4444',
+                cursor: 'pointer',
+                fontSize: '13px'
+              }}
+            >
+              🗑️ Tümünü Sil ({questions.length})
+            </button>
+          )}
+
           <button
             onClick={() => handleOpenCreateModal('FORM')}
             style={{
@@ -333,7 +383,7 @@ export default function ProfileSurveysPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
             <thead>
               <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', textAlign: 'left', color: 'var(--text-muted)', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                <th style={{ padding: '14px 16px' }}>Soru Metni</th>
+                <th style={{ padding: '14px 16px' }}>Soru Metni & Seçenekler</th>
                 <th style={{ padding: '14px 16px' }}>Kategori</th>
                 <th style={{ padding: '14px 16px' }}>Hedef Cinsiyet</th>
                 <th style={{ padding: '14px 16px' }}>Puan Ödülü</th>
@@ -351,10 +401,22 @@ export default function ProfileSurveysPage() {
               ) : (
                 questions.map((q) => (
                   <tr key={q.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-navy)', maxWidth: '350px' }}>
-                      {q.questionText}
+                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-navy)', maxWidth: '400px' }}>
+                      <div style={{ fontSize: '14px', marginBottom: '6px' }}>{q.questionText}</div>
+                      {Array.isArray(q.options) && q.options.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                          {q.options.map((opt: any, oIdx: number) => {
+                            const label = typeof opt === 'object' ? (opt.label || opt.text) : opt;
+                            return (
+                              <span key={oIdx} style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'var(--bg-surface-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                                • {label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
                       {q.showOnHome && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'var(--brand-lime-subtle)', color: 'var(--brand-navy)', fontWeight: 700 }}>
+                        <span style={{ display: 'inline-block', marginTop: '6px', fontSize: '11px', padding: '2px 8px', borderRadius: '12px', backgroundColor: 'var(--brand-lime-subtle)', color: 'var(--brand-navy)', fontWeight: 700 }}>
                           Ana Sayfa Promosyonu
                         </span>
                       )}
@@ -384,21 +446,38 @@ export default function ProfileSurveysPage() {
                       </span>
                     </td>
                     <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleEditQuestion(q)}
-                        style={{
-                          padding: '6px 14px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border-highlight)',
-                          backgroundColor: 'var(--bg-surface)',
-                          color: 'var(--brand-navy)',
-                          fontWeight: 600,
-                          fontSize: '13px',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Düzenle
-                      </button>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                        <button
+                          onClick={() => handleEditQuestion(q)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid var(--border-highlight)',
+                            backgroundColor: 'var(--bg-surface)',
+                            color: 'var(--brand-navy)',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Düzenle
+                        </button>
+                        <button
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          style={{
+                            padding: '6px 12px',
+                            borderRadius: '6px',
+                            border: '1px solid #FECACA',
+                            backgroundColor: '#FEF2F2',
+                            color: '#DC2626',
+                            fontWeight: 600,
+                            fontSize: '12px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Sil
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
