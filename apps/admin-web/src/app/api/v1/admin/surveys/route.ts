@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, apiUnauthorized, apiSuccess, apiError } from '@/lib/serverAuth';
 import { db, surveys, questions, surveyResponses, organizations } from '@/db';
-import { eq, desc, count, sql, asc } from 'drizzle-orm';
+import { eq, ne, desc, count, sql, asc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,23 +148,49 @@ export async function POST(req: NextRequest) {
     if (questionsList.length > 0) {
       await db.delete(questions).where(eq(questions.surveyId, surveyId));
       const qRows = questionsList.map((q, idx) => {
-        const rawOpts = Array.isArray(q.options) ? q.options : (Array.isArray(q.choices) ? q.choices : []);
+        let rawOpts = Array.isArray(q.options)
+          ? q.options
+          : (Array.isArray(q.choices)
+              ? q.choices
+              : (Array.isArray(q.answers)
+                  ? q.answers
+                  : (Array.isArray(q.secenekler)
+                      ? q.secenekler
+                      : (Array.isArray(q.cevaplar) ? q.cevaplar : []))));
+
+        // If string was passed as comma-separated or raw string
+        if (typeof rawOpts === 'string') {
+          rawOpts = (rawOpts as string).split(',').map(s => s.trim()).filter(Boolean);
+        }
+
+        if (!Array.isArray(rawOpts) || rawOpts.length === 0) {
+          rawOpts = ['Seçenek 1', 'Seçenek 2'];
+        }
+
         const formattedOpts = rawOpts.map((opt: any, oIdx: number) => {
           if (typeof opt === 'string') {
-            return { optionId: `opt_${oIdx + 1}`, label: opt, order: oIdx + 1 };
+            const cleanText = opt.trim();
+            return {
+              optionId: `opt_${oIdx + 1}`,
+              label: cleanText || `Seçenek ${oIdx + 1}`,
+              order: oIdx + 1
+            };
           }
+          const label = opt?.label || opt?.text || opt?.title || opt?.name || opt?.value || opt?.optionText || opt?.secenek || `Seçenek ${oIdx + 1}`;
           return {
-            optionId: opt.optionId || opt.id || `opt_${oIdx + 1}`,
-            label: opt.label || opt.text || opt.title || `Seçenek ${oIdx + 1}`,
-            order: typeof opt.order === 'number' ? opt.order : oIdx + 1
+            optionId: opt?.optionId || opt?.id || opt?.key || `opt_${oIdx + 1}`,
+            label: String(label).trim() || `Seçenek ${oIdx + 1}`,
+            order: typeof opt?.order === 'number' ? opt.order : oIdx + 1
           };
         });
+
+        const questionText = q.text || q.questionText || q.question || q.title || q.soru || q.prompt || `${idx + 1}. Soru`;
 
         return {
           id: q.id || `q_${surveyId}_${idx + 1}`,
           surveyId,
           questionOrder: idx + 1,
-          text: q.text || q.questionText || q.title || `${idx + 1}. Soru`,
+          text: String(questionText).trim(),
           questionType: q.type || q.questionType || 'SINGLE_SELECT',
           options: formattedOpts,
           isRequired: q.isRequired !== undefined ? Boolean(q.isRequired) : true
@@ -198,6 +224,11 @@ export async function DELETE(req: NextRequest) {
     if (surveyType === 'PROFILE') {
       await db.delete(surveys).where(eq(surveys.surveyType, 'PROFILE'));
       return apiSuccess({}, 'Tüm profil anketleri başarıyla silindi.');
+    }
+
+    if (surveyType === 'GENERAL' || surveyType === 'CAMPAIGN') {
+      await db.delete(surveys).where(ne(surveys.surveyType, 'PROFILE'));
+      return apiSuccess({}, 'Tüm genel anketler başarıyla silindi.');
     }
 
     if (!surveyId) {

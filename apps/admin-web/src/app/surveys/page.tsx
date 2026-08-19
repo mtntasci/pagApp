@@ -351,23 +351,58 @@ export default function SurveysPage() {
       setIsJsonImporting(true);
 
       for (const surveyObj of items) {
-        if (!surveyObj.title || !Array.isArray(surveyObj.questions) || surveyObj.questions.length === 0) {
+        const title = surveyObj.title || surveyObj.name || surveyObj.baslik || 'Yeni Anket';
+        const rawQs = Array.isArray(surveyObj.questions)
+          ? surveyObj.questions
+          : (Array.isArray(surveyObj.sorular)
+              ? surveyObj.sorular
+              : (Array.isArray(surveyObj.items) ? surveyObj.items : []));
+
+        if (!title.trim() || rawQs.length === 0) {
           throw new Error('Geçersiz anket formatı. "title" ve en az 1 soru ("questions") gereklidir.');
         }
 
-        const formattedQuestions = surveyObj.questions.map((q: any, idx: number) => ({
-          questionId: q.id || q.questionId || `q${idx + 1}`,
-          order: q.order || idx + 1,
-          type: 'SINGLE_SELECT',
-          text: q.questionText || q.text || `${idx + 1}. Soru`,
-          options: (q.options || []).map((opt: any, oIdx: number) => ({
-            optionId: typeof opt === 'object' ? (opt.optionId || `opt_${oIdx + 1}`) : `opt_${oIdx + 1}`,
-            label: typeof opt === 'string' ? opt : (opt.label || `Seçenek ${oIdx + 1}`),
-            order: typeof opt === 'object' ? (opt.order || oIdx + 1) : oIdx + 1
-          }))
-        }));
+        const formattedQuestions = rawQs.slice(0, 3).map((q: any, idx: number) => {
+          let rawOpts = Array.isArray(q.options)
+            ? q.options
+            : (Array.isArray(q.choices)
+                ? q.choices
+                : (Array.isArray(q.answers)
+                    ? q.answers
+                    : (Array.isArray(q.secenekler)
+                        ? q.secenekler
+                        : (Array.isArray(q.cevaplar) ? q.cevaplar : []))));
 
-        const srvId = surveyObj.surveyId || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
+          if (typeof rawOpts === 'string') {
+            rawOpts = (rawOpts as string).split(',').map(s => s.trim()).filter(Boolean);
+          }
+
+          if (!Array.isArray(rawOpts) || rawOpts.length === 0) {
+            rawOpts = ['Seçenek 1', 'Seçenek 2'];
+          }
+
+          const opts = rawOpts.map((opt: any, oIdx: number) => {
+            if (typeof opt === 'string') {
+              return { optionId: `opt_${oIdx + 1}`, label: opt.trim() || `Seçenek ${oIdx + 1}`, order: oIdx + 1 };
+            }
+            const label = opt?.label || opt?.text || opt?.title || opt?.name || opt?.value || opt?.optionText || opt?.secenek || `Seçenek ${oIdx + 1}`;
+            return {
+              optionId: opt?.optionId || opt?.id || opt?.key || `opt_${oIdx + 1}`,
+              label: String(label).trim() || `Seçenek ${oIdx + 1}`,
+              order: typeof opt?.order === 'number' ? opt.order : oIdx + 1
+            };
+          });
+
+          const qText = q.text || q.questionText || q.question || q.title || q.soru || q.prompt || `${idx + 1}. Soru`;
+          return {
+            id: q.id || q.questionId || `q${idx + 1}`,
+            text: String(qText).trim(),
+            type: q.type || q.questionType || 'SINGLE_SELECT',
+            options: opts
+          };
+        });
+
+        const srvId = surveyObj.surveyId || surveyObj.id || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
         await fetch('/api/v1/admin/surveys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -377,17 +412,12 @@ export default function SurveysPage() {
             organizationId: surveyObj.organizationId || null,
             surveyType: surveyObj.surveyType || 'PAG',
             category: surveyObj.category || 'Genel',
-            title: surveyObj.title.trim(),
+            title: title.trim(),
             description: surveyObj.description || '',
             status: 'PENDING_APPROVAL',
             startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
             endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : null,
-            questions: formattedQuestions.map((q: any) => ({
-              id: q.questionId,
-              text: q.text,
-              type: q.type,
-              options: q.options.map((o: any) => o.label)
-            })),
+            questions: formattedQuestions,
             profileScoreReward: Number(surveyObj.profileScoreReward) || 50
           })
         });
@@ -799,7 +829,7 @@ export default function SurveysPage() {
             id: q.questionId,
             text: q.text,
             type: q.type,
-            options: q.options.map((o: any) => o.label)
+            options: q.options
           }))
         })
       });
@@ -1419,39 +1449,118 @@ export default function SurveysPage() {
             {wizardStep === 7 && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                  <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)' }}>7. Adım: Ana Anket Soruları (Max 3 / Mevcut: {formQuestions.length})</h4>
-                  <button onClick={handleAddQuestion} disabled={formQuestions.length >= 3} style={{ padding: '8px 14px', backgroundColor: formQuestions.length >= 3 ? 'var(--bg-surface-secondary)' : 'var(--brand-navy)', color: formQuestions.length >= 3 ? 'var(--text-muted)' : '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '12px' }}>+ Soru Ekle</button>
+                  <div>
+                    <h4 style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>7. Adım: Ana Anket Soruları (Max 3 / Mevcut: {formQuestions.length})</h4>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: '4px 0 0 0' }}>Anket sorularını ve cevap şıklarını aşağıdan ekleyip düzenleyebilirsiniz.</p>
+                  </div>
+                  <button
+                    onClick={handleAddQuestion}
+                    disabled={formQuestions.length >= 3}
+                    style={{
+                      padding: '8px 14px',
+                      backgroundColor: formQuestions.length >= 3 ? 'var(--bg-surface-secondary)' : 'var(--brand-navy)',
+                      color: formQuestions.length >= 3 ? 'var(--text-muted)' : '#FFFFFF',
+                      fontWeight: 700,
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      border: 'none',
+                      cursor: formQuestions.length >= 3 ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    + Soru Ekle
+                  </button>
                 </div>
-                {formQuestions.map((q, idx) => (
-                  <div key={q.id || idx} style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ marginBottom: '10px' }}>
-                      <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{idx + 1}. Soru Metni</label>
+                {formQuestions.map((q, idx) => {
+                  const opts = Array.isArray(q.options)
+                    ? q.options.map((o: any) => typeof o === 'string' ? o : (o.label || ''))
+                    : [];
+
+                  return (
+                    <div key={q.id || idx} style={{ padding: '16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', marginBottom: '14px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--brand-navy)' }}>{idx + 1}. Soru Metni</label>
+                        {formQuestions.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = formQuestions.filter((_, qI) => qI !== idx);
+                              setFormQuestions(updated);
+                            }}
+                            style={{ padding: '4px 8px', backgroundColor: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '4px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            🗑️ Soruyu Sil
+                          </button>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={q.text}
+                        placeholder="Örn: Günlük kahve tüketim alışkanlığınız nedir?"
                         onChange={(e) => {
                           const updated = [...formQuestions];
                           updated[idx].text = e.target.value;
                           setFormQuestions(updated);
                         }}
-                        style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}
+                        style={{ width: '100%', padding: '10px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px', marginBottom: '12px' }}
                       />
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Cevap Seçenekleri ({opts.length} Şık)</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...formQuestions];
+                              const currentOpts = Array.isArray(updated[idx].options) ? [...updated[idx].options] : [];
+                              currentOpts.push(`Seçenek ${currentOpts.length + 1}`);
+                              updated[idx].options = currentOpts;
+                              setFormQuestions(updated);
+                            }}
+                            style={{ padding: '3px 8px', backgroundColor: 'var(--bg-surface)', color: 'var(--brand-navy)', border: '1px solid var(--border-highlight)', borderRadius: '4px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            + Şık Ekle
+                          </button>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {opts.map((optText, oIdx) => (
+                            <div key={oIdx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                              <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', width: '20px' }}>{String.fromCharCode(65 + oIdx)})</span>
+                              <input
+                                type="text"
+                                value={optText}
+                                placeholder={`Seçenek ${oIdx + 1}`}
+                                onChange={(e) => {
+                                  const updated = [...formQuestions];
+                                  const currentOpts = Array.isArray(updated[idx].options) ? [...updated[idx].options] : [];
+                                  currentOpts[oIdx] = e.target.value;
+                                  updated[idx].options = currentOpts;
+                                  setFormQuestions(updated);
+                                }}
+                                style={{ flex: 1, padding: '8px 10px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                              />
+                              {opts.length > 2 && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = [...formQuestions];
+                                    const currentOpts = Array.isArray(updated[idx].options) ? [...updated[idx].options] : [];
+                                    currentOpts.splice(oIdx, 1);
+                                    updated[idx].options = currentOpts;
+                                    setFormQuestions(updated);
+                                  }}
+                                  style={{ padding: '6px 10px', backgroundColor: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Seçenekler (Virgülle ayırın)</label>
-                      <input
-                        type="text"
-                        value={q.options.join(', ')}
-                        onChange={(e) => {
-                          const updated = [...formQuestions];
-                          updated[idx].options = e.target.value.split(',').map(s => s.trim());
-                          setFormQuestions(updated);
-                        }}
-                        style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px' }}
-                      />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
 

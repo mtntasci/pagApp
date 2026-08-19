@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, apiUnauthorized, apiSuccess, apiError } from '@/lib/serverAuth';
 import { db, surveys, questions, surveyResponses, profileScoreLedger } from '@/db';
-import { eq, and, notInArray, desc, or } from 'drizzle-orm';
+import { eq, and, inArray, desc, or } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,20 +75,14 @@ export async function GET(req: NextRequest) {
       return true;
     });
 
-    // 4. Fetch questions for the top eligible surveys
-    const topSurveyIds = eligibleSurveys.slice(0, 10).map(s => s.id);
+    // 4. Fetch questions for all eligible surveys
+    const eligibleSurveyIds = eligibleSurveys.map(s => s.id);
     let allQuestions: any[] = [];
-    if (topSurveyIds.length > 0) {
+    if (eligibleSurveyIds.length > 0) {
       allQuestions = await db
         .select()
         .from(questions)
-        .where(
-          topSurveyIds.length === 1
-            ? eq(questions.surveyId, topSurveyIds[0])
-            : notInArray(questions.surveyId, ['dummy_non_existent']) // or inArray if available
-        );
-      
-      allQuestions = allQuestions.filter(q => topSurveyIds.includes(q.surveyId));
+        .where(inArray(questions.surveyId, eligibleSurveyIds));
     }
 
     // Attach questions to surveys
