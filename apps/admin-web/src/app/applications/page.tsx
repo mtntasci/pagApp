@@ -57,6 +57,29 @@ export default function ApplicationsPage() {
     try {
       const updateFn = httpsCallable(functions, 'updateCompanyApplicationStatusAdmin');
       const res: any = await updateFn({ applicationId, status });
+      
+      if (status === 'APPROVED') {
+        const createOrgFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
+        const targetApp = applications.find(a => a.applicationId === applicationId) || selectedApp;
+        if (targetApp) {
+          const cleanName = (targetApp.companyName || 'Firma').trim();
+          const orgId = `org_${cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
+          try {
+            await createOrgFn({
+              organizationId: orgId,
+              name: cleanName,
+              sector: (targetApp as any).sector || 'Genel',
+              contactEmail: targetApp.contactEmail || null,
+              contactPhone: targetApp.contactPhone || null,
+              isVerificationAuthorized: true,
+              status: 'ACTIVE'
+            });
+          } catch (cErr) {
+            console.warn('Auto create org error:', cErr);
+          }
+        }
+      }
+
       if (res.data?.success) {
         if (selectedApp && selectedApp.applicationId === applicationId) {
           setSelectedApp({ ...selectedApp, status });

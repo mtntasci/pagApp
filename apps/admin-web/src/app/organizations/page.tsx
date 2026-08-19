@@ -56,10 +56,11 @@ export default function OrganizationsPage() {
     try {
       const listFn = httpsCallable(functions, 'listOrganizationsAdmin');
       const listAppsFn = httpsCallable(functions, 'listCompanyApplicationsAdmin');
+      const createOrgFn = httpsCallable(functions, 'createOrUpdateOrganizationAdmin');
       
       const [res, appsRes]: [any, any] = await Promise.all([
         listFn({}),
-        listAppsFn({ status: 'APPROVED' }).catch(() => ({ data: { data: { applications: [] } } }))
+        listAppsFn({}).catch(() => ({ data: { data: { applications: [] } } }))
       ]);
 
       const orgsList: OrganizationItem[] = Array.isArray(res.data?.data?.organizations) ? [...res.data.data.organizations] : [];
@@ -70,24 +71,40 @@ export default function OrganizationsPage() {
         const existingNames = new Set(orgsList.map(o => (o.name || '').toLowerCase().trim()));
 
         for (const app of appsRes.data.data.applications) {
-          const name = (app.companyName || 'Firma').trim();
-          const orgId = app.createdOrganizationId || `org_${name.toLowerCase().replace(/[^a-z0-9_]/g, '_')}`;
-          if (!existingOrgIds.has(orgId) && !existingNames.has(name.toLowerCase())) {
-            orgsList.push({
-              id: orgId,
-              organizationId: orgId,
-              name: name,
-              sector: app.sector || 'Genel',
-              contactEmail: app.contactEmail || null,
-              contactPhone: app.contactPhone || null,
-              status: 'ACTIVE',
-              isVerificationAuthorized: false,
-              surveyCount: 0,
-              portalUserCount: 0,
-              createdAt: app.createdAt || null
-            });
-            existingOrgIds.add(orgId);
-            existingNames.add(name.toLowerCase());
+          if (app.status === 'APPROVED') {
+            const name = (app.companyName || (app as any).name || 'Firma').trim();
+            const cleanSlug = name.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 30);
+            const orgId = app.createdOrganizationId || `org_${cleanSlug}`;
+
+            if (!existingOrgIds.has(orgId) && !existingNames.has(name.toLowerCase())) {
+              const newOrgItem: OrganizationItem = {
+                id: orgId,
+                organizationId: orgId,
+                name: name,
+                sector: app.sector || 'Genel',
+                contactEmail: app.contactEmail || null,
+                contactPhone: app.contactPhone || null,
+                status: 'ACTIVE',
+                isVerificationAuthorized: true,
+                surveyCount: 0,
+                portalUserCount: 0,
+                createdAt: app.createdAt || new Date().toISOString()
+              };
+              orgsList.push(newOrgItem);
+              existingOrgIds.add(orgId);
+              existingNames.add(name.toLowerCase());
+
+              // Persist to backend Firestore in background
+              createOrgFn({
+                organizationId: orgId,
+                name: name,
+                sector: app.sector || 'Genel',
+                contactEmail: app.contactEmail || null,
+                contactPhone: app.contactPhone || null,
+                isVerificationAuthorized: true,
+                status: 'ACTIVE'
+              }).catch(err => console.warn('Background sync org error:', err));
+            }
           }
         }
       }
@@ -223,26 +240,47 @@ export default function OrganizationsPage() {
           </p>
         </div>
 
-        {isAdmin && (
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button
-            onClick={() => setIsCreateOrgModalOpen(true)}
+            onClick={() => fetchOrganizations()}
             style={{
-              padding: '10px 18px',
-              backgroundColor: 'var(--brand-navy)',
-              color: '#FFFFFF',
+              padding: '10px 16px',
+              backgroundColor: 'var(--bg-surface-secondary)',
+              color: 'var(--text-primary)',
               fontWeight: 700,
               fontSize: '13px',
               borderRadius: '8px',
-              border: 'none',
+              border: '1px solid var(--border-color)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '6px'
             }}
           >
-            🏢 Yeni Firma Ekle
+            🔄 Yenile & Senkronize Et
           </button>
-        )}
+
+          {isAdmin && (
+            <button
+              onClick={() => setIsCreateOrgModalOpen(true)}
+              style={{
+                padding: '10px 18px',
+                backgroundColor: 'var(--brand-navy)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '13px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}
+            >
+              🏢 Yeni Firma Ekle
+            </button>
+          )}
+        </div>
       </header>
 
       {/* Organizations Table */}
