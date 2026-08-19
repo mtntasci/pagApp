@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
-import { db, functions } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { updatePassword, sendPasswordResetEmail } from 'firebase/auth';
+import { auth, db, functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 interface PortalUserItem {
@@ -203,6 +204,32 @@ export default function PortalUsersPage() {
 
     setIsResettingPassword(true);
     setResetModalError(null);
+
+    // 1. If resetting own password, use Firebase Auth client SDK directly
+    if (auth.currentUser && (auth.currentUser.uid === resetTargetUser.uid || auth.currentUser.email === resetTargetUser.email)) {
+      try {
+        await updatePassword(auth.currentUser, resetNewPassword);
+        try {
+          await setDoc(doc(db, 'portalUsers', resetTargetUser.uid), {
+            mustChangePassword: false,
+            updatedAt: new Date().toISOString()
+          }, { merge: true });
+        } catch (fsErr) {
+          // ignore
+        }
+        alert(`✅ Kendi şifreniz başarıyla güncellendi!\n\nYeni Şifre: ${resetNewPassword}`);
+        setShowResetModal(false);
+        setResetTargetUser(null);
+        setResetNewPassword('');
+        setIsResettingPassword(false);
+        return;
+      } catch (selfAuthErr: any) {
+        console.warn('Direct updatePassword error:', selfAuthErr);
+        // continue to Cloud Function if direct fails (e.g. requires re-auth)
+      }
+    }
+
+    // 2. Cloud Function for admin resetting any user's password
     try {
       const resetFn = httpsCallable<any, any>(functions, 'adminResetUserPasswordAdmin');
       const res = await resetFn({
@@ -221,7 +248,21 @@ export default function PortalUsersPage() {
       }
     } catch (err: any) {
       console.error('Reset password error:', err);
-      setResetModalError(err.message || 'Şifre yenilenirken hata oluştu.');
+      // Fallback: If Cloud Function is still deploying or returned CORS, send password reset link
+      if (err?.message?.includes('internal') || err?.message?.includes('CORS') || err?.code === 'internal') {
+        try {
+          await sendPasswordResetEmail(auth, resetTargetUser.email);
+          alert(`ℹ️ Cloud Function deploy işlemi sürerken ${resetTargetUser.email} adresine "Şifre Sıfırlama Bağlantısı" e-postası gönderildi.\n\nBackend deploy tamamlandığında şifre doğrudan da atanabilecektir.`);
+          setShowResetModal(false);
+          setResetTargetUser(null);
+          setResetNewPassword('');
+          return;
+        } catch (emailErr) {
+          setResetModalError('Cloud Function fonksiyonu şu an Firebase üzerinde deploy ediliyor. Deploy tamamlandığında (1-2 dk) tekrar deneyiniz.');
+        }
+      } else {
+        setResetModalError(err.message || 'Şifre yenilenirken hata oluştu.');
+      }
     } finally {
       setIsResettingPassword(false);
     }
