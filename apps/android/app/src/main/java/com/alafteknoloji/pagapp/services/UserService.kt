@@ -54,6 +54,37 @@ class UserService(private val context: Context) {
         )
 
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val jsonPayload = org.json.JSONObject()
+            jsonPayload.put("deviceId", deviceService.deviceId)
+            jsonPayload.put("platform", deviceService.platform)
+            jsonPayload.put("appVersion", deviceService.appVersion)
+
+            val apiRes = PAGApiClient.post("/bootstrap", jsonPayload)
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val userData = apiRes.optJSONObject("data")
+                if (userData != null) {
+                    val user = com.alafteknoloji.pagapp.models.PAGUser(
+                        userId = userData.optString("userId"),
+                        email = if (userData.isNull("email")) null else userData.optString("email"),
+                        phone = if (userData.isNull("phone")) null else userData.optString("phone"),
+                        displayName = userData.optString("displayName", "Kullanıcı"),
+                        profileScore = userData.optInt("profileScore", 0),
+                        status = userData.optString("status", "ACTIVE")
+                    )
+                    _currentUser.value = user
+                    _currentRanking.value = PAGUserRanking(
+                        profileScore = user.profileScore,
+                        rank = 1,
+                        totalEligibleUsers = 1,
+                        percentileText = "%1"
+                    )
+                    _isBootstrapping.value = false
+                    return
+                }
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("bootstrapCurrentUser")
                 .call(payload)
                 .await()

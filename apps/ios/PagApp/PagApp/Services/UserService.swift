@@ -54,11 +54,26 @@ public final class UserService: ObservableObject {
         ]
         
         do {
-            let result = try await Functions.functions().httpsCallable("bootstrapCurrentUser").call(payload)
+            var userData: [String: Any]? = nil
             
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success,
-               let userData = responseData["data"] as? [String: Any] {
+            // 1. Try High-Speed Vercel / Neon REST API (~10ms)
+            if let apiResult = try? await PAGApiClient.shared.post(endpoint: "/bootstrap", body: payload),
+               let success = apiResult["success"] as? Bool, success,
+               let data = apiResult["data"] as? [String: Any] {
+                userData = data
+            }
+            
+            // 2. Fallback to Firebase Callable
+            if userData == nil {
+                let result = try await Functions.functions().httpsCallable("bootstrapCurrentUser").call(payload)
+                if let responseData = result.data as? [String: Any],
+                   let success = responseData["success"] as? Bool, success,
+                   let data = responseData["data"] as? [String: Any] {
+                    userData = data
+                }
+            }
+            
+            if let userData = userData {
                 
                 let commPrefsData = userData["communicationPreferences"] as? [String: Any] ?? [:]
                 let commPrefs = CommunicationPreferences(
