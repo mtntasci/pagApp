@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: currentUser.email || userEmail,
         role: 'SUPER_ADMIN',
         status: 'ACTIVE',
-        mustChangePassword: userEmail === 'admin@pagapp.com.tr'
+        mustChangePassword: false
       };
       setPortalUser(bootstrapUser);
       setIsAdmin(true);
