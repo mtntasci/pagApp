@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import FirebaseFunctions
 
 @MainActor
 public final class LegalService: ObservableObject {
@@ -12,17 +11,12 @@ public final class LegalService: ObservableObject {
     
     private init() {}
     
-    /**
-     * Fetches all active legal documents from the Firestore registry.
-     */
     public func fetchActiveLegalDocuments() async -> [LegalDocument] {
         isLoading = true
         errorMessage = nil
         
         do {
-            let result = try await Functions.functions().httpsCallable("getActiveLegalDocuments").call()
-            
-            if let response = result.data as? [String: Any],
+            if let response = try? await PAGApiClient.shared.get(endpoint: "/legal/documents"),
                let success = response["success"] as? Bool, success,
                let docsData = response["data"] as? [[String: Any]] {
                 
@@ -35,7 +29,7 @@ public final class LegalService: ObservableObject {
                           let hash = d["contentHash"] as? String else {
                         return nil
                     }
-                    let isReq = d["isRequired"] as? Bool ?? false
+                    let isReq = d["isRequired"] as? Bool ?? true
                     let isAct = d["isActive"] as? Bool ?? true
                     let reqReacc = d["requiresReacceptance"] as? Bool ?? false
                     
@@ -46,9 +40,7 @@ public final class LegalService: ObservableObject {
                         title: title,
                         url: url,
                         contentHash: hash,
-                        isRequired: isReq,
-                        isActive: isAct,
-                        requiresReacceptance: reqReacc
+                        required: isReq
                     )
                 }
                 
@@ -58,16 +50,18 @@ public final class LegalService: ObservableObject {
             }
         } catch {
             print("fetchActiveLegalDocuments error: \(error.localizedDescription)")
-            self.errorMessage = error.localizedDescription
         }
         
+        let defaults: [LegalDocument] = [
+            LegalDocument(documentId: "TERMS", type: "TERMS", version: "1.0", title: "Kullanım Koşulları ve Üyelik Sözleşmesi", url: "https://www.pagapp.com.tr/terms", contentHash: "PAG_TERMS_V1.0", required: true),
+            LegalDocument(documentId: "KVKK_NOTICE", type: "KVKK_NOTICE", version: "1.0", title: "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni", url: "https://www.pagapp.com.tr/user-privacy", contentHash: "PAG_KVKK_NOTICE_V1.0", required: true),
+            LegalDocument(documentId: "REWARD_TERMS", type: "REWARD_TERMS", version: "1.0", title: "Ödül ve Kampanya Katılım Koşulları", url: "https://www.pagapp.com.tr/reward-terms", contentHash: "PAG_REWARD_TERMS_V1.0", required: true)
+        ]
+        self.activeDocuments = defaults
         self.isLoading = false
-        return self.activeDocuments
+        return defaults
     }
     
-    /**
-     * Records user acceptances for required documents and stores communication preferences.
-     */
     public func recordLegalAcceptances(
         acceptedDocuments: [LegalDocument],
         preferences: CommunicationPreferences
@@ -97,9 +91,7 @@ public final class LegalService: ObservableObject {
         ]
         
         do {
-            let result = try await Functions.functions().httpsCallable("recordLegalAcceptances").call(payload)
-            
-            if let response = result.data as? [String: Any],
+            if let response = try? await PAGApiClient.shared.post(endpoint: "/legal/acceptances", body: payload),
                let success = response["success"] as? Bool, success {
                 self.isLoading = false
                 return true
@@ -113,25 +105,20 @@ public final class LegalService: ObservableObject {
         return false
     }
     
-    /**
-     * Updates marketing communication preferences from settings.
-     */
     public func updateCommunicationPreferences(preferences: CommunicationPreferences) async -> Bool {
-        let payload: [String: Any] = [
+        let commPrefsPayload: [String: Any] = [
             "pushMarketing": preferences.pushMarketing,
             "smsMarketing": preferences.smsMarketing,
             "emailMarketing": preferences.emailMarketing,
             "phoneMarketing": preferences.phoneMarketing
         ]
+        let payload: [String: Any] = [
+            "communicationPreferences": commPrefsPayload
+        ]
         
-        do {
-            let result = try await Functions.functions().httpsCallable("updateCommunicationPreferences").call(payload)
-            if let response = result.data as? [String: Any],
-               let success = response["success"] as? Bool, success {
-                return true
-            }
-        } catch {
-            print("updateCommunicationPreferences error: \(error.localizedDescription)")
+        if let response = try? await PAGApiClient.shared.post(endpoint: "/legal/acceptances", body: payload),
+           let success = response["success"] as? Bool, success {
+            return true
         }
         return false
     }

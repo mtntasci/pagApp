@@ -2,49 +2,49 @@ package com.alafteknoloji.pagapp.services
 
 import com.alafteknoloji.pagapp.models.CommunicationPreferences
 import com.alafteknoloji.pagapp.models.LegalDocument
-import com.google.firebase.functions.FirebaseFunctions
-import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
 
 class LegalService {
-    private val functions = FirebaseFunctions.getInstance()
 
     suspend fun getActiveLegalDocuments(): List<LegalDocument> {
         return try {
-            val result = functions.getHttpsCallable("getActiveLegalDocuments").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val docsData = resMap?.get("data") as? List<Map<String, Any>>
-                docsData?.mapNotNull { d ->
-                    val docId = d["documentId"] as? String ?: return@mapNotNull null
-                    val type = d["type"] as? String ?: return@mapNotNull null
-                    val version = d["version"] as? String ?: return@mapNotNull null
-                    val title = d["title"] as? String ?: return@mapNotNull null
-                    val url = d["url"] as? String ?: return@mapNotNull null
-                    val hash = d["contentHash"] as? String ?: return@mapNotNull null
-                    val isReq = d["isRequired"] as? Boolean ?: false
-                    val isAct = d["isActive"] as? Boolean ?: true
-                    val reqReacc = d["requiresReacceptance"] as? Boolean ?: false
-                    LegalDocument(
-                        documentId = docId,
-                        type = type,
-                        version = version,
-                        title = title,
-                        url = url,
-                        contentHash = hash,
-                        isRequired = isReq,
-                        isActive = isAct,
-                        requiresReacceptance = reqReacc
-                    )
-                } ?: emptyList()
-            } else {
-                emptyList()
+            val apiRes = PAGApiClient.get("/legal/documents")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataArr = apiRes.optJSONArray("data")
+                if (dataArr != null) {
+                    val list = mutableListOf<LegalDocument>()
+                    for (i in 0 until dataArr.length()) {
+                        val d = dataArr.getJSONObject(i)
+                        list.add(
+                            LegalDocument(
+                                documentId = d.optString("documentId"),
+                                type = d.optString("type"),
+                                version = d.optString("version"),
+                                title = d.optString("title"),
+                                url = d.optString("url"),
+                                contentHash = d.optString("contentHash"),
+                                isRequired = d.optBoolean("isRequired", true),
+                                isActive = d.optBoolean("isActive", true),
+                                requiresReacceptance = d.optBoolean("requiresReacceptance", false)
+                            )
+                        )
+                    }
+                    return list
+                }
             }
+            listOf(
+                LegalDocument("TERMS", "TERMS", "1.0", "Kullanım Koşulları ve Üyelik Sözleşmesi", "https://www.pagapp.com.tr/terms", "PAG_TERMS_V1.0", true),
+                LegalDocument("KVKK_NOTICE", "KVKK_NOTICE", "1.0", "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni", "https://www.pagapp.com.tr/user-privacy", "PAG_KVKK_NOTICE_V1.0", true),
+                LegalDocument("REWARD_TERMS", "REWARD_TERMS", "1.0", "Ödül ve Kampanya Katılım Koşulları", "https://www.pagapp.com.tr/reward-terms", "PAG_REWARD_TERMS_V1.0", true)
+            )
         } catch (e: Exception) {
             e.printStackTrace()
-            emptyList()
+            listOf(
+                LegalDocument("TERMS", "TERMS", "1.0", "Kullanım Koşulları ve Üyelik Sözleşmesi", "https://www.pagapp.com.tr/terms", "PAG_TERMS_V1.0", true),
+                LegalDocument("KVKK_NOTICE", "KVKK_NOTICE", "1.0", "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni", "https://www.pagapp.com.tr/user-privacy", "PAG_KVKK_NOTICE_V1.0", true),
+                LegalDocument("REWARD_TERMS", "REWARD_TERMS", "1.0", "Ödül ve Kampanya Katılım Koşulları", "https://www.pagapp.com.tr/reward-terms", "PAG_REWARD_TERMS_V1.0", true)
+            )
         }
     }
 
@@ -53,29 +53,28 @@ class LegalService {
         preferences: CommunicationPreferences
     ): Boolean {
         return try {
-            val acceptancesPayload = acceptedDocuments.map { doc ->
-                mapOf(
-                    "documentId" to doc.documentId,
-                    "version" to doc.version,
-                    "contentHash" to doc.contentHash
-                )
+            val acceptancesArray = JSONArray()
+            acceptedDocuments.forEach { doc ->
+                val obj = JSONObject()
+                obj.put("documentId", doc.documentId)
+                obj.put("version", doc.version)
+                obj.put("contentHash", doc.contentHash)
+                acceptancesArray.put(obj)
             }
-            val commPrefsPayload = mapOf(
-                "pushMarketing" to preferences.pushMarketing,
-                "smsMarketing" to preferences.smsMarketing,
-                "emailMarketing" to preferences.emailMarketing,
-                "phoneMarketing" to preferences.phoneMarketing
-            )
-            val payload = mapOf(
-                "acceptances" to acceptancesPayload,
-                "communicationPreferences" to commPrefsPayload,
-                "source" to "ANDROID"
-            )
 
-            val result = functions.getHttpsCallable("recordLegalAcceptances").call(payload).await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            resMap?.get("success") as? Boolean ?: false
+            val commPrefsObj = JSONObject()
+            commPrefsObj.put("pushMarketing", preferences.pushMarketing)
+            commPrefsObj.put("smsMarketing", preferences.smsMarketing)
+            commPrefsObj.put("emailMarketing", preferences.emailMarketing)
+            commPrefsObj.put("phoneMarketing", preferences.phoneMarketing)
+
+            val payload = JSONObject()
+            payload.put("acceptances", acceptancesArray)
+            payload.put("communicationPreferences", commPrefsObj)
+            payload.put("source", "ANDROID")
+
+            val apiRes = PAGApiClient.post("/legal/acceptances", payload)
+            apiRes != null && apiRes.optBoolean("success")
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -84,16 +83,17 @@ class LegalService {
 
     suspend fun updateCommunicationPreferences(preferences: CommunicationPreferences): Boolean {
         return try {
-            val payload = mapOf(
-                "pushMarketing" to preferences.pushMarketing,
-                "smsMarketing" to preferences.smsMarketing,
-                "emailMarketing" to preferences.emailMarketing,
-                "phoneMarketing" to preferences.phoneMarketing
-            )
-            val result = functions.getHttpsCallable("updateCommunicationPreferences").call(payload).await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            resMap?.get("success") as? Boolean ?: false
+            val commPrefsObj = JSONObject()
+            commPrefsObj.put("pushMarketing", preferences.pushMarketing)
+            commPrefsObj.put("smsMarketing", preferences.smsMarketing)
+            commPrefsObj.put("emailMarketing", preferences.emailMarketing)
+            commPrefsObj.put("phoneMarketing", preferences.phoneMarketing)
+
+            val payload = JSONObject()
+            payload.put("communicationPreferences", commPrefsObj)
+
+            val apiRes = PAGApiClient.post("/legal/acceptances", payload)
+            apiRes != null && apiRes.optBoolean("success")
         } catch (e: Exception) {
             e.printStackTrace()
             false

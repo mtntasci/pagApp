@@ -69,6 +69,35 @@ class UserService(private val context: Context) {
                     val fName = userData.optString("firstName").ifEmpty { nameParts.firstOrNull() ?: "" }
                     val lName = userData.optString("lastName").ifEmpty { if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else "" }
 
+                    val missingDocs = mutableListOf<com.alafteknoloji.pagapp.models.LegalDocument>()
+                    val rawMissing = userData.optJSONArray("missingDocuments")
+                    if (rawMissing != null) {
+                        for (i in 0 until rawMissing.length()) {
+                            val d = rawMissing.getJSONObject(i)
+                            missingDocs.add(
+                                com.alafteknoloji.pagapp.models.LegalDocument(
+                                    documentId = d.optString("documentId"),
+                                    type = d.optString("type"),
+                                    version = d.optString("version"),
+                                    title = d.optString("title"),
+                                    url = d.optString("url"),
+                                    contentHash = d.optString("contentHash"),
+                                    isRequired = d.optBoolean("isRequired", true),
+                                    isActive = d.optBoolean("isActive", true),
+                                    requiresReacceptance = d.optBoolean("requiresReacceptance", false)
+                                )
+                            )
+                        }
+                    }
+
+                    val missingIds = mutableListOf<String>()
+                    val rawIds = userData.optJSONArray("missingDocumentIds")
+                    if (rawIds != null) {
+                        for (i in 0 until rawIds.length()) {
+                            missingIds.add(rawIds.getString(i))
+                        }
+                    }
+
                     val user = com.alafteknoloji.pagapp.models.PAGUser(
                         userId = userData.optString("userId"),
                         email = if (userData.isNull("email")) null else userData.optString("email"),
@@ -79,6 +108,9 @@ class UserService(private val context: Context) {
                         profileScore = userData.optInt("profileScore", 0),
                         profileCompleted = userData.optBoolean("profileCompleted", false),
                         phoneVerified = true,
+                        legalConsentRequired = userData.optBoolean("legalConsentRequired", false),
+                        missingDocumentIds = missingIds,
+                        missingDocuments = missingDocs,
                         status = userData.optString("status", "ACTIVE")
                     )
                     _currentUser.value = user
@@ -89,83 +121,6 @@ class UserService(private val context: Context) {
                         percentileText = "%1"
                     )
                     _isBootstrapping.value = false
-                    return
-                }
-            }
-
-            // 2. Fallback to Firebase Callable
-            val result = functions.getHttpsCallable("bootstrapCurrentUser")
-                .call(payload)
-                .await()
-
-            @Suppress("UNCHECKED_CAST")
-            val responseMap = result.getData() as? Map<String, Any>
-            val success = responseMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val userData = responseMap?.get("data") as? Map<String, Any>
-                if (userData != null) {
-                    @Suppress("UNCHECKED_CAST")
-                    val commPrefsData = userData["communicationPreferences"] as? Map<String, Any> ?: emptyMap()
-                    val commPrefs = com.alafteknoloji.pagapp.models.CommunicationPreferences(
-                        pushMarketing = commPrefsData["pushMarketing"] as? Boolean ?: false,
-                        smsMarketing = commPrefsData["smsMarketing"] as? Boolean ?: false,
-                        emailMarketing = commPrefsData["emailMarketing"] as? Boolean ?: false,
-                        phoneMarketing = commPrefsData["phoneMarketing"] as? Boolean ?: false
-                    )
-
-                    @Suppress("UNCHECKED_CAST")
-                    val missingDocsData = userData["missingDocuments"] as? List<Map<String, Any>> ?: emptyList()
-                    val missingDocs = missingDocsData.mapNotNull { d ->
-                        val docId = d["documentId"] as? String ?: return@mapNotNull null
-                        val type = d["type"] as? String ?: return@mapNotNull null
-                        val version = d["version"] as? String ?: return@mapNotNull null
-                        val title = d["title"] as? String ?: return@mapNotNull null
-                        val url = d["url"] as? String ?: return@mapNotNull null
-                        val hash = d["contentHash"] as? String ?: return@mapNotNull null
-                        com.alafteknoloji.pagapp.models.LegalDocument(
-                            documentId = docId,
-                            type = type,
-                            version = version,
-                            title = title,
-                            url = url,
-                            contentHash = hash,
-                            isRequired = d["isRequired"] as? Boolean ?: true,
-                            isActive = d["isActive"] as? Boolean ?: true,
-                            requiresReacceptance = d["requiresReacceptance"] as? Boolean ?: false
-                        )
-                    }
-
-                    val isUnderage = userData["isUnderage"] as? Boolean ?: (userData["status"] as? String == "SUSPENDED_UNDERAGE" || userData["status"] as? String == "UNDERAGE")
-
-                    val user = PAGUser(
-                        userId = userData["userId"] as? String ?: "",
-                        email = userData["email"] as? String,
-                        phone = userData["phone"] as? String,
-                        displayName = userData["displayName"] as? String,
-                        photoUrl = userData["photoUrl"] as? String,
-                        authProviders = (userData["authProviders"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        status = userData["status"] as? String ?: "ACTIVE",
-                        profileScore = (userData["profileScore"] as? Number)?.toInt() ?: 0,
-                        profileCompleted = userData["profileCompleted"] as? Boolean ?: false,
-                        phoneVerified = userData["phoneVerified"] as? Boolean ?: false,
-                        emailVerified = userData["emailVerified"] as? Boolean ?: false,
-                        kycStatus = userData["kycStatus"] as? String ?: "NOT_STARTED",
-                        iban = userData["iban"] as? String,
-                        tckn = userData["tckn"] as? String,
-                        ibanVerified = userData["ibanVerified"] as? Boolean ?: false,
-                        activeDeviceId = userData["activeDeviceId"] as? String,
-                        legalConsentRequired = userData["legalConsentRequired"] as? Boolean ?: false,
-                        missingDocumentIds = (userData["missingDocumentIds"] as? List<*>)?.filterIsInstance<String>() ?: emptyList(),
-                        missingDocuments = missingDocs,
-                        communicationPreferences = commPrefs,
-                        isUnderage = isUnderage,
-                        underageBlocked = isUnderage
-                    )
-                    _currentUser.value = user
-                    _isBootstrapping.value = false
-                    fetchUserRanking()
                     return
                 }
             }

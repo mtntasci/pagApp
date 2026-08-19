@@ -45,6 +45,42 @@ export async function POST(req: NextRequest) {
     const lastName = parts.slice(1).join(' ') || '';
     const isProfileCompleted = Boolean(user.city && user.gender && user.gender !== 'Belirtilmedi');
 
+    const missingDocs = [
+      {
+        documentId: 'TERMS',
+        type: 'TERMS',
+        version: '1.0',
+        title: 'Kullanım Koşulları ve Üyelik Sözleşmesi',
+        url: 'https://www.pagapp.com.tr/terms',
+        contentHash: 'PAG_TERMS_V1.0',
+        isRequired: true,
+        isActive: true,
+        requiresReacceptance: false
+      },
+      {
+        documentId: 'KVKK_NOTICE',
+        type: 'KVKK_NOTICE',
+        version: '1.0',
+        title: 'Kullanıcı Gizliliği ve KVKK Aydınlatma Metni',
+        url: 'https://www.pagapp.com.tr/user-privacy',
+        contentHash: 'PAG_KVKK_NOTICE_V1.0',
+        isRequired: true,
+        isActive: true,
+        requiresReacceptance: false
+      },
+      {
+        documentId: 'REWARD_TERMS',
+        type: 'REWARD_TERMS',
+        version: '1.0',
+        title: 'Ödül ve Kampanya Katılım Koşulları',
+        url: 'https://www.pagapp.com.tr/reward-terms',
+        contentHash: 'PAG_REWARD_TERMS_V1.0',
+        isRequired: true,
+        isActive: true,
+        requiresReacceptance: false
+      }
+    ];
+
     return apiSuccess({
       userId: user.id,
       firebaseUid: user.firebaseUid,
@@ -69,13 +105,15 @@ export async function POST(req: NextRequest) {
       profileCompleted: isProfileCompleted,
       completedSurveysCount: Number(compCount),
       status: user.isBanned ? 'BANNED' : 'ACTIVE',
+      legalConsentRequired: true,
+      missingDocumentIds: ['TERMS', 'KVKK_NOTICE', 'REWARD_TERMS'],
+      missingDocuments: missingDocs,
       communicationPreferences: {
-        pushMarketing: true,
+        pushMarketing: false,
         smsMarketing: false,
         emailMarketing: false,
         phoneMarketing: false
-      },
-      missingDocuments: []
+      }
     });
   } catch (err: any) {
     console.error('Bootstrap API Error:', err);
