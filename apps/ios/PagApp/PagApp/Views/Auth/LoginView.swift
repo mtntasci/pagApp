@@ -79,9 +79,13 @@ public struct LoginView: View {
                 // Actions Section (Consent + Buttons)
                 VStack(spacing: 18) {
                     
-                    // 1. "Sözleşmeler ve İzinler" Checkbox & Link
+                    // 1. "Sözleşmeler ve İzinleri Onaylıyorum." Checkbox & Link
                     Button(action: {
-                        isLegalConsentAgreed.toggle()
+                        if !isLegalConsentAgreed {
+                            showLegalSheet = true
+                        } else {
+                            isLegalConsentAgreed = false
+                        }
                     }) {
                         HStack(alignment: .center, spacing: 10) {
                             ZStack {
@@ -100,23 +104,10 @@ public struct LoginView: View {
                                 }
                             }
                             
-                            HStack(spacing: 4) {
-                                Text("Giriş yaparak")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(Color.white.opacity(0.8))
-                                
-                                Text("Sözleşmeler ve İzinler")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(PAGTheme.brandLime)
-                                    .underline()
-                                    .onTapGesture {
-                                        showLegalSheet = true
-                                    }
-                                
-                                Text("'ni kabul ediyorum.")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(Color.white.opacity(0.8))
-                            }
+                            Text("Sözleşmeler ve İzinleri Onaylıyorum.")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(isLegalConsentAgreed ? PAGTheme.brandLime : Color.white.opacity(0.9))
+                                .underline()
                             
                             Spacer()
                         }
@@ -231,7 +222,11 @@ public struct LoginView: View {
             }
         }
         .sheet(isPresented: $showLegalSheet) {
-            ConsentGateView()
+            ConsentGateView(onConsentApproved: {
+                withAnimation {
+                    isLegalConsentAgreed = true
+                }
+            })
         }
         .alert("E-posta ile Giriş", isPresented: $showEmailComingSoonAlert) {
             Button("Tamam", role: .cancel) {}

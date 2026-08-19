@@ -2,8 +2,11 @@ import SwiftUI
 import UserNotifications
 
 public struct ConsentGateView: View {
+    @Environment(\.dismiss) private var dismiss
     @StateObject private var legalService = LegalService.shared
     @StateObject private var userService = UserService.shared
+    
+    var onConsentApproved: (() -> Void)? = nil
     
     // Accepted documents tracking in local state during the gate flow
     @State private var acceptedDocs: [String: LegalDocument] = [:]
@@ -21,7 +24,9 @@ public struct ConsentGateView: View {
     @State private var isSubmitting: Bool = false
     @State private var submissionError: String? = nil
     
-    public init() {}
+    public init(onConsentApproved: (() -> Void)? = nil) {
+        self.onConsentApproved = onConsentApproved
+    }
     
     private var availableBirthYears: [Int] {
         let currentYear = Calendar.current.component(.year, from: Date())
@@ -101,9 +106,13 @@ public struct ConsentGateView: View {
                         }
                         Spacer()
                         
-                        Image(systemName: "shield.lefthalf.filled.badge.checkmark")
-                            .font(.system(size: 32))
-                            .foregroundColor(PAGTheme.brandLime)
+                        Button(action: {
+                            dismiss()
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 26))
+                                .foregroundColor(PAGTheme.textSecondary)
+                        }
                     }
                     .padding(.horizontal, 24)
                     .padding(.top, 20)
@@ -349,28 +358,36 @@ public struct ConsentGateView: View {
             phoneMarketing: allowCommunication
         )
         
-        let success = await legalService.recordLegalAcceptances(
-            acceptedDocuments: acceptedList,
-            preferences: commPrefs,
-            birthYear: selectedBirthYear
-        )
-        
-        if success {
-            // Request native Apple Push Notification dialog after login
-            let center = UNUserNotificationCenter.current()
-            let settings = await center.notificationSettings()
-            if settings.authorizationStatus == .notDetermined {
-                do {
-                    _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
-                } catch {
-                    print("Apple Push authorization request error: \(error.localizedDescription)")
-                }
-            }
+        if userService.currentUser != nil {
+            let success = await legalService.recordLegalAcceptances(
+                acceptedDocuments: acceptedList,
+                preferences: commPrefs,
+                birthYear: selectedBirthYear
+            )
             
-            // Mark consent complete in memory
-            userService.completeLegalConsent(preferences: commPrefs)
+            if success {
+                // Request native Apple Push Notification dialog after login
+                let center = UNUserNotificationCenter.current()
+                let settings = await center.notificationSettings()
+                if settings.authorizationStatus == .notDetermined {
+                    do {
+                        _ = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+                    } catch {
+                        print("Apple Push authorization request error: \(error.localizedDescription)")
+                    }
+                }
+                
+                // Mark consent complete in memory
+                userService.completeLegalConsent(preferences: commPrefs)
+                onConsentApproved?()
+                dismiss()
+            } else {
+                submissionError = legalService.errorMessage ?? "Sözleşmeler kaydedilirken bir hata oluştu. Lütfen tekrar deneyiniz."
+            }
         } else {
-            submissionError = legalService.errorMessage ?? "Sözleşmeler kaydedilirken bir hata oluştu. Lütfen tekrar deneyiniz."
+            // Guest mode / before login: mark approved in memory and dismiss sheet
+            onConsentApproved?()
+            dismiss()
         }
         
         isSubmitting = false

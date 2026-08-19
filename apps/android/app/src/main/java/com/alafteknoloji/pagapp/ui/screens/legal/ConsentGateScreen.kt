@@ -37,10 +37,12 @@ import java.util.Calendar
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConsentGateScreen(
-    userService: UserService,
-    legalService: LegalService = remember { LegalService() }
+    userService: UserService? = null,
+    legalService: LegalService = remember { LegalService() },
+    onConsentApproved: (() -> Unit)? = null,
+    onDismiss: (() -> Unit)? = null
 ) {
-    val currentUser by userService.currentUser.collectAsState()
+    val currentUser by userService?.currentUser?.collectAsState() ?: remember { mutableStateOf(null) }
     val scope = rememberCoroutineScope()
 
     // Local accepted documents map during the gate flow
@@ -123,12 +125,22 @@ fun ConsentGateScreen(
                                 color = PAGTheme.colors.textPrimary
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = PAGTheme.colors.brandLime,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        if (onDismiss != null) {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    imageVector = Icons.Default.Info,
+                                    contentDescription = "Kapat",
+                                    tint = PAGTheme.colors.textSecondary
+                                )
+                            }
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = PAGTheme.colors.brandLime,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -165,18 +177,25 @@ fun ConsentGateScreen(
                                         emailMarketing = allowCommunication,
                                         phoneMarketing = allowCommunication
                                     )
-                                    val success = legalService.recordLegalAcceptances(
-                                        acceptedDocuments = acceptedDocs.values.toList(),
-                                        preferences = commPrefs,
-                                        birthYear = selectedBirthYear
-                                    )
-                                    if (success) {
-                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                            notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                    if (userService != null && userService.currentUser.value != null) {
+                                        val success = legalService.recordLegalAcceptances(
+                                            acceptedDocuments = acceptedDocs.values.toList(),
+                                            preferences = commPrefs,
+                                            birthYear = selectedBirthYear
+                                        )
+                                        if (success) {
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                            }
+                                            userService.completeLegalConsent(commPrefs)
+                                            onConsentApproved?.invoke()
+                                            onDismiss?.invoke()
+                                        } else {
+                                            submissionError = "Sözleşmeler kaydedilirken bir hata oluştu. Lütfen tekrar deneyiniz."
                                         }
-                                        userService.completeLegalConsent(commPrefs)
                                     } else {
-                                        submissionError = "Sözleşmeler kaydedilirken bir hata oluştu. Lütfen tekrar deneyiniz."
+                                        onConsentApproved?.invoke()
+                                        onDismiss?.invoke()
                                     }
                                     isSubmitting = false
                                 }

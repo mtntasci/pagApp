@@ -111,16 +111,30 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // 1. Consent Checkbox & Link
+                // 1. "Sözleşmeler ve İzinleri Onaylıyorum." Checkbox & Link
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            if (!isLegalConsentAgreed) {
+                                showLegalDialog = true
+                            } else {
+                                isLegalConsentAgreed = false
+                            }
+                        }
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
                         checked = isLegalConsentAgreed,
-                        onCheckedChange = { isLegalConsentAgreed = it },
+                        onCheckedChange = { checked ->
+                            if (checked) {
+                                showLegalDialog = true
+                            } else {
+                                isLegalConsentAgreed = false
+                            }
+                        },
                         colors = CheckboxDefaults.colors(
                             checkedColor = PAGTheme.colors.brandLime,
                             checkmarkColor = PAGTheme.colors.brandMidnight,
@@ -129,22 +143,11 @@ fun LoginScreen(
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
-                        text = "Giriş yaparak ",
+                        text = "Sözleşmeler ve İzinleri Onaylıyorum.",
                         fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.8f)
-                    )
-                    Text(
-                        text = "Sözleşmeler ve İzinler",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PAGTheme.colors.brandLime,
-                        textDecoration = TextDecoration.Underline,
-                        modifier = Modifier.clickable { showLegalDialog = true }
-                    )
-                    Text(
-                        text = "'ni kabul ediyorum.",
-                        fontSize = 13.sp,
-                        color = Color.White.copy(alpha = 0.8f)
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (isLegalConsentAgreed) PAGTheme.colors.brandLime else Color.White.copy(alpha = 0.9f),
+                        textDecoration = TextDecoration.Underline
                     )
                 }
 
@@ -183,6 +186,7 @@ fun LoginScreen(
             }
         }
 
+        // Loading Overlay
         if (isLoading) {
             Box(
                 modifier = Modifier
@@ -194,15 +198,17 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(PAGTheme.colors.surfacePrimary)
+                        .background(PAGTheme.colors.surfacePrimary, RoundedCornerShape(16.dp))
                         .padding(24.dp)
                 ) {
-                    CircularProgressIndicator(color = PAGTheme.colors.brandLime)
+                    CircularProgressIndicator(
+                        color = PAGTheme.colors.brandLime,
+                        modifier = Modifier.size(40.dp)
+                    )
                     Text(
                         text = "Giriş yapılıyor...",
                         style = PAGTheme.typography.body,
-                        color = Color.White
+                        color = PAGTheme.colors.textPrimary
                     )
                 }
             }
@@ -210,26 +216,23 @@ fun LoginScreen(
     }
 
     if (showLegalDialog) {
-        AlertDialog(
+        androidx.compose.ui.window.Dialog(
             onDismissRequest = { showLegalDialog = false },
-            title = { Text("Sözleşmeler ve İzinler") },
-            text = {
-                Text("PAG platformuna giriş yapabilmek ve para ödülü kazanabilmek için 18 yaşından büyük olduğunuzu ve kullanıcı sözleşmelerini onaylamanız gerekmektedir.")
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    isLegalConsentAgreed = true
-                    showLegalDialog = false
-                }) {
-                    Text("Okudum, Onaylıyorum", color = PAGTheme.colors.brandLime, fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showLegalDialog = false }) {
-                    Text("Kapat")
-                }
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                ConsentGateScreen(
+                    userService = null,
+                    onConsentApproved = {
+                        isLegalConsentAgreed = true
+                        showLegalDialog = false
+                    },
+                    onDismiss = {
+                        showLegalDialog = false
+                    }
+                )
             }
-        )
+        }
     }
 
     if (showEmailComingSoonDialog) {
