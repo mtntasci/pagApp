@@ -33,6 +33,7 @@ export const users = pgTable(
     hometown: varchar('hometown', { length: 100 }),
     education: varchar('education', { length: 64 }),
     occupation: varchar('occupation', { length: 100 }),
+    phoneVerified: boolean('phone_verified').default(false).notNull(),
     kycStatus: varchar('kyc_status', { length: 32 }).default('NOT_STARTED').notNull(),
     profileScore: integer('profile_score').default(0).notNull(),
     rewardBalance: numeric('reward_balance', { precision: 12, scale: 2 }).default('0.00').notNull(),

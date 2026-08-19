@@ -98,7 +98,7 @@ class UserService(private val context: Context) {
                         lastName = lName,
                         profileScore = userData.optInt("profileScore", 0),
                         profileCompleted = userData.optBoolean("profileCompleted", false),
-                        phoneVerified = true,
+                        phoneVerified = userData.optBoolean("phoneVerified", false),
                         legalConsentRequired = false,
                         missingDocumentIds = emptyList(),
                         missingDocuments = missingDocs,
@@ -132,7 +132,7 @@ class UserService(private val context: Context) {
                 status = "ACTIVE",
                 profileScore = 0,
                 profileCompleted = false,
-                phoneVerified = !authUser.phoneNumber.isNullOrEmpty(),
+                phoneVerified = false,
                 emailVerified = authUser.isEmailVerified,
                 kycStatus = "NOT_STARTED",
                 legalConsentRequired = false,
@@ -154,7 +154,7 @@ class UserService(private val context: Context) {
     suspend fun verifyPhone(phoneNumber: String): Boolean {
         return try {
             val body = JSONObject().apply { put("phone", phoneNumber) }
-            val apiRes = PAGApiClient.put("/profile", body)
+            val apiRes = PAGApiClient.post("/profile/verify-phone", body)
             if (apiRes != null && apiRes.optBoolean("success")) {
                 bootstrapCurrentUser()
                 true

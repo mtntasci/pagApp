@@ -70,7 +70,7 @@ fun ProfileScreen(
     val email = pagUser?.email ?: authUser?.email
     val score = pagUser?.profileScore ?: 0
 
-    val isPhoneVerified = pagUser?.phoneVerified ?: (!pagUser?.phone.isNullOrEmpty())
+    val isPhoneVerified = pagUser?.phoneVerified == true
     val phoneStatusText = if (isPhoneVerified) "Doğrulandı" else "Doğrulanmadı"
 
     val isEmailVerified = pagUser?.emailVerified ?: (email != null)

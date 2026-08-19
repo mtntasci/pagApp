@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       firebaseUid: user.firebaseUid,
       email: user.email,
       phone: user.phone,
+      phoneVerified: Boolean(user.phoneVerified),
       displayName: rawName,
       firstName,
       lastName,

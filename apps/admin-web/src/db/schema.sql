@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS users (
     hometown VARCHAR(100),
     education VARCHAR(64),
     occupation VARCHAR(100),
+    phone_verified BOOLEAN DEFAULT FALSE NOT NULL,
     kyc_status VARCHAR(32) DEFAULT 'NOT_STARTED' NOT NULL,
     profile_score INTEGER DEFAULT 0 NOT NULL,
     reward_balance NUMERIC(12, 2) DEFAULT 0.00 NOT NULL,
@@ -26,6 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL
 );
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE NOT NULL;
 
 CREATE INDEX IF NOT EXISTS users_city_idx ON users(city);
 CREATE INDEX IF NOT EXISTS users_age_idx ON users(age);

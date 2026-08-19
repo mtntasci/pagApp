@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     firebaseUid: user.firebaseUid,
     displayName: user.displayName,
     phone: user.phone,
+    phoneVerified: Boolean(user.phoneVerified),
     email: user.email,
     gender: user.gender,
     city: user.city,

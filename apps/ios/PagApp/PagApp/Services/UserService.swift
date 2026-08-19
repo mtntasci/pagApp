@@ -106,6 +106,8 @@ public class UserService: ObservableObject {
                 let education = userData["education"] as? String
                 let occupation = userData["occupation"] as? String
                 
+                let isPhoneVerified = userData["phoneVerified"] as? Bool ?? false
+                
                 let user = PAGUser(
                     userId: uid,
                     email: email,
@@ -118,7 +120,7 @@ public class UserService: ObservableObject {
                     status: status,
                     profileScore: pScore,
                     profileCompleted: isProfComp,
-                    phoneVerified: true,
+                    phoneVerified: isPhoneVerified,
                     emailVerified: false,
                     kycStatus: kycStatus,
                     iban: iban,
@@ -221,7 +223,7 @@ public class UserService: ObservableObject {
     
     public func verifyPhone(phone: String) async -> Bool {
         do {
-            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: ["phone": phone])
+            let apiRes = try await PAGApiClient.shared.post(endpoint: "/profile/verify-phone", body: ["phone": phone])
             if let success = apiRes["success"] as? Bool, success {
                 await bootstrapCurrentUser()
                 return true

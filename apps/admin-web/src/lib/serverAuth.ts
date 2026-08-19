@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { decodeJwt } from 'jose';
-import { db, users, portalUsers } from '@/db';
+import { db, users, portalUsers, profileScoreLedger } from '@/db';
 import { eq } from 'drizzle-orm';
 
 export interface AuthenticatedUser {
@@ -19,6 +19,7 @@ export interface AuthenticatedUser {
   hometown?: string | null;
   education?: string | null;
   occupation?: string | null;
+  phoneVerified: boolean;
   kycStatus?: string | null;
   profileScore: number;
   rewardBalance: string;
@@ -64,18 +65,35 @@ export async function authenticateRequest(req: NextRequest): Promise<AuthContext
           let userRecord = existingUsers[0];
           if (!userRecord) {
             const newId = `usr_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+            const isPhoneAuth = Boolean(payload.phone_number);
+            const initialScore = isPhoneAuth ? 200 : 0;
             const inserted = await db.insert(users).values({
               id: newId,
               firebaseUid,
               phone,
+              phoneVerified: isPhoneAuth,
               email,
               displayName: name,
-              profileScore: 0,
+              profileScore: initialScore,
               rewardBalance: '0.00',
               kycStatus: 'NOT_STARTED',
               isBanned: false
             }).returning();
             userRecord = inserted[0];
+
+            if (isPhoneAuth) {
+              const ledgerId = `psl_phone_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+              await db.insert(profileScoreLedger).values({
+                id: ledgerId,
+                userId: newId,
+                sourceType: 'PHONE_VERIFIED',
+                sourceId: 'phone_auth_registration',
+                scoreDelta: 200,
+                idempotencyKey: `phone_${newId}`,
+                metadata: { phone, reason: 'Telefon İle Kayıt Bonusu' },
+                createdAt: new Date()
+              }).catch(() => {});
+            }
           }
 
           const existingPortal = await db.select().from(portalUsers).where(eq(portalUsers.firebaseUid, firebaseUid)).limit(1);

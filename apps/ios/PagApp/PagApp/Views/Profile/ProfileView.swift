@@ -27,13 +27,7 @@ public struct ProfileView: View {
     public init() {}
 
     private var isPhoneVerified: Bool {
-        if let u = userService.currentUser {
-            return u.phoneVerified
-        }
-        if let p = Auth.auth().currentUser?.phoneNumber, !p.isEmpty {
-            return true
-        }
-        return false
+        return userService.currentUser?.phoneVerified == true
     }
 
     private var isEmailVerified: Bool {
