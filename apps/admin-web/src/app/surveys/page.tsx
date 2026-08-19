@@ -1848,7 +1848,7 @@ export default function SurveysPage() {
                       <td style={{ padding: '14px 16px' }}>{s.questionCount || (Array.isArray(s.questions) ? s.questions.length : 0)} / 3</td>
                       <td style={{ padding: '14px 16px' }}>+{s.profileScoreReward || 0} Puan</td>
                       <td style={{ padding: '14px 16px' }}>
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                           <button
                             onClick={() => handleToggleHighlight(s)}
                             title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
@@ -1860,34 +1860,128 @@ export default function SurveysPage() {
                               borderRadius: '6px',
                               fontSize: '11px',
                               fontWeight: 700,
-                              cursor: 'pointer'
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
                             }}
                           >
                             {s.isHighlighted ? '⭐ Öne Çıkarıldı' : '☆ Öne Çıkar'}
                           </button>
                           <button
                             onClick={() => handleOpenEditWizard(s)}
-                            style={{ padding: '6px 10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}
+                            title="Anketi Düzenle"
+                            style={{
+                              padding: '6px 8px',
+                              backgroundColor: 'var(--bg-surface-secondary)',
+                              color: 'var(--text-primary)',
+                              border: '1px solid var(--border-highlight)',
+                              borderRadius: '6px',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
                           >
-                            Düzenle
+                            ✏️
                           </button>
                           {s.status === 'PENDING_ADMIN_APPROVAL' && (
-                            <button onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 800, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>
-                              👑 Yayına Onayla
+                            <button
+                              onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)}
+                              title="Admin Olarak Yayına Onayla"
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: 'var(--brand-navy)',
+                                color: '#FFFFFF',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              👑
                             </button>
                           )}
                           {s.status === 'PENDING_ORG_APPROVAL' && (
-                            <button onClick={() => handleApproveSurveyByOrg(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: '#059669', color: '#FFFFFF', fontWeight: 800, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>
-                              ✓ Firma Onayı Ver
+                            <button
+                              onClick={() => handleApproveSurveyByOrg(s.surveyId)}
+                              title="Firma Onayı Ver"
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: '#059669',
+                                color: '#FFFFFF',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              🏢
                             </button>
                           )}
                           {s.status === 'PENDING_APPROVAL' && (
-                            <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ padding: '6px 12px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '6px', fontSize: '11px', border: 'none', cursor: 'pointer' }}>Onayla</button>
+                            <button
+                              onClick={() => handleApproveSurvey(s.surveyId)}
+                              title="Onayla"
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: 'var(--brand-navy)',
+                                color: '#FFFFFF',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              ✅
+                            </button>
                           )}
                           {!s.isArchived ? (
-                            <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ padding: '6px 10px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Arşivle</button>
+                            <button
+                              onClick={() => handleArchiveSurvey(s.surveyId, true)}
+                              title="Anketi Arşivle"
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: 'var(--error-bg)',
+                                color: 'var(--error-color)',
+                                border: '1px solid var(--error-border)',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              📦
+                            </button>
                           ) : (
-                            <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ padding: '6px 10px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '6px', fontSize: '11px', fontWeight: 600, cursor: 'pointer' }}>Geri Al</button>
+                            <button
+                              onClick={() => handleArchiveSurvey(s.surveyId, false)}
+                              title="Arşivden Çıkar (Geri Al)"
+                              style={{
+                                padding: '6px 8px',
+                                backgroundColor: 'var(--success-bg)',
+                                color: 'var(--success-color)',
+                                border: '1px solid var(--success-border)',
+                                borderRadius: '6px',
+                                fontSize: '13px',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              📤
+                            </button>
                           )}
                         </div>
                       </td>
@@ -1936,26 +2030,73 @@ export default function SurveysPage() {
                     <div style={{ fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>ID: {s.surveyId}</div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => handleToggleHighlight(s)}
+                      title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
+                      style={{
+                        padding: '8px 12px',
+                        backgroundColor: s.isHighlighted ? '#FEF3C7' : 'var(--bg-surface-secondary)',
+                        color: s.isHighlighted ? '#D97706' : 'var(--text-secondary)',
+                        border: s.isHighlighted ? '1px solid #F59E0B' : '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {s.isHighlighted ? '⭐ Öne Çıkarıldı' : '☆ Öne Çıkar'}
+                    </button>
                     <button
                       onClick={() => handleOpenEditWizard(s)}
-                      style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
+                      title="Anketi Düzenle"
+                      style={{ padding: '8px 14px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
                     >
-                      Düzenle
+                      ✏️
                     </button>
                     {s.status === 'PENDING_ADMIN_APPROVAL' && (
-                      <button onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 800, borderRadius: '8px', fontSize: '13px', border: 'none' }}>👑 Yayına Onayla</button>
+                      <button
+                        onClick={() => handleFinalApproveSurveyAdmin(s.surveyId)}
+                        title="Admin Yayına Onayla"
+                        style={{ padding: '8px 14px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}
+                      >
+                        👑
+                      </button>
                     )}
                     {s.status === 'PENDING_ORG_APPROVAL' && (
-                      <button onClick={() => handleApproveSurveyByOrg(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: '#059669', color: '#FFFFFF', fontWeight: 800, borderRadius: '8px', fontSize: '13px', border: 'none' }}>✓ Firma Onayı</button>
+                      <button
+                        onClick={() => handleApproveSurveyByOrg(s.surveyId)}
+                        title="Firma Onayı Ver"
+                        style={{ padding: '8px 14px', backgroundColor: '#059669', color: '#FFFFFF', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}
+                      >
+                        🏢
+                      </button>
                     )}
                     {s.status === 'PENDING_APPROVAL' && (
-                      <button onClick={() => handleApproveSurvey(s.surveyId)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', fontSize: '13px', border: 'none' }}>Onayla</button>
+                      <button
+                        onClick={() => handleApproveSurvey(s.surveyId)}
+                        title="Onayla"
+                        style={{ padding: '8px 14px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '8px', fontSize: '14px', border: 'none', cursor: 'pointer' }}
+                      >
+                        ✅
+                      </button>
                     )}
                     {!s.isArchived ? (
-                      <button onClick={() => handleArchiveSurvey(s.surveyId, true)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>Arşivle</button>
+                      <button
+                        onClick={() => handleArchiveSurvey(s.surveyId, true)}
+                        title="Arşivle"
+                        style={{ padding: '8px 14px', backgroundColor: 'var(--error-bg)', color: 'var(--error-color)', border: '1px solid var(--error-border)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
+                      >
+                        📦
+                      </button>
                     ) : (
-                      <button onClick={() => handleArchiveSurvey(s.surveyId, false)} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}>Geri Al</button>
+                      <button
+                        onClick={() => handleArchiveSurvey(s.surveyId, false)}
+                        title="Arşivden Çıkar (Geri Al)"
+                        style={{ padding: '8px 14px', backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)', borderRadius: '8px', fontSize: '14px', cursor: 'pointer' }}
+                      >
+                        📤
+                      </button>
                     )}
                   </div>
                 </div>

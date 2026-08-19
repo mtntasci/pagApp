@@ -794,7 +794,7 @@ function VerificationCampaignsContent() {
                       boxShadow: 'var(--shadow-sm)'
                     }}
                   >
-                    {isLoadingRespondents ? '⏳ Aranıyor...' : '🔍 Katılımcıları Ara'}
+                    {isLoadingRespondents ? '⏳ Aranıyor...' : '🔍 Ara'}
                   </button>
                   <button
                     type="button"
@@ -986,7 +986,7 @@ function VerificationCampaignsContent() {
                 ? 'İşleniyor...'
                 : (isOrgView
                     ? `📤 Seçilen Katılımcıları PAG'a Gönder (${selectedUserIds.length}/${surveyMetadata.orgSelectionQuota})`
-                    : '🚀 PAG Kalite Doğrulama Kampanyasını Başlat')}
+                    : '✅ Seçilen Katılımcıları Onayla')}
             </button>
           </div>
         </div>
