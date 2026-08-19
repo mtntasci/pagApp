@@ -31,6 +31,42 @@ class SurveyService {
         _errorMessage.value = null
 
         try {
+            // 1. Try High-Speed REST API (~10ms)
+            val apiRes = PAGApiClient.get("/home")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataObj = apiRes.optJSONObject("data")
+                val rawSurveys = dataObj?.optJSONArray("surveys")
+                if (rawSurveys != null) {
+                    val parsed = mutableListOf<PAGSurvey>()
+                    for (i in 0 until rawSurveys.length()) {
+                        val item = rawSurveys.getJSONObject(i)
+                        val surveyId = item.optString("id").ifEmpty { item.optString("surveyId") }
+                        val title = item.optString("title")
+                        if (surveyId.isNotEmpty() && title.isNotEmpty()) {
+                            parsed.add(
+                                PAGSurvey(
+                                    surveyId = surveyId,
+                                    ownerType = item.optString("ownerType", "PAG"),
+                                    organizationId = if (item.isNull("organizationId")) null else item.optString("organizationId"),
+                                    surveyType = item.optString("surveyType", "PAG"),
+                                    title = title,
+                                    description = item.optString("description", ""),
+                                    status = item.optString("status", "ACTIVE"),
+                                    questionCount = item.optInt("questionCount", 3),
+                                    profileScoreReward = item.optInt("profileScoreReward", 50),
+                                    isCompleted = false,
+                                    isHighlighted = item.optBoolean("isHighlighted", false)
+                                )
+                            )
+                        }
+                    }
+                    _eligibleSurveys.value = parsed
+                    _isLoading.value = false
+                    return
+                }
+            }
+
+            // 2. Fallback to Firebase Callable
             val result = functions.getHttpsCallable("getEligibleSurveys").call().await()
             @Suppress("UNCHECKED_CAST")
             val resMap = result.getData() as? Map<String, Any>
@@ -177,6 +213,36 @@ class SurveyService {
         answers: List<PAGAnswerInput>
     ): PAGSurveyCompletionResult? {
         return try {
+            // 1. Try High-Speed REST API (~10ms)
+            val jsonBody = org.json.JSONObject()
+            val answersArray = org.json.JSONArray()
+            answers.take(3).forEach {
+                val aObj = org.json.JSONObject()
+                aObj.put("questionId", it.questionId)
+                aObj.put("optionId", it.optionId)
+                answersArray.put(aObj)
+            }
+            jsonBody.put("answers", answersArray)
+
+            val apiRes = PAGApiClient.post("/surveys/$surveyId/submit", jsonBody)
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataObj = apiRes.optJSONObject("data")
+                return PAGSurveyCompletionResult(
+                    responseId = "${surveyId}_submitted",
+                    surveyId = surveyId,
+                    completedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date()),
+                    isDuplicate = false,
+                    profileScorePotential = dataObj?.optInt("earnedScore") ?: 50,
+                    currentProfileScore = dataObj?.optInt("profileScore") ?: 0,
+                    rewardAwarded = 0,
+                    rewardType = "NONE",
+                    voucherCode = null,
+                    voucherTitle = null,
+                    currentRewardBalance = dataObj?.optString("rewardBalance")?.toDoubleOrNull()?.toInt() ?: 0
+                )
+            }
+
+            // 2. Fallback to Firebase Callable
             val answersList = answers.map {
                 mapOf("questionId" to it.questionId, "optionId" to it.optionId)
             }

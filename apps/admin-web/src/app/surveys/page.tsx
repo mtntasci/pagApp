@@ -407,8 +407,21 @@ export default function SurveysPage() {
 
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
+    // 1. Try high-performance PostgreSQL (Neon) API first
     try {
-      // 1. Direct Firestore Instant Load (~50ms)
+      const res = await fetch('/api/v1/admin/surveys');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.data?.surveys) && data.data.surveys.length > 0) {
+        setSurveys(data.data.surveys);
+        setIsLoading(false);
+        return;
+      }
+    } catch (neonErr) {
+      // Fallback
+    }
+
+    try {
+      // 2. Direct Firestore Instant Load (~50ms)
       const snap = await getDocs(collection(db, 'surveys'));
       const list = snap.docs.map(docSnap => {
         const d = docSnap.data();
@@ -424,7 +437,7 @@ export default function SurveysPage() {
       setIsLoading(false);
     }
 
-    // 2. Background Callable Function sync (non-blocking)
+    // 3. Background Callable Function sync (non-blocking)
     try {
       const listFn = httpsCallable(functions, 'listSurveysAdmin');
       const res: any = await listFn({});
@@ -795,14 +808,51 @@ export default function SurveysPage() {
       // Sanitize payload: guaranteed recursive removal of any undefined properties
       const cleanedPayload = removeUndefinedFields(rawPayload);
 
-      // 1. Direct Firestore Instant Sync (~30ms)
+      // 1. Neon PostgreSQL API save (~10ms)
+      try {
+        await fetch('/api/v1/admin/surveys', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            surveyId: targetSurveyId,
+            title: formTitle,
+            description: formDesc || '',
+            ownerType: formOwnerType,
+            organizationId: formOrgId || null,
+            surveyType: formSurveyType,
+            category: formCategory,
+            status: targetStatus,
+            isHighlighted: formIsHighlighted,
+            profileScoreReward: Number(formScoreReward) || 50,
+            targetingConfig: cleanedPayload.targeting,
+            rewardDefinition: rewardDef,
+            storyConfig: cleanedPayload.storyConfig,
+            hasVerification: Boolean(formVerificationEnabled),
+            verificationConfig: cleanedPayload.verificationConfig,
+            verificationTargetCount: Number(formPagTargetCount) || 50,
+            verificationOrgQuota: Number(formOrgSelectionQuota) || 20,
+            startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
+            endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
+            questions: formattedQuestions.map(q => ({
+              id: q.questionId,
+              text: q.text,
+              type: q.type,
+              options: q.options.map((o: any) => o.label)
+            }))
+          })
+        });
+      } catch (neonErr) {
+        console.warn('Neon save fallback:', neonErr);
+      }
+
+      // 2. Direct Firestore Instant Sync (~30ms)
       try {
         await setDoc(doc(db, 'surveys', targetSurveyId), cleanedPayload, { merge: true });
       } catch (fsErr) {
         console.warn('Direct Firestore setDoc warn:', fsErr);
       }
 
-      // 2. Authoritative Firebase Admin SDK backend execution via Cloud Function callable
+      // 3. Authoritative Firebase Admin SDK backend execution via Cloud Function callable
       const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
       const res: any = await createOrUpdateFn(cleanedPayload);
 

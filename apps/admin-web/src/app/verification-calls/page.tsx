@@ -88,9 +88,39 @@ export default function VerificationCallsPage() {
     }
   }, []);
 
-  // 2. Fetch assignments (Instant Direct Firestore Read ~30ms)
+  // 2. Fetch assignments (PostgreSQL Neon API first)
   const fetchAssignments = useCallback(async (campId?: string) => {
     setIsLoading(true);
+    // 1. Try PostgreSQL API route
+    try {
+      const params = new URLSearchParams();
+      if (campId) params.append('campaignId', campId);
+      const apiRes = await fetch(`/api/v1/admin/verification/assignments?${params.toString()}`);
+      const apiData = await apiRes.json();
+      if (apiData.success && Array.isArray(apiData.data?.assignments) && apiData.data.assignments.length > 0) {
+        setAssignments(apiData.data.assignments.map((a: any) => ({
+          id: a.assignmentId,
+          verificationCampaignId: a.campaignId,
+          masterSurveyId: a.surveyId,
+          masterSurveyTitle: a.surveyTitle,
+          verificationSurveyId: `vsrv_${a.surveyId}`,
+          verificationRewardSummary: '250 TL Hediye Çeki',
+          userDisplayName: a.userDisplayName,
+          selectionSource: a.customerSelected ? 'CUSTOMER' : 'RANDOM',
+          status: a.status,
+          assignedAgentId: null,
+          callStartedAt: a.calledAt,
+          callEndedAt: a.completedAt,
+          agentNote: a.notes,
+          createdAt: a.calledAt
+        })));
+        setIsLoading(false);
+        return;
+      }
+    } catch (neonErr) {
+      // Fallback
+    }
+
     try {
       const snap = await getDocs(collection(db, 'surveyVerificationAssignments'));
       if (!snap.empty) {
@@ -153,6 +183,22 @@ export default function VerificationCallsPage() {
     if (!activeCallAssignment) return;
     setIsSubmittingResult(true);
     try {
+      // 1. Neon PostgreSQL API call
+      try {
+        await fetch('/api/v1/admin/verification/calls/result', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assignmentId: activeCallAssignment.id,
+            callResult: result,
+            notes: callNote
+          })
+        });
+      } catch (neonErr) {
+        // Fallback
+      }
+
+      // 2. Firebase Callable sync
       const submitResultFn = httpsCallable(functions, 'submitVerificationCallResult');
       await submitResultFn({
         assignmentId: activeCallAssignment.id,

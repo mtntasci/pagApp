@@ -18,6 +18,60 @@ public class SurveyService: ObservableObject {
         self.errorMessage = nil
         
         do {
+            // 1. Try High-Speed Vercel/Neon REST API (~10ms)
+            if let response = try? await PAGApiClient.shared.get(endpoint: "/home"),
+               let success = response["success"] as? Bool, success,
+               let data = response["data"] as? [String: Any],
+               let rawSurveys = data["surveys"] as? [[String: Any]] {
+                
+                var parsedList: [PAGSurvey] = []
+                for item in rawSurveys {
+                    if let surveyId = item["id"] as? String ?? item["surveyId"] as? String,
+                       let title = item["title"] as? String {
+                        
+                        var qList: [PAGQuestion] = []
+                        if let rawQs = item["questions"] as? [[String: Any]] {
+                            for (qIdx, q) in rawQs.enumerated() {
+                                let qId = q["questionId"] as? String ?? "q\(qIdx + 1)"
+                                let qText = q["text"] as? String ?? ""
+                                var options: [PAGQuestionOption] = []
+                                if let rawOpts = q["options"] as? [String] {
+                                    for (oIdx, optText) in rawOpts.enumerated() {
+                                        options.append(PAGQuestionOption(optionId: "opt_\(oIdx + 1)", label: optText, order: oIdx + 1))
+                                    }
+                                } else if let rawOptObjects = q["options"] as? [[String: Any]] {
+                                    for (oIdx, optObj) in rawOptObjects.enumerated() {
+                                        options.append(PAGQuestionOption(optionId: optObj["optionId"] as? String ?? "opt_\(oIdx + 1)", label: optObj["label"] as? String ?? "", order: oIdx + 1))
+                                    }
+                                }
+                                qList.append(PAGQuestion(questionId: qId, order: qIdx + 1, type: "SINGLE_SELECT", text: qText, options: options))
+                            }
+                        }
+                        
+                        let survey = PAGSurvey(
+                            surveyId: surveyId,
+                            ownerType: item["ownerType"] as? String ?? "PAG",
+                            organizationId: item["organizationId"] as? String,
+                            surveyType: item["surveyType"] as? String ?? "PAG",
+                            title: title,
+                            description: item["description"] as? String ?? "",
+                            status: item["status"] as? String ?? "ACTIVE",
+                            questionCount: qList.count > 0 ? qList.count : 3,
+                            questions: qList,
+                            profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
+                            isCompleted: false,
+                            isHighlighted: item["isHighlighted"] as? Bool ?? false
+                        )
+                        parsedList.append(survey)
+                    }
+                }
+                
+                self.eligibleSurveys = parsedList
+                self.isLoading = false
+                return
+            }
+            
+            // 2. Fallback to Firebase Callable
             let result = try await Functions.functions().httpsCallable("getEligibleSurveys").call()
             guard let dict = result.data as? [String: Any],
                   let success = dict["success"] as? Bool, success,
@@ -149,8 +203,46 @@ public class SurveyService: ObservableObject {
     }
     
     public func submitSurveyResponse(surveyId: String, answers: [PAGAnswerInput], isProfile: Bool = false) async throws -> PAGSurveyCompletionResult {
-        let functionName = isProfile ? "updateProfileSurveyResponse" : "submitSurveyResponse"
         let answerDicts = answers.map { ["questionId": $0.questionId, "optionId": $0.optionId] }
+        
+        // 1. Try High-Speed Vercel/Neon REST API (~10ms)
+        if !isProfile {
+            if let apiResult = try? await PAGApiClient.shared.post(
+                endpoint: "/surveys/\(surveyId)/submit",
+                body: ["answers": Array(answerDicts.prefix(3))]
+            ),
+            let success = apiResult["success"] as? Bool, success,
+            let dataDict = apiResult["data"] as? [String: Any] {
+                
+                let scoreAwarded = dataDict["earnedScore"] as? Int ?? 50
+                let currentScore = dataDict["profileScore"] as? Int
+                let earnedReward = dataDict["earnedReward"] as? [String: Any]
+                let prizeAmount = earnedReward?["amount"] as? Int
+                let prizeType = earnedReward?["type"] as? String
+                let vCode = earnedReward?["code"] as? String
+                let vTitle = earnedReward?["poolName"] as? String
+                let currentRewardBalance = Int(Double(dataDict["rewardBalance"] as? String ?? "0") ?? 0)
+                
+                await fetchEligibleSurveys()
+                
+                return PAGSurveyCompletionResult(
+                    responseId: "\(surveyId)_submitted",
+                    surveyId: surveyId,
+                    completedAt: ISO8601DateFormatter().string(from: Date()),
+                    isDuplicate: false,
+                    profileScorePotential: scoreAwarded,
+                    currentProfileScore: currentScore,
+                    rewardAwarded: prizeAmount,
+                    rewardType: prizeType,
+                    voucherCode: vCode,
+                    voucherTitle: vTitle,
+                    currentRewardBalance: currentRewardBalance
+                )
+            }
+        }
+        
+        // 2. Fallback to Firebase Callable
+        let functionName = isProfile ? "updateProfileSurveyResponse" : "submitSurveyResponse"
         let payload: [String: Any] = [
             "surveyId": surveyId,
             "answers": Array(answerDicts.prefix(3))
