@@ -30,7 +30,8 @@ export interface PAGSurveyData {
   surveyId: string;
   ownerType: 'PAG' | 'ORGANIZATION';
   organizationId?: string | null;
-  surveyType: 'PROFILE' | 'PAG' | 'ORGANIZATION';
+  surveyType: 'PROFILE' | 'PAG' | 'ORGANIZATION' | 'VERIFICATION';
+  masterSurveyId?: string | null;
   title: string;
   description: string;
   status: 'DRAFT' | 'APPROVED' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'CANCELLED';
@@ -115,6 +116,11 @@ export const getEligibleSurveysHandler = async (
     const isCompleted = completedSurveyIds.has(survey.surveyId);
 
     if (isCompleted && survey.surveyType !== 'PROFILE') {
+      return;
+    }
+
+    // Verification surveys are private to accepted participants and not listed in public feed
+    if (survey.surveyType === 'VERIFICATION') {
       return;
     }
 
@@ -223,6 +229,30 @@ export const getSurveyDetailHandler = async (
   const responseDoc = await responseRef.get();
   const isCompleted = responseDoc.exists;
 
+  // Verification Survey Authorization Check
+  if (survey.surveyType === 'VERIFICATION') {
+    const assignSnap = await db.collection('surveyVerificationAssignments')
+      .where('userId', '==', uid)
+      .where('verificationSurveyId', '==', surveyId)
+      .limit(1)
+      .get();
+
+    if (assignSnap.empty) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Bu kalite doğrulama anketine erişim yetkiniz bulunmuyor.'
+      );
+    }
+
+    const assignData = assignSnap.docs[0].data();
+    if (!['ACCEPTED', 'PUSH_SENT', 'VERIFICATION_COMPLETED'].includes(assignData.status)) {
+      throw new functions.https.HttpsError(
+        'permission-denied',
+        'Bu kalite doğrulama anketi henüz onaylanmamış veya aktif değildir.'
+      );
+    }
+  }
+
   const questions = (survey.questions || []).slice(0, 3);
 
   return {
@@ -314,15 +344,41 @@ export const submitSurveyResponseHandler = async (
       );
     }
 
-    // Verify server-authoritative targeting eligibility
-    const userBasicProfileDoc = await transaction.get(db.collection('users').doc(uid).collection('profile').doc('basic'));
-    const userBasicProfile = userBasicProfileDoc.exists ? userBasicProfileDoc.data() : null;
-    const isEligibleTarget = evaluateSurveyTargeting(survey.targeting as any, userBasicProfile);
-    if (!isEligibleTarget) {
-      throw new functions.https.HttpsError(
-        'permission-denied',
-        'User does not meet the basic profile targeting criteria for this survey.'
+    let verificationAssignRef: admin.firestore.DocumentReference | null = null;
+    if (survey.surveyType === 'VERIFICATION') {
+      const assignSnap = await transaction.get(
+        db.collection('surveyVerificationAssignments')
+          .where('userId', '==', uid)
+          .where('verificationSurveyId', '==', surveyId)
+          .limit(1)
       );
+
+      if (assignSnap.empty) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Bu kalite doğrulama anketi için yetkiniz bulunmuyor.'
+        );
+      }
+
+      const aData = assignSnap.docs[0].data();
+      if (!['ACCEPTED', 'PUSH_SENT', 'VERIFICATION_COMPLETED'].includes(aData.status)) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'Bu kalite doğrulama anketi henüz onaylanmamış veya aktif değildir.'
+        );
+      }
+      verificationAssignRef = assignSnap.docs[0].ref;
+    } else {
+      // Verify server-authoritative targeting eligibility for regular surveys
+      const userBasicProfileDoc = await transaction.get(db.collection('users').doc(uid).collection('profile').doc('basic'));
+      const userBasicProfile = userBasicProfileDoc.exists ? userBasicProfileDoc.data() : null;
+      const isEligibleTarget = evaluateSurveyTargeting(survey.targeting as any, userBasicProfile);
+      if (!isEligibleTarget) {
+        throw new functions.https.HttpsError(
+          'permission-denied',
+          'User does not meet the basic profile targeting criteria for this survey.'
+        );
+      }
     }
 
     const surveyQuestions = survey.questions || [];
@@ -471,6 +527,14 @@ export const submitSurveyResponseHandler = async (
       createdAt: serverNow
     };
     transaction.set(responseRef, responsePayload);
+
+    // If this is a Quality Verification Survey, mark assignment as VERIFICATION_COMPLETED
+    if (verificationAssignRef) {
+      transaction.update(verificationAssignRef, {
+        status: 'VERIFICATION_COMPLETED',
+        updatedAt: serverNow
+      });
+    }
 
     functions.logger.info(`SURVEY_SUBMITTED_WITH_SCORE_AND_REWARD: user=${uid}, surveyId=${surveyId}, scoreAwarded=${scoreReward}, rewardAwarded=${rewardResult.rewardAwarded}`);
 

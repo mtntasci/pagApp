@@ -4,7 +4,7 @@ import * as functions from 'firebase-functions';
 export interface VerifiedAdminUser {
   uid: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'PAG_STAFF' | 'ORGANIZATION_USER';
+  role: 'SUPER_ADMIN' | 'PAG_STAFF' | 'ORGANIZATION_USER' | 'CALL_CENTER_AGENT';
   organizationId: string | null;
 }
 
@@ -1168,7 +1168,7 @@ export const createPortalUserAdminHandler = async (
   if (!temporaryPassword || temporaryPassword.length < 6) {
     throw new functions.https.HttpsError('invalid-argument', 'Geçici şifre en az 6 karakter olmalıdır.');
   }
-  if (!['SUPER_ADMIN', 'PAG_STAFF', 'ORGANIZATION_USER'].includes(role)) {
+  if (!['SUPER_ADMIN', 'PAG_STAFF', 'ORGANIZATION_USER', 'CALL_CENTER_AGENT'].includes(role)) {
     throw new functions.https.HttpsError('invalid-argument', 'Geçersiz portal rolü.');
   }
   if (role === 'ORGANIZATION_USER' && !organizationId) {

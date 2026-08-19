@@ -53,6 +53,16 @@ import {
   updateCommunicationPreferencesHandler,
   seedLegalDocumentsAdminHandler
 } from './legal';
+import {
+  getCompletedRespondentsForVerificationHandler,
+  createVerificationCampaignHandler,
+  listVerificationCampaignsHandler,
+  getVerificationCampaignDetailHandler,
+  listVerificationAssignmentsForAgentHandler,
+  startVerificationCallHandler,
+  submitVerificationCallResultHandler,
+  getPendingVerificationSurveyHandler
+} from './verification';
 
 // Initialize Firebase Admin SDK
 if (!admin.apps.length) {
@@ -136,5 +146,17 @@ export const getActiveLegalDocuments = functions.https.onCall(getActiveLegalDocu
 export const recordLegalAcceptances = functions.https.onCall(recordLegalAcceptancesHandler);
 export const updateCommunicationPreferences = functions.https.onCall(updateCommunicationPreferencesHandler);
 export const seedLegalDocumentsAdmin = functions.https.onCall(seedLegalDocumentsAdminHandler);
+
+/**
+ * Call Center Quality Verification Module Callables.
+ */
+export const getCompletedRespondentsForVerification = functions.https.onCall(getCompletedRespondentsForVerificationHandler);
+export const createVerificationCampaign = functions.https.onCall(createVerificationCampaignHandler);
+export const listVerificationCampaigns = functions.https.onCall(listVerificationCampaignsHandler);
+export const getVerificationCampaignDetail = functions.https.onCall(getVerificationCampaignDetailHandler);
+export const listVerificationAssignmentsForAgent = functions.https.onCall(listVerificationAssignmentsForAgentHandler);
+export const startVerificationCall = functions.https.onCall(startVerificationCallHandler);
+export const submitVerificationCallResult = functions.https.onCall(submitVerificationCallResultHandler);
+export const getPendingVerificationSurvey = functions.https.onCall(getPendingVerificationSurveyHandler);
 
 

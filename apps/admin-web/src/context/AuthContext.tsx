@@ -10,7 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 export interface PortalUser {
   uid: string;
   email: string;
-  role: 'SUPER_ADMIN' | 'PAG_STAFF' | 'ORGANIZATION_USER';
+  role: 'SUPER_ADMIN' | 'PAG_STAFF' | 'ORGANIZATION_USER' | 'CALL_CENTER_AGENT';
   organizationId?: string | null;
   status: 'ACTIVE' | 'DISABLED';
   mustChangePassword?: boolean;
@@ -20,6 +20,8 @@ interface AuthContextType {
   user: User | null;
   portalUser: PortalUser | null;
   isAdmin: boolean;
+  isCallCenterAgent: boolean;
+  isOrgUser: boolean;
   loading: boolean;
   authError: string | null;
   signOut: () => Promise<void>;
@@ -31,6 +33,8 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   portalUser: null,
   isAdmin: false,
+  isCallCenterAgent: false,
+  isOrgUser: false,
   loading: true,
   authError: null,
   signOut: async () => {},
@@ -132,19 +136,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, [fetchPortalUser]);
 
+  const isCallCenterAgent = portalUser?.role === 'CALL_CENTER_AGENT';
+  const isOrgUser = portalUser?.role === 'ORGANIZATION_USER';
+  const isAuthorized = portalUser?.status === 'ACTIVE';
+
   useEffect(() => {
     if (!loading) {
       const isPublicRoute = pathname === '/login';
 
       if (!user && !isPublicRoute) {
         router.push('/login');
-      } else if (user && !isAdmin && !isPublicRoute) {
+      } else if (user && !isAuthorized && !isPublicRoute) {
         router.push('/login?error=unauthorized');
-      } else if (user && isAdmin && portalUser?.mustChangePassword === true && pathname !== '/change-password') {
+      } else if (user && isAuthorized && portalUser?.mustChangePassword === true && pathname !== '/change-password') {
         router.push('/change-password');
+      } else if (user && isCallCenterAgent && pathname !== '/verification-calls' && pathname !== '/change-password' && !isPublicRoute) {
+        router.push('/verification-calls');
       }
     }
-  }, [user, isAdmin, portalUser, loading, pathname, router]);
+  }, [user, isAuthorized, isCallCenterAgent, portalUser, loading, pathname, router]);
 
   const signOut = async () => {
     await firebaseSignOut(auth);
@@ -166,7 +176,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, portalUser, isAdmin, loading, authError, signOut, clearAuthError, refreshPortalUser }}>
+    <AuthContext.Provider value={{ user, portalUser, isAdmin, isCallCenterAgent, isOrgUser, loading, authError, signOut, clearAuthError, refreshPortalUser }}>
       {children}
     </AuthContext.Provider>
   );

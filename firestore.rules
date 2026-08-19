@@ -163,6 +163,34 @@ service cloud.firestore {
       );
     }
 
+    // Survey Verification Campaigns & Assignments (Quality Verification Module)
+    match /surveyVerificationCampaigns/{campaignId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+      allow write: if false; // Managed strictly via Cloud Functions Admin SDK
+    }
+
+    match /surveyVerificationAssignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        (
+          exists(/databases/$(database)/documents/portalUsers/$(request.auth.uid)) &&
+          get(/databases/$(database)/documents/portalUsers/$(request.auth.uid)).data.status == 'ACTIVE'
+        )
+      );
+      allow write: if false; // All updates via Cloud Functions Admin SDK
+    }
+
+    match /verificationCallAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow write: if false; // Backend audit logs only
+    }
+
     // Default Deny
     match /{document=**} {
       allow read, write: if false;
