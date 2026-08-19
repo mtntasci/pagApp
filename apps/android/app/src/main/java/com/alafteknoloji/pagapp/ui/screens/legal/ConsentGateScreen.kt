@@ -14,9 +14,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -24,8 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.alafteknoloji.pagapp.models.CommunicationPreferences
 import com.alafteknoloji.pagapp.models.LegalDocument
 import com.alafteknoloji.pagapp.services.LegalService
@@ -51,14 +56,18 @@ fun ConsentGateScreen(
     // Unified commercial communication permission
     var allowCommunication by remember { mutableStateOf(false) }
 
-    // 18+ Age & Birth Year Verification
+    // 18+ Age & Birth Year Verification (handled via popup upon reading TERMS)
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
-    val availableYears = remember { (1940..(currentYear - 18)).reversed().toList() }
+    val availableYears = remember { (1940..currentYear).reversed().toList() }
     var selectedBirthYear by remember { mutableStateOf(2000) }
     var isAgeConfirmed by remember { mutableStateOf(false) }
-    var yearDropdownExpanded by remember { mutableStateOf(false) }
 
     var selectedDocumentForReading by remember { mutableStateOf<LegalDocument?>(null) }
+    var pendingTermsDoc by remember { mutableStateOf<LegalDocument?>(null) }
+    var showAgeVerificationPopup by remember { mutableStateOf(false) }
+    var showUnderageAlert by remember { mutableStateOf(false) }
+    var underageAlertMessage by remember { mutableStateOf("") }
+
     var isSubmitting by remember { mutableStateOf(false) }
     var submissionError by remember { mutableStateOf<String?>(null) }
     var activeDocumentsList by remember { mutableStateOf<List<LegalDocument>>(emptyList()) }
@@ -92,7 +101,7 @@ fun ConsentGateScreen(
         requiredDocuments.isNotEmpty() && requiredDocuments.all { acceptedDocs.containsKey(it.documentId) }
     }
 
-    val isFormValid = areAllRequiredDocsAccepted && isAgeConfirmed && !isSubmitting
+    val isFormValid = areAllRequiredDocsAccepted && !isSubmitting
 
     Scaffold(
         topBar = {
@@ -128,7 +137,7 @@ fun ConsentGateScreen(
                         if (onDismiss != null) {
                             IconButton(onClick = onDismiss) {
                                 Icon(
-                                    imageVector = Icons.Default.Info,
+                                    imageVector = Icons.Default.Close,
                                     contentDescription = "Kapat",
                                     tint = PAGTheme.colors.textSecondary
                                 )
@@ -221,26 +230,26 @@ fun ConsentGateScreen(
                         } else {
                             Text(
                                 text = "Onayla ve Devam Et",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
                             )
                         }
                     }
                 }
             }
-        },
-        containerColor = PAGTheme.colors.backgroundPrimary
-    ) { innerPadding ->
+        }
+    ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .background(PAGTheme.colors.backgroundPrimary)
+                .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // 1. Required Legal Documents Section
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            // 1. Legal Documents Section
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -252,10 +261,10 @@ fun ConsentGateScreen(
                         color = PAGTheme.colors.textPrimary
                     )
                     Text(
-                        text = "${acceptedDocs.size}/${requiredDocuments.size} Okundu",
+                        text = "${acceptedDocs.size}/${requiredDocuments.size} Onaylandı",
                         style = PAGTheme.typography.caption,
-                        color = if (areAllRequiredDocsAccepted) PAGTheme.colors.brandLime else PAGTheme.colors.textSecondary,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = if (areAllRequiredDocsAccepted) PAGTheme.colors.brandLime else PAGTheme.colors.textSecondary
                     )
                 }
 
@@ -267,9 +276,9 @@ fun ConsentGateScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(PAGTheme.colors.surfacePrimary)
                             .border(
-                                width = 1.dp,
-                                color = if (isDocAccepted) PAGTheme.colors.brandLime.copy(alpha = 0.4f) else PAGTheme.colors.borderDefault,
-                                shape = RoundedCornerShape(12.dp)
+                                1.dp,
+                                if (isDocAccepted) PAGTheme.colors.brandLime.copy(alpha = 0.3f) else PAGTheme.colors.borderDefault,
+                                RoundedCornerShape(12.dp)
                             )
                             .clickable { selectedDocumentForReading = doc }
                             .padding(14.dp),
@@ -332,98 +341,7 @@ fun ConsentGateScreen(
                 }
             }
 
-            // 2. 18+ Age & Birth Year Verification
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(PAGTheme.colors.surfacePrimary)
-                    .border(
-                        1.dp,
-                        if (isAgeConfirmed) PAGTheme.colors.brandLime.copy(alpha = 0.4f) else PAGTheme.colors.borderDefault,
-                        RoundedCornerShape(14.dp)
-                    )
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Text(
-                    text = "18+ Yaş Uygunluğu ve Doğum Yılı",
-                    style = PAGTheme.typography.heading,
-                    color = PAGTheme.colors.textPrimary
-                )
-                Text(
-                    text = "PAG platformunda nakit ve hediye çeki para ödülleri dağıtıldığından yasal olarak 18 yaşından büyük olmanız gerekmektedir.",
-                    style = PAGTheme.typography.caption,
-                    color = PAGTheme.colors.textSecondary
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Doğum Yılınız:",
-                        style = PAGTheme.typography.body,
-                        color = PAGTheme.colors.textPrimary
-                    )
-
-                    Box {
-                        Button(
-                            onClick = { yearDropdownExpanded = true },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = PAGTheme.colors.surfaceSecondary,
-                                contentColor = PAGTheme.colors.brandLime
-                            ),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(text = selectedBirthYear.toString(), fontWeight = FontWeight.Bold)
-                        }
-
-                        DropdownMenu(
-                            expanded = yearDropdownExpanded,
-                            onDismissRequest = { yearDropdownExpanded = false }
-                        ) {
-                            availableYears.forEach { year ->
-                                DropdownMenuItem(
-                                    text = { Text(text = year.toString()) },
-                                    onClick = {
-                                        selectedBirthYear = year
-                                        yearDropdownExpanded = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-
-                Divider(color = PAGTheme.colors.borderDefault)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { isAgeConfirmed = !isAgeConfirmed },
-                    verticalAlignment = Alignment.Top,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Checkbox(
-                        checked = isAgeConfirmed,
-                        onCheckedChange = { isAgeConfirmed = it },
-                        colors = CheckboxDefaults.colors(
-                            checkedColor = PAGTheme.colors.brandLime,
-                            checkmarkColor = PAGTheme.colors.brandMidnight
-                        )
-                    )
-                    Text(
-                        text = "18 yaşından büyük olduğumu ve ödül kazanımı için doğum yılımın doğruluğunu beyan ederim.",
-                        style = PAGTheme.typography.body,
-                        color = PAGTheme.colors.textPrimary,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-            }
-
-            // 3. Commercial Communication Channels (Unified single toggle)
+            // 2. Commercial Communication Channels (Unified single toggle)
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = "İletişim Tercihleri (İsteğe Bağlı)",
@@ -498,14 +416,229 @@ fun ConsentGateScreen(
         }
     }
 
+    // Document Fullscreen Reader
     selectedDocumentForReading?.let { doc ->
         FullScreenDocumentReader(
             document = doc,
             isAlreadyAccepted = acceptedDocs.containsKey(doc.documentId),
             onDismiss = { selectedDocumentForReading = null },
             onAccept = { acceptedDoc ->
-                acceptedDocs = acceptedDocs + (acceptedDoc.documentId to acceptedDoc)
                 selectedDocumentForReading = null
+                if (acceptedDoc.type == "TERMS" || acceptedDoc.documentId == "TERMS") {
+                    pendingTermsDoc = acceptedDoc
+                    showAgeVerificationPopup = true
+                } else {
+                    acceptedDocs = acceptedDocs + (acceptedDoc.documentId to acceptedDoc)
+                }
+            }
+        )
+    }
+
+    // 18+ Age & Birth Year Verification Popup Dialog
+    if (showAgeVerificationPopup) {
+        var yearDropdownExpanded by remember { mutableStateOf(false) }
+
+        Dialog(
+            onDismissRequest = {
+                pendingTermsDoc = null
+                showAgeVerificationPopup = false
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(PAGTheme.colors.surfacePrimary)
+                        .border(1.dp, PAGTheme.colors.borderDefault, RoundedCornerShape(20.dp))
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(18.dp)
+                ) {
+                    // Header Icon & Title
+                    Box(
+                        modifier = Modifier
+                            .size(60.dp)
+                            .clip(CircleShape)
+                            .background(PAGTheme.colors.brandLime.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = PAGTheme.colors.brandLime,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "18+ Yaş Doğrulaması",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = PAGTheme.colors.textPrimary
+                    )
+
+                    Text(
+                        text = "PAG platformunda nakit ve hediye çeki para ödülleri dağıtıldığından yasal olarak 18 yaşını doldurmuş olmanız gerekmektedir.",
+                        style = PAGTheme.typography.caption,
+                        color = PAGTheme.colors.textSecondary,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+
+                    // Birth Year Selection Box
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(PAGTheme.colors.surfaceSecondary)
+                            .border(1.dp, PAGTheme.colors.borderDefault, RoundedCornerShape(14.dp))
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Doğum Yılınız:",
+                                style = PAGTheme.typography.body,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PAGTheme.colors.textPrimary
+                            )
+
+                            Box {
+                                Button(
+                                    onClick = { yearDropdownExpanded = true },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = PAGTheme.colors.surfacePrimary,
+                                        contentColor = PAGTheme.colors.brandLime
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(text = selectedBirthYear.toString(), fontWeight = FontWeight.Bold)
+                                }
+
+                                DropdownMenu(
+                                    expanded = yearDropdownExpanded,
+                                    onDismissRequest = { yearDropdownExpanded = false }
+                                ) {
+                                    availableYears.forEach { year ->
+                                        DropdownMenuItem(
+                                            text = { Text(text = year.toString()) },
+                                            onClick = {
+                                                selectedBirthYear = year
+                                                yearDropdownExpanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = PAGTheme.colors.borderDefault)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { isAgeConfirmed = !isAgeConfirmed },
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Checkbox(
+                                checked = isAgeConfirmed,
+                                onCheckedChange = { isAgeConfirmed = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = PAGTheme.colors.brandLime,
+                                    checkmarkColor = PAGTheme.colors.brandMidnight
+                                )
+                            )
+                            Text(
+                                text = "18 yaşından büyük olduğumu ve ödül kazanımı için doğum yılımın doğruluğunu beyan ederim.",
+                                style = PAGTheme.typography.caption,
+                                color = PAGTheme.colors.textPrimary,
+                                modifier = Modifier.padding(top = 8.dp)
+                            )
+                        }
+                    }
+
+                    // Confirm & Cancel Buttons
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                val calculatedAge = currentYear - selectedBirthYear
+                                if (calculatedAge < 18) {
+                                    underageAlertMessage = "PAG platformuna ve para ödüllerine katılabilmek için 18 yaşından büyük (18+) olmanız gerekmektedir. Kullanım Koşulları sözleşmesi onaylanmadı. Lütfen tekrar inceleyip doğru doğum yılınızı seçiniz."
+                                    showUnderageAlert = true
+                                    pendingTermsDoc = null
+                                    showAgeVerificationPopup = false
+                                } else if (!isAgeConfirmed) {
+                                    underageAlertMessage = "Lütfen 18 yaşından büyük olduğunuzu teyit eden kutucuğu işaretleyiniz."
+                                    showUnderageAlert = true
+                                } else {
+                                    pendingTermsDoc?.let { doc ->
+                                        acceptedDocs = acceptedDocs + (doc.documentId to doc)
+                                    }
+                                    pendingTermsDoc = null
+                                    showAgeVerificationPopup = false
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = PAGTheme.colors.brandLime,
+                                contentColor = PAGTheme.colors.brandMidnight
+                            ),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Text(
+                                text = "Yaşımı Onaylıyorum ve Sözleşmeyi Kabul Et",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        TextButton(
+                            onClick = {
+                                pendingTermsDoc = null
+                                showAgeVerificationPopup = false
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = "Vazgeç",
+                                color = PAGTheme.colors.textSecondary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Underage / Validation Alert Dialog
+    if (showUnderageAlert) {
+        AlertDialog(
+            onDismissRequest = { showUnderageAlert = false },
+            title = { Text("Yaş Uygunluğu Uyarısı") },
+            text = { Text(underageAlertMessage) },
+            confirmButton = {
+                TextButton(onClick = { showUnderageAlert = false }) {
+                    Text("Tamam")
+                }
             }
         )
     }

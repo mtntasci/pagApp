@@ -408,11 +408,12 @@ export default function SurveysPage() {
   const fetchSurveys = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/admin/surveys');
+      const res = await fetch('/api/v1/admin/surveys?type=CAMPAIGN');
       if (res.ok) {
         const data = await res.json();
         if (data.success && Array.isArray(data.data?.surveys)) {
-          setSurveys(data.data.surveys);
+          const campaignSurveys = data.data.surveys.filter((s: any) => s.surveyType !== 'PROFILE' && !s.id.startsWith('pq_'));
+          setSurveys(campaignSurveys);
         } else {
           setSurveys([]);
         }

@@ -50,8 +50,6 @@ public struct RootControllerView: View {
                 .padding()
             } else if let user = userService.currentUser, user.isUnderage || user.underageBlocked {
                 UnderageBlockedView()
-            } else if let user = userService.currentUser, user.legalConsentRequired {
-                ConsentGateView()
             } else {
                 MainTabView()
             }

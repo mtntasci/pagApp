@@ -36,6 +36,9 @@ export async function GET(req: NextRequest) {
       .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
       .limit(30);
 
+    // Filter out profile surveys from main campaign feed
+    activeSurveys = activeSurveys.filter(s => s.surveyType !== 'PROFILE' && !s.id.startsWith('pq_'));
+
     // Filter out already completed
     if (completedSurveyIds.length > 0) {
       activeSurveys = activeSurveys.filter(s => !completedSurveyIds.includes(s.id));

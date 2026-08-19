@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const allSurveys = await db
+    const { searchParams } = new URL(req.url);
+    const filterType = searchParams.get('type') || searchParams.get('surveyType');
+
+    let allSurveys = await db
       .select({
         id: surveys.id,
         title: surveys.title,
@@ -40,6 +43,12 @@ export async function GET(req: NextRequest) {
       .from(surveys)
       .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
       .limit(2000);
+
+    if (filterType === 'PROFILE') {
+      allSurveys = allSurveys.filter(s => s.surveyType === 'PROFILE' || s.id.startsWith('pq_'));
+    } else if (filterType === 'CAMPAIGN' || filterType === 'GENERAL') {
+      allSurveys = allSurveys.filter(s => s.surveyType !== 'PROFILE' && !s.id.startsWith('pq_'));
+    }
 
     // Fetch all questions to attach with options
     const allQuestions = await db

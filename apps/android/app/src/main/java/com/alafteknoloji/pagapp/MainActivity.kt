@@ -106,8 +106,6 @@ class MainActivity : ComponentActivity() {
                     }
                 } else if (currentUser?.isUnderage == true || currentUser?.underageBlocked == true) {
                     com.alafteknoloji.pagapp.ui.screens.legal.UnderageBlockedScreen(userService = userService)
-                } else if (currentUser?.legalConsentRequired == true) {
-                    com.alafteknoloji.pagapp.ui.screens.legal.ConsentGateScreen(userService = userService)
                 } else {
                     MainScreen(appState, userService)
                 }
