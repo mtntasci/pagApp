@@ -1,5 +1,4 @@
 import Foundation
-import FirebaseFunctions
 import Combine
 
 @MainActor
@@ -18,9 +17,8 @@ public class SurveyService: ObservableObject {
         self.errorMessage = nil
         
         do {
-            // 1. Try High-Speed Vercel/Neon REST API (~10ms)
-            if let response = try? await PAGApiClient.shared.get(endpoint: "/home"),
-               let success = response["success"] as? Bool, success,
+            let response = try await PAGApiClient.shared.get(endpoint: "/home")
+            if let success = response["success"] as? Bool, success,
                let data = response["data"] as? [String: Any],
                let rawSurveys = data["surveys"] as? [[String: Any]] {
                 
@@ -98,140 +96,80 @@ public class SurveyService: ObservableObject {
                             description: item["description"] as? String ?? "",
                             status: "COMPLETED",
                             questionCount: item["questionCount"] as? Int ?? 3,
+                            questions: [],
                             profileScoreReward: item["profileScoreReward"] as? Int ?? 50,
-                            isCompleted: true
+                            isCompleted: true,
+                            isHighlighted: false
                         )
                         parsedList.append(survey)
                     }
                 }
                 self.completedSurveys = parsedList
-                return
             }
-            self.completedSurveys = []
         } catch {
-            print("[SurveyService] Fetch completed surveys error: \(error.localizedDescription)")
-            self.completedSurveys = []
+            print("[SurveyService] Fetch completed error: \(error.localizedDescription)")
         }
+    }
+    
+    public func getSurveyById(surveyId: String) throws -> PAGSurvey {
+        if let found = eligibleSurveys.first(where: { $0.surveyId == surveyId }) {
+            return found
+        }
+        if let found = completedSurveys.first(where: { $0.surveyId == surveyId }) {
+            return found
+        }
+        throw NSError(domain: "SurveyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Anket bulunamadı veya pasif durumda."])
     }
     
     public func fetchSurveyDetail(surveyId: String) async throws -> PAGSurvey {
         if let found = eligibleSurveys.first(where: { $0.surveyId == surveyId }) {
             return found
         }
-        if let found = SurveyService.previewDemoSurveys.first(where: { $0.surveyId == surveyId }) {
+        if let found = completedSurveys.first(where: { $0.surveyId == surveyId }) {
             return found
         }
-        throw NSError(domain: "SurveyService", code: 404, userInfo: [NSLocalizedDescriptionKey: "Anket bulunamadı veya pasif durumda."])
+        await fetchEligibleSurveys()
+        return try getSurveyById(surveyId: surveyId)
     }
     
     public func submitSurveyResponse(surveyId: String, answers: [PAGAnswerInput], isProfile: Bool = false) async throws -> PAGSurveyCompletionResult {
         let answerDicts = answers.map { ["questionId": $0.questionId, "optionId": $0.optionId] }
         
-        // 1. Try High-Speed Vercel/Neon REST API (~10ms)
-        if !isProfile {
-            if let apiResult = try? await PAGApiClient.shared.post(
-                endpoint: "/surveys/\(surveyId)/submit",
-                body: ["answers": Array(answerDicts.prefix(3))]
-            ),
-            let success = apiResult["success"] as? Bool, success,
-            let dataDict = apiResult["data"] as? [String: Any] {
-                
-                let scoreAwarded = dataDict["earnedScore"] as? Int ?? 50
-                let currentScore = dataDict["profileScore"] as? Int
-                let earnedReward = dataDict["earnedReward"] as? [String: Any]
-                let prizeAmount = earnedReward?["amount"] as? Int
-                let prizeType = earnedReward?["type"] as? String
-                let vCode = earnedReward?["code"] as? String
-                let vTitle = earnedReward?["poolName"] as? String
-                let currentRewardBalance = Int(Double(dataDict["rewardBalance"] as? String ?? "0") ?? 0)
-                
-                await fetchEligibleSurveys()
-                
-                return PAGSurveyCompletionResult(
-                    responseId: "\(surveyId)_submitted",
-                    surveyId: surveyId,
-                    completedAt: ISO8601DateFormatter().string(from: Date()),
-                    isDuplicate: false,
-                    profileScorePotential: scoreAwarded,
-                    currentProfileScore: currentScore,
-                    rewardAwarded: prizeAmount,
-                    rewardType: prizeType,
-                    voucherCode: vCode,
-                    voucherTitle: vTitle,
-                    currentRewardBalance: currentRewardBalance
-                )
-            }
+        let apiResult = try await PAGApiClient.shared.post(
+            endpoint: "/surveys/\(surveyId)/submit",
+            body: ["answers": Array(answerDicts.prefix(3))]
+        )
+        
+        guard let success = apiResult["success"] as? Bool, success,
+              let dataDict = apiResult["data"] as? [String: Any] else {
+            let errMsg = apiResult["error"] as? String ?? "Tamamlama işlemi başarısız."
+            throw NSError(domain: "SurveyService", code: 400, userInfo: [NSLocalizedDescriptionKey: errMsg])
         }
         
-        // 2. Fallback to Firebase Callable
-        let functionName = isProfile ? "updateProfileSurveyResponse" : "submitSurveyResponse"
-        let payload: [String: Any] = [
-            "surveyId": surveyId,
-            "answers": Array(answerDicts.prefix(3))
-        ]
-        
-        let result = try await Functions.functions().httpsCallable(functionName).call(payload)
-        guard let dict = result.data as? [String: Any],
-              let success = dict["success"] as? Bool, success,
-              let dataDict = dict["data"] as? [String: Any] else {
-            throw NSError(domain: "SurveyService", code: 400, userInfo: [NSLocalizedDescriptionKey: "Tamamlama işlemi başarısız."])
-        }
-        
-        let resId = dataDict["responseId"] as? String ?? "\(surveyId)_submitted"
-        let completedAt = dataDict["completedAt"] as? String ?? ISO8601DateFormatter().string(from: Date())
-        let isDuplicate = dataDict["isDuplicate"] as? Bool
-        let scoreAwarded = dataDict["profileScoreAwarded"] as? Int ?? dataDict["profileScorePotential"] as? Int
-        let currentScore = dataDict["currentProfileScore"] as? Int
-        let rewardAwarded = dataDict["rewardAwarded"] as? Int
-        let rewardType = dataDict["rewardType"] as? String
-        let voucherCode = dataDict["voucherCode"] as? String
-        let voucherTitle = dataDict["voucherTitle"] as? String
-        let currentRewardBalance = dataDict["currentRewardBalance"] as? Int
+        let scoreAwarded = dataDict["earnedScore"] as? Int ?? 50
+        let currentScore = dataDict["profileScore"] as? Int
+        let earnedReward = dataDict["earnedReward"] as? [String: Any]
+        let prizeAmount = earnedReward?["amount"] as? Int
+        let prizeType = earnedReward?["type"] as? String
+        let vCode = earnedReward?["code"] as? String
+        let vTitle = earnedReward?["poolName"] as? String
+        let currentRewardBalance = Int(Double(dataDict["rewardBalance"] as? String ?? "0") ?? 0)
         
         await fetchEligibleSurveys()
+        await UserService.shared.bootstrapCurrentUser()
         
         return PAGSurveyCompletionResult(
-            responseId: resId,
+            responseId: "\(surveyId)_submitted",
             surveyId: surveyId,
-            completedAt: completedAt,
-            isDuplicate: isDuplicate,
+            completedAt: ISO8601DateFormatter().string(from: Date()),
+            isDuplicate: false,
             profileScorePotential: scoreAwarded,
             currentProfileScore: currentScore,
-            rewardAwarded: rewardAwarded,
-            rewardType: rewardType,
-            voucherCode: voucherCode,
-            voucherTitle: voucherTitle,
+            rewardAwarded: prizeAmount,
+            rewardType: prizeType,
+            voucherCode: vCode,
+            voucherTitle: vTitle,
             currentRewardBalance: currentRewardBalance
         )
     }
-    
-    // Preview/Test Fixtures ONLY (Not used in runtime error paths)
-    public static var previewDemoSurveys: [PAGSurvey] = [
-        PAGSurvey(
-            surveyId: "srv_pag_01",
-            ownerType: "PAG",
-            surveyType: "PAG",
-            title: "Mobil Uygulama Kullanım Alışkanlıkları",
-            description: "Günlük mobil uygulama tercihlerinizi değerlendirin ve profil puanınızı yükseltin.",
-            questionCount: 3,
-            questions: [
-                PAGQuestion(questionId: "q1", order: 1, text: "Günlük ortalama akıllı telefon kullanım süreniz nedir?", options: [
-                    PAGQuestionOption(optionId: "opt_1", label: "1 saatten az", order: 1),
-                    PAGQuestionOption(optionId: "opt_2", label: "1-3 saat arası", order: 2),
-                    PAGQuestionOption(optionId: "opt_3", label: "3 saatten fazla", order: 3)
-                ]),
-                PAGQuestion(questionId: "q2", order: 2, text: "En sık kullandığınız mobil uygulama kategorisi hangisidir?", options: [
-                    PAGQuestionOption(optionId: "opt_1", label: "Sosyal Medya", order: 1),
-                    PAGQuestionOption(optionId: "opt_2", label: "Finans & Bankacılık", order: 2),
-                    PAGQuestionOption(optionId: "opt_3", label: "Oyun & Eğlence", order: 3)
-                ]),
-                PAGQuestion(questionId: "q3", order: 3, text: "Mobil anket uygulamalarından en büyük beklentiniz nedir?", options: [
-                    PAGQuestionOption(optionId: "opt_1", label: "Hızlı Ödül Kazancı", order: 1),
-                    PAGQuestionOption(optionId: "opt_2", label: "Kısa ve Eğlenceli Sorular", order: 2),
-                    PAGQuestionOption(optionId: "opt_3", label: "Marka Kampanyaları", order: 3)
-                ])
-            ],
-            profileScoreReward: 50
-        )
-    ]
 }

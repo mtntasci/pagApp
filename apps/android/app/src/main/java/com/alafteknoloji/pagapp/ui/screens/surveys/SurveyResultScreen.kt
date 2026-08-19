@@ -46,7 +46,7 @@ fun SurveyResultScreen(
         val newScore = completionResult?.currentProfileScore
         if (newScore != null && userService != null) {
             userService.updateUserProfileScore(newScore)
-            userService.fetchUserRanking()
+            userService.bootstrapCurrentUser()
         }
     }
 

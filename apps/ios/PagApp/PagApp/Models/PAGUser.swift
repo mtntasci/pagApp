@@ -11,9 +11,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public let lastName: String?
     public let photoUrl: String?
     public let authProviders: [String]
-    public let status: String
-    public let profileScore: Int
-    public let profileCompleted: Bool
+    public var status: String
+    public var profileScore: Int
+    public var profileCompleted: Bool
     public let phoneVerified: Bool
     public let emailVerified: Bool
     public let kycStatus: String
@@ -21,6 +21,19 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public let tckn: String?
     public let ibanVerified: Bool
     public let activeDeviceId: String?
+    public var rewardBalance: Double
+    
+    // Demographic / Profile fields
+    public var city: String?
+    public var district: String?
+    public var gender: String?
+    public var birthDate: String?
+    public var age: Int?
+    public var maritalStatus: String?
+    public var childrenStatus: String?
+    public var hometown: String?
+    public var education: String?
+    public var occupation: String?
     
     // Legal & Consent Status
     public var legalConsentRequired: Bool
@@ -49,6 +62,17 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         tckn: String? = nil,
         ibanVerified: Bool = false,
         activeDeviceId: String? = nil,
+        rewardBalance: Double = 0.0,
+        city: String? = nil,
+        district: String? = nil,
+        gender: String? = nil,
+        birthDate: String? = nil,
+        age: Int? = nil,
+        maritalStatus: String? = nil,
+        childrenStatus: String? = nil,
+        hometown: String? = nil,
+        education: String? = nil,
+        occupation: String? = nil,
         legalConsentRequired: Bool = false,
         missingDocumentIds: [String] = [],
         missingDocuments: [LegalDocument] = [],
@@ -74,6 +98,17 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         self.tckn = tckn
         self.ibanVerified = ibanVerified
         self.activeDeviceId = activeDeviceId
+        self.rewardBalance = rewardBalance
+        self.city = city
+        self.district = district
+        self.gender = gender
+        self.birthDate = birthDate
+        self.age = age
+        self.maritalStatus = maritalStatus
+        self.childrenStatus = childrenStatus
+        self.hometown = hometown
+        self.education = education
+        self.occupation = occupation
         self.legalConsentRequired = legalConsentRequired
         self.missingDocumentIds = missingDocumentIds
         self.missingDocuments = missingDocuments

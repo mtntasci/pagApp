@@ -69,7 +69,7 @@ fun HomeScreen(
 ) {
     val context = LocalContext.current
     val profileSurveyService = remember { ProfileSurveyService.getInstance(context) }
-    val verificationService = remember { VerificationService.getInstance() }
+    val verificationService = remember { VerificationService.shared }
 
     val pagUser by (userService?.currentUser ?: MutableStateFlow(null)).collectAsState()
     val eligibleSurveys by surveyService.eligibleSurveys.collectAsState()

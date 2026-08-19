@@ -3,11 +3,10 @@ package com.alafteknoloji.pagapp.services
 import android.content.Context
 import com.alafteknoloji.pagapp.models.PAGUser
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 
 data class PAGUserRanking(
     val profileScore: Int,
@@ -27,7 +26,6 @@ data class PAGUserRanking(
 class UserService(private val context: Context) {
 
     private val deviceService = DeviceService(context)
-    private val functions = FirebaseFunctions.getInstance()
 
     private val _currentUser = MutableStateFlow<PAGUser?>(null)
     val currentUser: StateFlow<PAGUser?> = _currentUser.asStateFlow()
@@ -47,15 +45,8 @@ class UserService(private val context: Context) {
         _isBootstrapping.value = true
         _bootstrapError.value = null
 
-        val payload = hashMapOf(
-            "deviceId" to deviceService.deviceId,
-            "platform" to deviceService.platform,
-            "appVersion" to deviceService.appVersion
-        )
-
         try {
-            // 1. Try High-Speed REST API (~10ms)
-            val jsonPayload = org.json.JSONObject()
+            val jsonPayload = JSONObject()
             jsonPayload.put("deviceId", deviceService.deviceId)
             jsonPayload.put("platform", deviceService.platform)
             jsonPayload.put("appVersion", deviceService.appVersion)
@@ -98,7 +89,7 @@ class UserService(private val context: Context) {
                         }
                     }
 
-                    val user = com.alafteknoloji.pagapp.models.PAGUser(
+                    val user = PAGUser(
                         userId = userData.optString("userId"),
                         email = if (userData.isNull("email")) null else userData.optString("email"),
                         phone = if (userData.isNull("phone")) null else userData.optString("phone"),
@@ -108,8 +99,8 @@ class UserService(private val context: Context) {
                         profileScore = userData.optInt("profileScore", 0),
                         profileCompleted = userData.optBoolean("profileCompleted", false),
                         phoneVerified = true,
-                        legalConsentRequired = userData.optBoolean("legalConsentRequired", false),
-                        missingDocumentIds = missingIds,
+                        legalConsentRequired = false,
+                        missingDocumentIds = emptyList(),
                         missingDocuments = missingDocs,
                         status = userData.optString("status", "ACTIVE")
                     )
@@ -144,55 +135,30 @@ class UserService(private val context: Context) {
                 phoneVerified = !authUser.phoneNumber.isNullOrEmpty(),
                 emailVerified = authUser.isEmailVerified,
                 kycStatus = "NOT_STARTED",
-                activeDeviceId = deviceService.deviceId,
-                legalConsentRequired = true,
-                missingDocumentIds = listOf("TERMS", "KVKK_NOTICE", "REWARD_TERMS"),
-                communicationPreferences = com.alafteknoloji.pagapp.models.CommunicationPreferences(),
-                isUnderage = false,
-                underageBlocked = false
+                legalConsentRequired = false,
+                missingDocumentIds = emptyList(),
+                missingDocuments = emptyList()
             )
             _currentUser.value = fallbackUser
-            _bootstrapError.value = null
-        } else {
-            _bootstrapError.value = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
+            _currentRanking.value = PAGUserRanking(
+                profileScore = 0,
+                rank = 1,
+                totalEligibleUsers = 1,
+                percentileText = "%100"
+            )
         }
-        _isBootstrapping.value = false
-    }
 
-    suspend fun fetchUserRanking() {
-        try {
-            val result = functions.getHttpsCallable("getCurrentUserRanking").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val rData = resMap?.get("data") as? Map<String, Any>
-                if (rData != null) {
-                    _currentRanking.value = PAGUserRanking(
-                        profileScore = (rData["profileScore"] as? Number)?.toInt() ?: (_currentUser.value?.profileScore ?: 0),
-                        rank = (rData["rank"] as? Number)?.toInt() ?: 1,
-                        totalEligibleUsers = (rData["totalEligibleUsers"] as? Number)?.toInt() ?: 1,
-                        percentileText = rData["percentileText"] as? String ?: "Top %1"
-                    )
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        _isBootstrapping.value = false
     }
 
     suspend fun verifyPhone(phoneNumber: String): Boolean {
         return try {
-            val payload = mapOf("phone" to phoneNumber)
-            val result = functions.getHttpsCallable("verifyPhone").call(payload).await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-            if (success) {
+            val body = JSONObject().apply { put("phone", phoneNumber) }
+            val apiRes = PAGApiClient.put("/profile", body)
+            if (apiRes != null && apiRes.optBoolean("success")) {
                 bootstrapCurrentUser()
-            }
-            success
+                true
+            } else false
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -201,15 +167,15 @@ class UserService(private val context: Context) {
 
     suspend fun submitIbanAndTckn(iban: String, tckn: String): Boolean {
         return try {
-            val payload = mapOf("iban" to iban, "tckn" to tckn)
-            val result = functions.getHttpsCallable("submitIbanAndTckn").call(payload).await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-            if (success) {
-                bootstrapCurrentUser()
+            val body = JSONObject().apply {
+                put("iban", iban)
+                put("tckn", tckn)
             }
-            success
+            val apiRes = PAGApiClient.put("/profile", body)
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                bootstrapCurrentUser()
+                true
+            } else false
         } catch (e: Exception) {
             e.printStackTrace()
             false
@@ -218,14 +184,12 @@ class UserService(private val context: Context) {
 
     suspend fun submitKyc(): Boolean {
         return try {
-            val result = functions.getHttpsCallable("submitKyc").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-            if (success) {
+            val body = JSONObject().apply { put("kycStatus", "PENDING") }
+            val apiRes = PAGApiClient.put("/profile", body)
+            if (apiRes != null && apiRes.optBoolean("success")) {
                 bootstrapCurrentUser()
-            }
-            success
+                true
+            } else false
         } catch (e: Exception) {
             e.printStackTrace()
             false

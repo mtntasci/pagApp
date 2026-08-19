@@ -69,6 +69,8 @@ public struct PAGBasicProfile: Codable {
     public var childrenInfo: PAGChildrenInfo
     public var residenceAddress: PAGLocationPair
     public var hometown: PAGLocationPair
+    public var educationLevel: String
+    public var occupation: String
     public var completionPercentage: Int
     public var scoreAwarded: Bool
     
@@ -81,6 +83,8 @@ public struct PAGBasicProfile: Codable {
         childrenInfo: PAGChildrenInfo = PAGChildrenInfo(),
         residenceAddress: PAGLocationPair = PAGLocationPair(),
         hometown: PAGLocationPair = PAGLocationPair(),
+        educationLevel: String = "",
+        occupation: String = "",
         completionPercentage: Int = 0,
         scoreAwarded: Bool = false
     ) {
@@ -92,6 +96,8 @@ public struct PAGBasicProfile: Codable {
         self.childrenInfo = childrenInfo
         self.residenceAddress = residenceAddress
         self.hometown = hometown
+        self.educationLevel = educationLevel
+        self.occupation = occupation
         self.completionPercentage = completionPercentage
         self.scoreAwarded = scoreAwarded
     }

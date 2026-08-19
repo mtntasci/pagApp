@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
         // Answered
         const answersObj = response.answers as any;
         const selectedOptId = answersObj[q.id] || answersObj.selectedOptionId || (typeof answersObj === 'string' ? answersObj : '');
-        const matchingOpt = formattedOptions.find((o) => o.optionId === selectedOptId);
+        const matchingOpt = formattedOptions.find((o: any) => o.optionId === selectedOptId);
 
         answeredQuestions.push({
           questionId: q.id,
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest) {
           sourceType: 'PROFILE_SURVEY_COMPLETED',
           sourceId: surveyId,
           scoreDelta: scoreReward,
-          balanceAfter: (user.profileScore || 0) + totalScoreAwarded,
+          idempotencyKey: `ps_${user.id}_${surveyId}`,
           metadata: { questionId: item.questionId, optionId: item.optionId }
         });
       }

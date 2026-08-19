@@ -71,7 +71,7 @@ class ProfileSurveyService private constructor(context: Context) {
 
         try {
             val apiRes = PAGApiClient.get("/profile-questions")
-            if (apiRes.optBoolean("success")) {
+            if (apiRes?.optBoolean("success") == true) {
                 val dataObj = apiRes.optJSONObject("data") ?: JSONObject()
                 _availableScoreX.value = dataObj.optInt("availableScoreX", 0)
 
@@ -171,7 +171,7 @@ class ProfileSurveyService private constructor(context: Context) {
             }
 
             val apiRes = PAGApiClient.post("/profile-questions", payload)
-            if (apiRes.optBoolean("success")) {
+            if (apiRes?.optBoolean("success") == true) {
                 val dataObj = apiRes.optJSONObject("data") ?: JSONObject()
                 _lastBatchScoreAwarded.value = dataObj.optInt("batchScoreAwarded", 0)
 
@@ -179,7 +179,7 @@ class ProfileSurveyService private constructor(context: Context) {
                 fetchProfileQuestions(3)
                 true
             } else {
-                _errorMessage.value = apiRes.optString("error", "Cevaplar kaydedilemedi.")
+                _errorMessage.value = apiRes?.optString("error", "Cevaplar kaydedilemedi.") ?: "Cevaplar kaydedilemedi."
                 false
             }
         } catch (e: Exception) {
@@ -207,7 +207,7 @@ class ProfileSurveyService private constructor(context: Context) {
                 put("answers", answersArray)
             }
             val apiRes = PAGApiClient.post("/profile-questions", payload)
-            if (apiRes.optBoolean("success")) {
+            if (apiRes?.optBoolean("success") == true) {
                 fetchProfileQuestions(3)
                 true
             } else {

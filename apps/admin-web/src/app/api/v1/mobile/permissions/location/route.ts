@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       sourceType: 'LOCATION_PERMISSION_GRANTED',
       sourceId: 'location_onboarding',
       scoreDelta: rewardScore,
-      balanceAfter: newScore,
+      idempotencyKey: `loc_${user.id}`,
       metadata: { city, district, reason: 'İlk Konum İzni Bonusu' },
       createdAt: now
     });

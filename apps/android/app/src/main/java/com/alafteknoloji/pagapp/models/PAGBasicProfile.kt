@@ -38,6 +38,8 @@ data class PAGBasicProfile(
     val childrenInfo: PAGChildrenInfo = PAGChildrenInfo(),
     val residenceAddress: PAGLocationPair = PAGLocationPair(),
     val hometown: PAGLocationPair = PAGLocationPair(),
+    val educationLevel: String = "",
+    val occupation: String = "",
     val completionPercentage: Int = 0,
     val scoreAwarded: Boolean = false
 )

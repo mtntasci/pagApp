@@ -2,14 +2,11 @@ package com.alafteknoloji.pagapp.services
 
 import com.alafteknoloji.pagapp.models.StoryMock
 import com.alafteknoloji.pagapp.models.StoryType
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
 
 class StoryService {
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
 
     private val _stories = MutableStateFlow<List<StoryMock>>(emptyList())
     val stories: StateFlow<List<StoryMock>> = _stories.asStateFlow()

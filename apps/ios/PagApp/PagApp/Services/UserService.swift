@@ -1,39 +1,26 @@
 import Foundation
 import Combine
-import FirebaseFunctions
-import FirebaseAuth
 
-public struct PAGUserRanking: Codable {
-    public let profileScore: Int
+public struct PAGRankingSnapshot: Codable {
     public let rank: Int
-    public let totalEligibleUsers: Int
-    public let percentileText: String
+    public let totalParticipants: Int
+    public let percentile: Double
+    public let profileScore: Int
+    public let isTopTier: Bool
     
-    public var percentile: Double {
-        if rank == 1 {
-            return 1.0
-        }
-        if let match = percentileText.range(of: "%") {
-            let numStr = percentileText[match.upperBound...].trimmingCharacters(in: .whitespaces)
-            if let p = Double(numStr) {
-                return p
-            }
-        }
-        if totalEligibleUsers > 0 {
-            return (Double(rank) / Double(totalEligibleUsers)) * 100.0
-        }
-        return 100.0
+    public var percentileText: String {
+        return "%\(Int(percentile))"
     }
 }
 
 @MainActor
-public final class UserService: ObservableObject {
+public class UserService: ObservableObject {
     public static let shared = UserService()
     
     @Published public private(set) var currentUser: PAGUser?
-    @Published public private(set) var currentRanking: PAGUserRanking?
+    @Published public private(set) var currentRanking: PAGRankingSnapshot?
     @Published public private(set) var isBootstrapping: Bool = false
-    @Published public private(set) var bootstrapError: String?
+    @Published public private(set) var bootstrapError: String? = nil
     
     private init() {}
     
@@ -54,26 +41,10 @@ public final class UserService: ObservableObject {
         ]
         
         do {
-            var userData: [String: Any]? = nil
-            
-            // 1. Try High-Speed Vercel / Neon REST API (~10ms)
-            if let apiResult = try? await PAGApiClient.shared.post(endpoint: "/bootstrap", body: payload),
-               let success = apiResult["success"] as? Bool, success,
-               let data = apiResult["data"] as? [String: Any] {
-                userData = data
-            }
-            
-            // 2. Fallback to Firebase Callable
-            if userData == nil {
-                let result = try await Functions.functions().httpsCallable("bootstrapCurrentUser").call(payload)
-                if let responseData = result.data as? [String: Any],
-                   let success = responseData["success"] as? Bool, success,
-                   let data = responseData["data"] as? [String: Any] {
-                    userData = data
-                }
-            }
-            
-            if let userData = userData {
+            let apiResult = try await PAGApiClient.shared.post(endpoint: "/bootstrap", body: payload)
+            if let success = apiResult["success"] as? Bool, success,
+               let userData = apiResult["data"] as? [String: Any] {
+                
                 let rawName = userData["displayName"] as? String ?? "Kullanıcı"
                 let nameParts = rawName.components(separatedBy: " ")
                 let fName = userData["firstName"] as? String ?? nameParts.first ?? ""
@@ -112,114 +83,146 @@ public final class UserService: ObservableObject {
                     )
                 }
                 
+                let uid = userData["userId"] as? String ?? ""
+                let email = userData["email"] as? String
+                let phone = userData["phone"] as? String
+                let pUrl = userData["photoUrl"] as? String
+                let status = userData["status"] as? String ?? "ACTIVE"
+                let kycStatus = userData["kycStatus"] as? String ?? "NOT_STARTED"
+                let iban = userData["iban"] as? String
+                let tckn = userData["tckn"] as? String
+                let rewardBal = Double(userData["rewardBalance"] as? Int ?? 0)
+                let devId = userData["activeDeviceId"] as? String
+                let isUnderage = userData["isUnderage"] as? Bool ?? false
+                let underageBlocked = userData["underageBlocked"] as? Bool ?? false
+                let city = userData["city"] as? String
+                let district = userData["district"] as? String
+                let gender = userData["gender"] as? String
+                let birthDate = userData["birthDate"] as? String
+                let age = userData["age"] as? Int
+                let maritalStatus = userData["maritalStatus"] as? String
+                let childrenStatus = userData["childrenStatus"] as? String
+                let hometown = userData["hometown"] as? String
+                let education = userData["education"] as? String
+                let occupation = userData["occupation"] as? String
+                
                 let user = PAGUser(
-                    userId: userData["userId"] as? String ?? "",
-                    email: userData["email"] as? String,
-                    phone: userData["phone"] as? String,
+                    userId: uid,
+                    email: email,
+                    phone: phone,
                     displayName: rawName,
                     firstName: fName,
                     lastName: lName,
-                    photoUrl: userData["photoUrl"] as? String,
+                    photoUrl: pUrl,
                     authProviders: ["phone"],
-                    status: userData["status"] as? String ?? "ACTIVE",
+                    status: status,
                     profileScore: pScore,
                     profileCompleted: isProfComp,
                     phoneVerified: true,
                     emailVerified: false,
-                    kycStatus: userData["kycStatus"] as? String ?? "NOT_STARTED",
-                    iban: userData["iban"] as? String,
-                    tckn: userData["tckn"] as? String,
-                    ibanVerified: userData["ibanVerified"] as? Bool ?? false,
-                    activeDeviceId: deviceId,
-                    legalConsentRequired: userData["legalConsentRequired"] as? Bool ?? false,
-                    missingDocumentIds: userData["missingDocumentIds"] as? [String] ?? [],
+                    kycStatus: kycStatus,
+                    iban: iban,
+                    tckn: tckn,
+                    ibanVerified: false,
+                    activeDeviceId: devId,
+                    rewardBalance: rewardBal,
+                    city: city,
+                    district: district,
+                    gender: gender,
+                    birthDate: birthDate,
+                    age: age,
+                    maritalStatus: maritalStatus,
+                    childrenStatus: childrenStatus,
+                    hometown: hometown,
+                    education: education,
+                    occupation: occupation,
+                    legalConsentRequired: false,
+                    missingDocumentIds: [],
                     missingDocuments: missingDocs,
                     communicationPreferences: commPrefs,
-                    isUnderage: false,
-                    underageBlocked: false
+                    isUnderage: isUnderage,
+                    underageBlocked: underageBlocked
                 )
                 
                 self.currentUser = user
-                self.currentRanking = PAGUserRanking(
-                    profileScore: pScore,
-                    rank: 1,
-                    totalEligibleUsers: 1,
-                    percentileText: "%1"
-                )
-                self.isBootstrapping = false
-                return
+            } else {
+                let errMsg = apiResult["error"] as? String ?? "Sunucuya bağlanılamadı."
+                self.bootstrapError = errMsg
             }
         } catch {
-            print("bootstrapCurrentUser error: \(error.localizedDescription)")
+            print("[UserService] Bootstrap error: \(error.localizedDescription)")
+            self.bootstrapError = "Ağ bağlantı hatası: \(error.localizedDescription)"
         }
         
-        // Fallback: If Firebase Auth has an active session, initialize fallback user locally
-        if let firebaseUser = Auth.auth().currentUser {
-            let fallbackUser = PAGUser(
-                userId: firebaseUser.uid,
-                email: firebaseUser.email,
-                phone: firebaseUser.phoneNumber,
-                displayName: firebaseUser.displayName ?? firebaseUser.email?.components(separatedBy: "@").first ?? "PAG Kullanıcısı",
-                photoUrl: firebaseUser.photoURL?.absoluteString,
-                authProviders: firebaseUser.providerData.map { $0.providerID },
-                status: "ACTIVE",
-                profileScore: 0,
-                profileCompleted: false,
-                phoneVerified: firebaseUser.phoneNumber != nil,
-                emailVerified: firebaseUser.isEmailVerified,
-                kycStatus: "NOT_STARTED",
-                activeDeviceId: deviceId,
-                legalConsentRequired: true,
-                missingDocumentIds: ["TERMS", "KVKK_NOTICE", "REWARD_TERMS"],
-                communicationPreferences: CommunicationPreferences(),
-                isUnderage: false,
-                underageBlocked: false
-            )
-            self.currentUser = fallbackUser
-            self.isBootstrapping = false
-            self.bootstrapError = nil
-        } else {
-            self.bootstrapError = "Hesabınız hazırlanırken bir sorun oluştu. Lütfen tekrar deneyin."
-            self.isBootstrapping = false
-        }
+        self.isBootstrapping = false
     }
     
-    public func fetchUserRanking() async {
-        let score = currentUser?.profileScore ?? 0
-        self.currentRanking = PAGUserRanking(
+    public func fetchRankingSnapshot() async {
+        guard let user = currentUser else { return }
+        
+        let score = user.profileScore
+        let estimatedRank = max(1, 1000 - (score * 2))
+        let totalUsers = 1000
+        let percentile = Double(totalUsers - estimatedRank) / Double(totalUsers) * 100.0
+        
+        self.currentRanking = PAGRankingSnapshot(
+            rank: estimatedRank,
+            totalParticipants: totalUsers,
+            percentile: percentile,
             profileScore: score,
-            rank: 1,
-            totalEligibleUsers: 1,
-            percentileText: "En İyi %1"
+            isTopTier: percentile >= 80.0
         )
     }
     
-    public func updateUserProfileScore(newScore: Int) {
-        if var user = currentUser {
-            user = PAGUser(
-                userId: user.userId,
-                email: user.email,
-                phone: user.phone,
-                displayName: user.displayName,
-                photoUrl: user.photoUrl,
-                authProviders: user.authProviders,
-                status: user.status,
-                profileScore: newScore,
-                profileCompleted: user.profileCompleted,
-                phoneVerified: user.phoneVerified,
-                emailVerified: user.emailVerified,
-                kycStatus: user.kycStatus,
-                activeDeviceId: user.activeDeviceId
-            )
-            self.currentUser = user
+    public func updateProfileScore(delta: Int) {
+        guard var user = currentUser else { return }
+        user.profileScore += delta
+        self.currentUser = user
+        Task {
+            await fetchRankingSnapshot()
         }
+    }
+    
+    public func updateBasicProfile(
+        firstName: String,
+        lastName: String,
+        gender: String,
+        maritalStatus: String,
+        birthDate: String,
+        city: String,
+        district: String,
+        hometown: String,
+        education: String,
+        occupation: String
+    ) async -> Bool {
+        let restBody: [String: Any] = [
+            "displayName": "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces),
+            "gender": gender,
+            "maritalStatus": maritalStatus,
+            "birthDate": birthDate,
+            "city": city,
+            "district": district,
+            "hometown": hometown,
+            "education": education,
+            "occupation": occupation
+        ]
+        
+        do {
+            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: restBody)
+            if let success = apiRes["success"] as? Bool, success {
+                await bootstrapCurrentUser()
+                return true
+            }
+        } catch {
+            print("[UserService] Update basic profile error: \(error.localizedDescription)")
+        }
+        return false
     }
     
     public func verifyPhone(phone: String) async -> Bool {
         do {
-            let result = try await Functions.functions().httpsCallable("verifyPhone").call(["phone": phone])
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success {
+            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: ["phone": phone])
+            if let success = apiRes["success"] as? Bool, success {
                 await bootstrapCurrentUser()
                 return true
             }
@@ -231,9 +234,8 @@ public final class UserService: ObservableObject {
     
     public func submitIbanAndTckn(iban: String, tckn: String) async -> Bool {
         do {
-            let result = try await Functions.functions().httpsCallable("submitIbanAndTckn").call(["iban": iban, "tckn": tckn])
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success {
+            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: ["iban": iban, "tckn": tckn])
+            if let success = apiRes["success"] as? Bool, success {
                 await bootstrapCurrentUser()
                 return true
             }
@@ -245,9 +247,8 @@ public final class UserService: ObservableObject {
     
     public func submitKyc() async -> Bool {
         do {
-            let result = try await Functions.functions().httpsCallable("submitKyc").call()
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success {
+            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: ["kycStatus": "PENDING"])
+            if let success = apiRes["success"] as? Bool, success {
                 await bootstrapCurrentUser()
                 return true
             }

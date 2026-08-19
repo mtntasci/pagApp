@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import FirebaseFunctions
 
 @MainActor
 public final class BasicProfileService: ObservableObject {
@@ -59,15 +58,18 @@ public final class BasicProfileService: ObservableObject {
         errorMessage = nil
         
         do {
-            // 1. Try High-Speed REST API (~10ms)
-            if let response = try? await PAGApiClient.shared.get(endpoint: "/profile"),
-               let success = response["success"] as? Bool, success,
+            let response = try await PAGApiClient.shared.get(endpoint: "/profile")
+            if let success = response["success"] as? Bool, success,
                let data = response["data"] as? [String: Any] {
                 
                 var bProfile = PAGBasicProfile()
                 bProfile.completionPercentage = 100
                 bProfile.scoreAwarded = true
-                bProfile.firstName = data["displayName"] as? String ?? ""
+                
+                let rawName = data["displayName"] as? String ?? ""
+                let nameParts = rawName.components(separatedBy: " ")
+                bProfile.firstName = nameParts.first ?? ""
+                bProfile.lastName = nameParts.count > 1 ? nameParts.dropFirst().joined(separator: " ") : ""
                 bProfile.gender = data["gender"] as? String ?? "PREFER_NOT_TO_SAY"
                 bProfile.maritalStatus = data["maritalStatus"] as? String ?? "PREFER_NOT_TO_SAY"
                 
@@ -79,83 +81,37 @@ public final class BasicProfileService: ObservableObject {
                     districtName: data["district"] as? String ?? ""
                 )
                 
+                bProfile.residenceAddress = PAGLocationPair(
+                    cityId: "",
+                    cityName: data["city"] as? String ?? "İstanbul",
+                    districtId: "",
+                    districtName: data["district"] as? String ?? "",
+                    neighborhoodId: nil,
+                    neighborhoodName: nil
+                )
+                
+                bProfile.hometown = PAGLocationPair(
+                    cityId: "",
+                    cityName: data["hometown"] as? String ?? "",
+                    districtId: "",
+                    districtName: "",
+                    neighborhoodId: nil,
+                    neighborhoodName: nil
+                )
+                
+                bProfile.educationLevel = data["education"] as? String ?? ""
+                bProfile.occupation = data["occupation"] as? String ?? ""
+                
                 self.basicProfile = bProfile
                 self.isLoading = false
                 return
             }
-
-            // 2. Fallback to Firebase Callable
-            let result = try await Functions.functions().httpsCallable("getBasicProfile").call()
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success,
-               let data = responseData["data"] as? [String: Any] {
-                
-                var bProfile = PAGBasicProfile()
-                bProfile.completionPercentage = data["completionPercentage"] as? Int ?? 0
-                bProfile.scoreAwarded = data["scoreAwarded"] as? Bool ?? false
-                
-                if let pDict = data["profile"] as? [String: Any] {
-                    bProfile.firstName = pDict["firstName"] as? String ?? ""
-                    bProfile.lastName = pDict["lastName"] as? String ?? ""
-                    bProfile.gender = pDict["gender"] as? String ?? "PREFER_NOT_TO_SAY"
-                    bProfile.maritalStatus = pDict["maritalStatus"] as? String ?? "PREFER_NOT_TO_SAY"
-                    
-                    if let bDict = pDict["birthDetails"] as? [String: Any] {
-                        bProfile.birthDetails = PAGBirthDetails(
-                            birthDate: bDict["birthDate"] as? String ?? "",
-                            cityId: bDict["cityId"] as? String ?? "",
-                            cityName: bDict["cityName"] as? String ?? "",
-                            districtId: bDict["districtId"] as? String ?? "",
-                            districtName: bDict["districtName"] as? String ?? ""
-                        )
-                    }
-                    
-                    if let cDict = pDict["childrenInfo"] as? [String: Any] {
-                        var childList: [PAGChildInfo] = []
-                        if let cArr = cDict["children"] as? [[String: Any]] {
-                            for item in cArr {
-                                childList.append(PAGChildInfo(
-                                    gender: item["gender"] as? String ?? "MALE",
-                                    birthDate: item["birthDate"] as? String ?? "2020-01-01"
-                                ))
-                            }
-                        }
-                        bProfile.childrenInfo = PAGChildrenInfo(
-                            hasChildren: cDict["hasChildren"] as? Bool ?? false,
-                            childrenCount: cDict["childrenCount"] as? Int ?? 0,
-                            children: childList
-                        )
-                    }
-                    
-                    if let lDict = pDict["livingAddress"] as? [String: Any] {
-                        bProfile.residenceAddress = PAGLocationPair(
-                            cityId: lDict["cityId"] as? String ?? "",
-                            cityName: lDict["cityName"] as? String ?? "",
-                            districtId: lDict["districtId"] as? String ?? "",
-                            districtName: lDict["districtName"] as? String ?? "",
-                            neighborhoodId: lDict["neighborhoodId"] as? String,
-                            neighborhoodName: lDict["neighborhoodName"] as? String
-                        )
-                    }
-                    
-                    if let hDict = pDict["hometown"] as? [String: Any] {
-                        bProfile.hometown = PAGLocationPair(
-                            cityId: hDict["cityId"] as? String ?? "",
-                            cityName: hDict["cityName"] as? String ?? "",
-                            districtId: hDict["districtId"] as? String ?? "",
-                            districtName: hDict["districtName"] as? String ?? ""
-                        )
-                    }
-                }
-                
-                self.basicProfile = bProfile
-            }
         } catch {
             print("fetchBasicProfile error: \(error.localizedDescription)")
-            self.errorMessage = "Temel profil yüklenemedi: \(error.localizedDescription)"
+            self.errorMessage = error.localizedDescription
         }
         
-        isLoading = false
+        self.isLoading = false
     }
     
     public func saveBasicProfile(profile: PAGBasicProfile) async -> Bool {
@@ -163,71 +119,21 @@ public final class BasicProfileService: ObservableObject {
         errorMessage = nil
         saveSuccessMessage = nil
         
-        var payload: [String: Any] = [:]
-        
-        payload["firstName"] = profile.firstName.trimmingCharacters(in: .whitespacesAndNewlines)
-        payload["lastName"] = profile.lastName.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        payload["birthDetails"] = [
+        let restBody: [String: Any] = [
+            "displayName": "\(profile.firstName) \(profile.lastName)".trimmingCharacters(in: .whitespaces),
+            "gender": profile.gender,
+            "maritalStatus": profile.maritalStatus,
             "birthDate": profile.birthDetails.birthDate,
-            "cityId": profile.birthDetails.cityId,
-            "cityName": profile.birthDetails.cityName,
-            "districtId": profile.birthDetails.districtId,
-            "districtName": profile.birthDetails.districtName
-        ]
-        
-        payload["gender"] = profile.gender
-        payload["maritalStatus"] = profile.maritalStatus
-        
-        var childrenArr: [[String: String]] = []
-        for c in profile.childrenInfo.children {
-            childrenArr.append([
-                "gender": c.gender,
-                "birthDate": c.birthDate
-            ])
-        }
-        
-        payload["childrenInfo"] = [
-            "hasChildren": profile.childrenInfo.hasChildren,
-            "childrenCount": profile.childrenInfo.childrenCount,
-            "children": childrenArr
-        ]
-        
-        var resDict: [String: Any] = [
-            "cityId": profile.residenceAddress.cityId,
-            "cityName": profile.residenceAddress.cityName,
-            "districtId": profile.residenceAddress.districtId,
-            "districtName": profile.residenceAddress.districtName,
-            "neighborhoodId": profile.residenceAddress.neighborhoodId ?? "",
-            "neighborhoodName": profile.residenceAddress.neighborhoodName ?? ""
-        ]
-        if let fa = profile.residenceAddress.fullAddress, !fa.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            resDict["fullAddress"] = fa
-        }
-        payload["residenceAddress"] = resDict
-        
-        payload["hometown"] = [
-            "cityId": profile.hometown.cityId,
-            "cityName": profile.hometown.cityName,
-            "districtId": profile.hometown.districtId,
-            "districtName": profile.hometown.districtName
+            "city": profile.residenceAddress.cityName.isEmpty ? profile.birthDetails.cityName : profile.residenceAddress.cityName,
+            "district": profile.residenceAddress.districtName.isEmpty ? profile.birthDetails.districtName : profile.residenceAddress.districtName,
+            "hometown": profile.hometown.cityName,
+            "education": profile.educationLevel,
+            "occupation": profile.occupation
         ]
         
         do {
-            // 1. Try High-Speed REST API (~10ms)
-            let restBody: [String: Any] = [
-                "displayName": "\(profile.firstName) \(profile.lastName)".trimmingCharacters(in: .whitespaces),
-                "gender": profile.gender,
-                "maritalStatus": profile.maritalStatus,
-                "birthDate": profile.birthDetails.birthDate,
-                "city": profile.residenceAddress.cityName.isEmpty ? profile.birthDetails.cityName : profile.residenceAddress.cityName,
-                "district": profile.residenceAddress.districtName.isEmpty ? profile.birthDetails.districtName : profile.residenceAddress.districtName,
-                "hometown": profile.hometown.cityName
-            ]
-            
-            if let apiRes = try? await PAGApiClient.shared.put(endpoint: "/profile", body: restBody),
-               let success = apiRes["success"] as? Bool, success {
-                
+            let apiRes = try await PAGApiClient.shared.put(endpoint: "/profile", body: restBody)
+            if let success = apiRes["success"] as? Bool, success {
                 var updatedProfile = profile
                 updatedProfile.completionPercentage = 100
                 updatedProfile.scoreAwarded = true
@@ -235,30 +141,8 @@ public final class BasicProfileService: ObservableObject {
                 self.saveSuccessMessage = "Temel profil bilgileriniz başarıyla güncellendi."
                 isSaving = false
                 return true
-            }
-
-            // 2. Fallback to Firebase Callable
-            let result = try await Functions.functions().httpsCallable("updateBasicProfile").call(payload)
-            if let responseData = result.data as? [String: Any],
-               let success = responseData["success"] as? Bool, success,
-               let data = responseData["data"] as? [String: Any] {
-                
-                let completion = data["completionPercentage"] as? Int ?? 0
-                let scoreAwardedNow = data["scoreAwardedNow"] as? Int ?? 0
-                
-                var updatedProfile = profile
-                updatedProfile.completionPercentage = completion
-                if scoreAwardedNow > 0 {
-                    updatedProfile.scoreAwarded = true
-                }
-                
-                self.basicProfile = updatedProfile
-                self.saveSuccessMessage = scoreAwardedNow > 0
-                    ? "Tebrikler! Temel profilinizi %100 tamamladınız ve +\(scoreAwardedNow) Profil Puanı kazandınız!"
-                    : "Temel profil bilgileriniz başarıyla güncellendi."
-                
-                isSaving = false
-                return true
+            } else {
+                self.errorMessage = apiRes["error"] as? String ?? "Profil güncellenemedi."
             }
         } catch {
             print("saveBasicProfile error: \(error.localizedDescription)")

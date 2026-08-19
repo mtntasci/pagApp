@@ -2,11 +2,9 @@ package com.alafteknoloji.pagapp.services
 
 import com.alafteknoloji.pagapp.models.PAGRewardLedgerEntry
 import com.alafteknoloji.pagapp.models.PAGVoucher
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
 
 data class PAGScoreLedgerEntry(
     val id: String = "",
@@ -17,7 +15,6 @@ data class PAGScoreLedgerEntry(
 )
 
 class RewardService {
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
 
     private val _rewardBalance = MutableStateFlow(0)
     val rewardBalance: StateFlow<Int> = _rewardBalance.asStateFlow()

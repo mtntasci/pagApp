@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import FirebaseFunctions
 
 @MainActor
 public class RewardService: ObservableObject {
@@ -23,9 +22,8 @@ public class RewardService: ObservableObject {
         self.errorMessage = nil
         
         do {
-            // 1. Try High-Speed REST API (~10ms)
-            if let response = try? await PAGApiClient.shared.get(endpoint: "/wallet"),
-               let success = response["success"] as? Bool, success,
+            let response = try await PAGApiClient.shared.get(endpoint: "/wallet")
+            if let success = response["success"] as? Bool, success,
                let dataDict = response["data"] as? [String: Any] {
                 
                 self.rewardBalance = Int(Double(dataDict["rewardBalance"] as? String ?? "0") ?? 0)

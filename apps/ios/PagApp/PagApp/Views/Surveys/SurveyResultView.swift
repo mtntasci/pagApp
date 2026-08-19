@@ -73,12 +73,10 @@ public struct SurveyResultView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
-            if let newScore = result?.currentProfileScore {
-                UserService.shared.updateUserProfileScore(newScore: newScore)
-                Task {
-                    await UserService.shared.fetchUserRanking()
-                    await RewardService.shared.fetchUserRewards()
-                }
+            Task {
+                await UserService.shared.bootstrapCurrentUser()
+                await UserService.shared.fetchRankingSnapshot()
+                await RewardService.shared.fetchUserRewards()
             }
         }
     }

@@ -123,24 +123,29 @@ data class TabItem(
 
 class AppState {
     var selectedTab by mutableIntStateOf(0)
-    var homeRoute by mutableStateOf(HomeRoute.FEED)
+    var homeRoute by mutableStateOf(HomeRoute.HOME)
     var selectedStoryId by mutableStateOf<String?>(null)
     var surveyRoute by mutableStateOf(SurveyRoute.LIST)
     var selectedSurveyId by mutableStateOf<String?>(null)
 
     fun navigateToStory(storyId: String) {
         selectedStoryId = storyId
-        homeRoute = HomeRoute.STORY_VIEWER
     }
 
     fun goBackToFeed() {
-        homeRoute = HomeRoute.FEED
+        homeRoute = HomeRoute.HOME
         selectedStoryId = null
     }
 
     fun navigateToSurvey(surveyId: String) {
         selectedSurveyId = surveyId
         surveyRoute = SurveyRoute.DETAIL
+    }
+
+    fun navigateToSurveyFlow(surveyId: String) {
+        selectedSurveyId = surveyId
+        surveyRoute = SurveyRoute.DETAIL
+        selectedTab = 1
     }
 
     fun goBackToSurveys() {
@@ -184,7 +189,7 @@ fun MainScreen(appState: AppState, userService: UserService? = null) {
                 scope.launch {
                     try {
                         val apiRes = PAGApiClient.post("/permissions/location", JSONObject())
-                        if (apiRes.optBoolean("success")) {
+                        if (apiRes?.optBoolean("success") == true) {
                             val dataObj = apiRes.optJSONObject("data")
                             val scoreAwarded = dataObj?.optInt("scoreAwarded", 0) ?: 0
                             if (scoreAwarded > 0) {

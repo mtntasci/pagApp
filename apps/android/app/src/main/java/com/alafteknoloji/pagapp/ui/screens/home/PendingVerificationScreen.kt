@@ -62,7 +62,7 @@ fun PendingVerificationScreen(
     pending: PendingVerificationSurveyData,
     onDismiss: () -> Unit
 ) {
-    val verificationService = remember { VerificationService.getInstance() }
+    val verificationService = remember { VerificationService.shared }
     val scope = rememberCoroutineScope()
 
     var isStarted by remember { mutableStateOf(false) }

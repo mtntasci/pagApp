@@ -5,14 +5,13 @@ import com.alafteknoloji.pagapp.models.PAGQuestion
 import com.alafteknoloji.pagapp.models.PAGQuestionOption
 import com.alafteknoloji.pagapp.models.PAGSurvey
 import com.alafteknoloji.pagapp.models.PAGSurveyCompletionResult
-import com.google.firebase.functions.FirebaseFunctions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.tasks.await
+import org.json.JSONArray
+import org.json.JSONObject
 
 class SurveyService {
-    private val functions: FirebaseFunctions = FirebaseFunctions.getInstance()
 
     private val _eligibleSurveys = MutableStateFlow<List<PAGSurvey>>(emptyList())
     val eligibleSurveys: StateFlow<List<PAGSurvey>> = _eligibleSurveys.asStateFlow()
@@ -42,6 +41,33 @@ class SurveyService {
                         val surveyId = item.optString("id").ifEmpty { item.optString("surveyId") }
                         val title = item.optString("title")
                         if (surveyId.isNotEmpty() && title.isNotEmpty()) {
+                            val qList = mutableListOf<PAGQuestion>()
+                            val rawQs = item.optJSONArray("questions")
+                            if (rawQs != null) {
+                                for (qIdx in 0 until rawQs.length()) {
+                                    val qObj = rawQs.getJSONObject(qIdx)
+                                    val qId = qObj.optString("questionId", "q${qIdx + 1}")
+                                    val qText = qObj.optString("text", "")
+                                    val optList = mutableListOf<PAGQuestionOption>()
+                                    val rawOpts = qObj.optJSONArray("options")
+                                    if (rawOpts != null) {
+                                        for (oIdx in 0 until rawOpts.length()) {
+                                            val opt = rawOpts.get(oIdx)
+                                            if (opt is String) {
+                                                optList.add(PAGQuestionOption("opt_${oIdx + 1}", opt, oIdx + 1))
+                                            } else if (opt is JSONObject) {
+                                                optList.add(PAGQuestionOption(
+                                                    opt.optString("optionId", "opt_${oIdx + 1}"),
+                                                    opt.optString("label", ""),
+                                                    opt.optInt("order", oIdx + 1)
+                                                ))
+                                            }
+                                        }
+                                    }
+                                    qList.add(PAGQuestion(qId, qIdx + 1, "SINGLE_SELECT", qText, optList))
+                                }
+                            }
+
                             parsed.add(
                                 PAGSurvey(
                                     surveyId = surveyId,
@@ -51,7 +77,8 @@ class SurveyService {
                                     title = title,
                                     description = item.optString("description", ""),
                                     status = item.optString("status", "ACTIVE"),
-                                    questionCount = item.optInt("questionCount", 3),
+                                    questionCount = if (qList.isNotEmpty()) qList.size else item.optInt("questionCount", 3),
+                                    questions = qList,
                                     profileScoreReward = item.optInt("profileScoreReward", 50),
                                     isCompleted = false,
                                     isHighlighted = item.optBoolean("isHighlighted", false)
@@ -74,36 +101,34 @@ class SurveyService {
 
     suspend fun fetchCompletedSurveys() {
         try {
-            val result = functions.getHttpsCallable("getCompletedSurveys").call().await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any>
-                @Suppress("UNCHECKED_CAST")
-                val rawSurveys = dataDict?.get("surveys") as? List<Map<String, Any>> ?: emptyList()
-
-                val parsed = rawSurveys.mapNotNull { item ->
-                    val surveyId = item["surveyId"] as? String ?: return@mapNotNull null
-                    val title = item["title"] as? String ?: return@mapNotNull null
-                    val description = item["description"] as? String ?: ""
-
-                    PAGSurvey(
-                        surveyId = surveyId,
-                        ownerType = item["ownerType"] as? String ?: "PAG",
-                        organizationId = item["organizationId"] as? String,
-                        surveyType = item["surveyType"] as? String ?: "PAG",
-                        title = title,
-                        description = description,
-                        status = "COMPLETED",
-                        questionCount = (item["questionCount"] as? Number)?.toInt() ?: 3,
-                        profileScoreReward = (item["profileScoreReward"] as? Number)?.toInt() ?: 50,
-                        isCompleted = true
-                    )
+            val apiRes = PAGApiClient.get("/surveys/completed")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val dataDict = apiRes.optJSONObject("data")
+                val rawSurveys = dataDict?.optJSONArray("completedSurveys")
+                val parsed = mutableListOf<PAGSurvey>()
+                if (rawSurveys != null) {
+                    for (i in 0 until rawSurveys.length()) {
+                        val item = rawSurveys.getJSONObject(i)
+                        val surveyId = item.optString("surveyId").ifEmpty { item.optString("id") }
+                        val title = item.optString("title")
+                        if (surveyId.isNotEmpty() && title.isNotEmpty()) {
+                            parsed.add(
+                                PAGSurvey(
+                                    surveyId = surveyId,
+                                    ownerType = item.optString("ownerType", "PAG"),
+                                    organizationId = if (item.isNull("organizationId")) null else item.optString("organizationId"),
+                                    surveyType = item.optString("surveyType", "PAG"),
+                                    title = title,
+                                    description = item.optString("description", ""),
+                                    status = "COMPLETED",
+                                    questionCount = item.optInt("questionCount", 3),
+                                    profileScoreReward = item.optInt("profileScoreReward", 50),
+                                    isCompleted = true
+                                )
+                            )
+                        }
+                    }
                 }
-
                 _completedSurveys.value = parsed
             }
         } catch (e: Exception) {
@@ -112,139 +137,62 @@ class SurveyService {
     }
 
     suspend fun fetchSurveyDetail(surveyId: String): PAGSurvey? {
-        return try {
-            val result = functions.getHttpsCallable("getSurveyDetail")
-                .call(mapOf("surveyId" to surveyId))
-                .await()
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any>
-                @Suppress("UNCHECKED_CAST")
-                val surveyMap = dataDict?.get("survey") as? Map<String, Any> ?: return null
-                @Suppress("UNCHECKED_CAST")
-                val questionsRaw = dataDict["questions"] as? List<Map<String, Any>> ?: emptyList()
-
-                val parsedQuestions = questionsRaw.map { qMap ->
-                    @Suppress("UNCHECKED_CAST")
-                    val optionsRaw = qMap["options"] as? List<Map<String, Any>> ?: emptyList()
-                    val parsedOptions = optionsRaw.map { oMap ->
-                        PAGQuestionOption(
-                            optionId = oMap["optionId"] as? String ?: "",
-                            label = oMap["label"] as? String ?: "",
-                            order = (oMap["order"] as? Number)?.toInt() ?: 0
-                        )
-                    }
-
-                    PAGQuestion(
-                        questionId = qMap["questionId"] as? String ?: "",
-                        order = (qMap["order"] as? Number)?.toInt() ?: 0,
-                        type = qMap["type"] as? String ?: "SINGLE_SELECT",
-                        text = qMap["text"] as? String ?: "",
-                        options = parsedOptions
-                    )
-                }
-
-                PAGSurvey(
-                    surveyId = surveyMap["surveyId"] as? String ?: surveyId,
-                    ownerType = surveyMap["ownerType"] as? String ?: "PAG",
-                    organizationId = surveyMap["organizationId"] as? String,
-                    surveyType = surveyMap["surveyType"] as? String ?: "PAG",
-                    title = surveyMap["title"] as? String ?: "",
-                    description = surveyMap["description"] as? String ?: "",
-                    status = surveyMap["status"] as? String ?: "ACTIVE",
-                    questionCount = (surveyMap["questionCount"] as? Number)?.toInt() ?: parsedQuestions.size,
-                    questions = parsedQuestions,
-                    profileScoreReward = (surveyMap["profileScoreReward"] as? Number)?.toInt() ?: 50,
-                    isCompleted = dataDict["isCompleted"] as? Boolean ?: false
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+        val found = _eligibleSurveys.value.find { it.surveyId == surveyId }
+        if (found != null) return found
+        val comp = _completedSurveys.value.find { it.surveyId == surveyId }
+        return comp
     }
 
     suspend fun submitSurveyResponse(
         surveyId: String,
-        answers: List<PAGAnswerInput>
-    ): PAGSurveyCompletionResult? {
-        return try {
-            // 1. Try High-Speed REST API (~10ms)
-            val jsonBody = org.json.JSONObject()
-            val answersArray = org.json.JSONArray()
-            answers.take(3).forEach {
-                val aObj = org.json.JSONObject()
-                aObj.put("questionId", it.questionId)
-                aObj.put("optionId", it.optionId)
-                answersArray.put(aObj)
+        answers: List<PAGAnswerInput>,
+        isProfile: Boolean = false,
+        userService: UserService? = null
+    ): PAGSurveyCompletionResult {
+        val answersArray = JSONArray()
+        answers.take(3).forEach { ans ->
+            val obj = JSONObject().apply {
+                put("questionId", ans.questionId)
+                put("optionId", ans.optionId)
             }
-            jsonBody.put("answers", answersArray)
-
-            val apiRes = PAGApiClient.post("/surveys/$surveyId/submit", jsonBody)
-            if (apiRes != null && apiRes.optBoolean("success")) {
-                val dataObj = apiRes.optJSONObject("data")
-                return PAGSurveyCompletionResult(
-                    responseId = "${surveyId}_submitted",
-                    surveyId = surveyId,
-                    completedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).format(java.util.Date()),
-                    isDuplicate = false,
-                    profileScorePotential = dataObj?.optInt("earnedScore") ?: 50,
-                    currentProfileScore = dataObj?.optInt("profileScore") ?: 0,
-                    rewardAwarded = 0,
-                    rewardType = "NONE",
-                    voucherCode = null,
-                    voucherTitle = null,
-                    currentRewardBalance = dataObj?.optString("rewardBalance")?.toDoubleOrNull()?.toInt() ?: 0
-                )
-            }
-
-            // 2. Fallback to Firebase Callable
-            val answersList = answers.map {
-                mapOf("questionId" to it.questionId, "optionId" to it.optionId)
-            }
-
-            val payload = mapOf(
-                "surveyId" to surveyId,
-                "answers" to answersList
-            )
-
-            val result = functions.getHttpsCallable("submitSurveyResponse")
-                .call(payload)
-                .await()
-
-            @Suppress("UNCHECKED_CAST")
-            val resMap = result.getData() as? Map<String, Any>
-            val success = resMap?.get("success") as? Boolean ?: false
-
-            if (success) {
-                @Suppress("UNCHECKED_CAST")
-                val dataDict = resMap?.get("data") as? Map<String, Any> ?: return null
-
-                PAGSurveyCompletionResult(
-                    responseId = dataDict["responseId"] as? String ?: "",
-                    surveyId = dataDict["surveyId"] as? String ?: surveyId,
-                    completedAt = dataDict["completedAt"] as? String ?: "",
-                    isDuplicate = dataDict["isDuplicate"] as? Boolean ?: false,
-                    profileScorePotential = (dataDict["profileScoreAwarded"] as? Number)?.toInt() ?: 0,
-                    currentProfileScore = (dataDict["currentProfileScore"] as? Number)?.toInt() ?: 0,
-                    rewardAwarded = (dataDict["currentRewardBalance"] as? Number)?.toInt() ?: 0,
-                    rewardType = dataDict["rewardType"] as? String ?: "NONE",
-                    voucherCode = dataDict["voucherCode"] as? String,
-                    voucherTitle = dataDict["voucherTitle"] as? String,
-                    currentRewardBalance = (dataDict["currentRewardBalance"] as? Number)?.toInt() ?: 0
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
+            answersArray.put(obj)
         }
+
+        val jsonBody = JSONObject().apply {
+            put("answers", answersArray)
+        }
+
+        val apiRes = PAGApiClient.post("/surveys/$surveyId/submit", jsonBody)
+        if (apiRes != null && apiRes.optBoolean("success")) {
+            val dataDict = apiRes.optJSONObject("data")
+            val scoreAwarded = dataDict?.optInt("earnedScore", 50) ?: 50
+            val currentScore = dataDict?.optInt("profileScore")
+            val earnedReward = dataDict?.optJSONObject("earnedReward")
+            val prizeAmount = earnedReward?.optInt("amount")
+            val prizeType = earnedReward?.optString("type")
+            val vCode = earnedReward?.optString("code")
+            val vTitle = earnedReward?.optString("poolName")
+            val currentRewardBalance = dataDict?.optString("rewardBalance", "0")?.toDoubleOrNull()?.toInt() ?: 0
+
+            fetchEligibleSurveys()
+            userService?.bootstrapCurrentUser()
+
+            return PAGSurveyCompletionResult(
+                responseId = "${surveyId}_submitted",
+                surveyId = surveyId,
+                completedAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", java.util.Locale.US).format(java.util.Date()),
+                isDuplicate = false,
+                profileScorePotential = scoreAwarded,
+                currentProfileScore = currentScore,
+                rewardAwarded = prizeAmount,
+                rewardType = prizeType,
+                voucherCode = vCode,
+                voucherTitle = vTitle,
+                currentRewardBalance = currentRewardBalance
+            )
+        }
+
+        val errorMsg = apiRes?.optString("error", "Tamamlama işlemi başarısız.") ?: "Tamamlama işlemi başarısız."
+        throw Exception(errorMsg)
     }
 }

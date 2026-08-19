@@ -1,5 +1,4 @@
 import Foundation
-import FirebaseFunctions
 import Combine
 
 @MainActor
@@ -14,8 +13,8 @@ public class StoryService: ObservableObject {
     public func fetchStories() async {
         self.isLoading = true
         do {
-            if let response = try? await PAGApiClient.shared.get(endpoint: "/home"),
-               let success = response["success"] as? Bool, success,
+            let response = try await PAGApiClient.shared.get(endpoint: "/home")
+            if let success = response["success"] as? Bool, success,
                let dataDict = response["data"] as? [String: Any],
                let rawList = dataDict["stories"] as? [[String: Any]] {
                 
