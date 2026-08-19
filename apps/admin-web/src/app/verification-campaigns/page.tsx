@@ -141,67 +141,59 @@ export default function VerificationCampaignsPage() {
 
   // 2. Fetch available surveys for selection
   const fetchSurveys = useCallback(async () => {
+    let list: any[] = [];
     try {
       const snap = await getDocs(collection(db, 'surveys'));
       if (!snap.empty) {
-        let list = snap.docs.map(docSnap => ({
+        list = snap.docs.map(docSnap => ({
           ...docSnap.data(),
           surveyId: docSnap.id
-        } as any));
-
-        // Tenant isolation for org user
-        if (isOrgUser && portalUser?.organizationId) {
-          list = list.filter(s => s.organizationId === portalUser.organizationId);
-        }
-
-        // Sort: verification-ready surveys first
-        list.sort((a, b) => {
-          const aVer = (a.isVerificationEnabled || a.verificationConfig?.enabled || a.verificationConfig?.questionText) ? 1 : 0;
-          const bVer = (b.isVerificationEnabled || b.verificationConfig?.enabled || b.verificationConfig?.questionText) ? 1 : 0;
-          return bVer - aVer;
-        });
-
-        setAvailableSurveys(list);
-        if (list.length > 0 && !selectedSurveyId) {
-          setSelectedSurveyId(list[0].surveyId);
-          const vConfig = list[0].verificationConfig || {};
-          setSurveyMetadata({
-            pagTargetCount: vConfig.pagTargetCount || 50,
-            orgSelectionQuota: vConfig.orgSelectionQuota || 20,
-            verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
-          });
-        }
+        }));
       }
     } catch (fsErr) {
       console.warn('Direct Firestore surveys read error:', fsErr);
     }
 
-    try {
-      const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
-      const res: any = await listSurveysFn({});
-      if (res.data?.success && Array.isArray(res.data.data?.surveys) && res.data.data.surveys.length > 0) {
-        let list = res.data.data.surveys;
-        if (isOrgUser && portalUser?.organizationId) {
-          list = list.filter((s: any) => s.organizationId === portalUser.organizationId);
+    if (list.length === 0) {
+      try {
+        const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
+        const res: any = await listSurveysFn({});
+        if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
+          list = res.data.data.surveys;
         }
-        list.sort((a: any, b: any) => {
-          const aVer = (a.isVerificationEnabled || a.verificationConfig?.enabled || a.verificationConfig?.questionText) ? 1 : 0;
-          const bVer = (b.isVerificationEnabled || b.verificationConfig?.enabled || b.verificationConfig?.questionText) ? 1 : 0;
-          return bVer - aVer;
-        });
-        setAvailableSurveys(list);
-        if (list.length > 0 && !selectedSurveyId) {
-          setSelectedSurveyId(list[0].surveyId);
-          const vConfig = list[0].verificationConfig || {};
-          setSurveyMetadata({
-            pagTargetCount: vConfig.pagTargetCount || 50,
-            orgSelectionQuota: vConfig.orgSelectionQuota || 20,
-            verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
-          });
-        }
+      } catch (err) {
+        console.warn('listSurveysAdmin fallback error:', err);
       }
-    } catch (err) {
-      // background
+    }
+
+    // Tenant isolation for org user
+    if (isOrgUser && portalUser?.organizationId) {
+      list = list.filter(s => s.organizationId === portalUser.organizationId);
+    }
+
+    // Sort: surveys where hasVerification or isVerificationEnabled is true come first
+    list.sort((a, b) => {
+      const aVer = (a.hasVerification || a.isVerificationEnabled || a.verificationConfig?.enabled) ? 1 : 0;
+      const bVer = (b.hasVerification || b.isVerificationEnabled || b.verificationConfig?.enabled) ? 1 : 0;
+      return bVer - aVer;
+    });
+
+    setAvailableSurveys(list);
+
+    if (list.length > 0) {
+      const currentExists = list.some(s => s.surveyId === selectedSurveyId);
+      const chosen = currentExists ? list.find(s => s.surveyId === selectedSurveyId) : list[0];
+      if (chosen) {
+        if (!selectedSurveyId || !currentExists) {
+          setSelectedSurveyId(chosen.surveyId);
+        }
+        const vConfig = chosen.verificationConfig || {};
+        setSurveyMetadata({
+          pagTargetCount: vConfig.pagTargetCount || 50,
+          orgSelectionQuota: vConfig.orgSelectionQuota || 20,
+          verificationRewardSummary: vConfig.rewardDefinition?.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Hediye Çeki'
+        });
+      }
     }
   }, [selectedSurveyId, isOrgUser, portalUser]);
 

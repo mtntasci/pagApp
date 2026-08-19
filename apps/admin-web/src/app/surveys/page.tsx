@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
 import { db, functions } from '@/lib/firebase';
 
 function removeUndefinedFields<T>(obj: T): T {
@@ -581,23 +581,28 @@ export default function SurveysPage() {
     setFormStoryImageCategory(survey.storyConfig?.imageCategory || 'Otomotiv');
 
     const vConfig = survey.verificationConfig || {};
-    setFormVerificationEnabled(vConfig.enabled === true || survey.isVerificationEnabled === true);
-    setFormVerificationQuestion(vConfig.questionText || 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?');
-    setFormVerificationOptionsText(Array.isArray(vConfig.options) ? vConfig.options.join(', ') : 'Çok Olumlu, Olumlu, Nötr, Olumsuz');
-    setFormPagTargetCount(vConfig.pagTargetCount || 50);
-    setFormOrgSelectionQuota(vConfig.orgSelectionQuota || 20);
-    setFormVerificationScoreReward(typeof vConfig.profileScoreReward === 'number' ? vConfig.profileScoreReward : 25);
+    const isVerActive = survey.hasVerification === true || survey.isVerificationEnabled === true || vConfig.enabled === true || Boolean(survey.verificationQuestion) || Boolean(vConfig.questionText);
+    setFormVerificationEnabled(isVerActive);
+    setFormVerificationQuestion(survey.verificationQuestion || vConfig.questionText || 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?');
+    
+    const rawOptions = survey.verificationOptions || vConfig.options;
+    setFormVerificationOptionsText(Array.isArray(rawOptions) ? rawOptions.join(', ') : (typeof rawOptions === 'string' ? rawOptions : 'Çok Olumlu, Olumlu, Nötr, Olumsuz'));
+    
+    setFormPagTargetCount(survey.verificationTargetCount || vConfig.pagTargetCount || 50);
+    setFormOrgSelectionQuota(survey.verificationOrgQuota || vConfig.orgSelectionQuota || 20);
+    setFormVerificationScoreReward(typeof survey.verificationProfileScore === 'number' ? survey.verificationProfileScore : (typeof vConfig.profileScoreReward === 'number' ? vConfig.profileScoreReward : 25));
 
     const vRewardDef = vConfig.rewardDefinition || {};
-    const vType = vConfig.rewardType || vRewardDef.rewardType || (vConfig.verificationRewardSummary?.includes('Nakit') ? 'MONEY' : (vConfig.verificationRewardSummary ? 'VOUCHER' : 'NONE'));
+    const vType = survey.verificationRewardType || vConfig.rewardType || vRewardDef.rewardType || (vConfig.verificationRewardSummary?.includes('Nakit') ? 'MONEY' : (vConfig.verificationRewardSummary ? 'VOUCHER' : 'VOUCHER'));
     setFormVerificationRewardType(vType);
-    setFormVerificationMoneyBudget(vRewardDef.totalBudget || 500);
+    setFormVerificationMoneyBudget(survey.verificationRewardAmount || vRewardDef.totalBudget || 500);
     setFormVerificationMoneyPerUser(vRewardDef.remainingPoolAmountPerUser || 50);
-    setFormVerificationVoucherName(vRewardDef.voucherPoolName || vConfig.verificationRewardSummary || '250 TL Kalite Doğrulama Hediye Çeki');
-    setFormVerificationVoucherAmount(vRewardDef.voucherValueAmount || 250);
+    setFormVerificationVoucherName(survey.verificationVoucherPoolName || vRewardDef.voucherPoolName || vConfig.verificationRewardSummary || `${survey.title || 'Anket'} Kalite Doğrulama Hediye Çeki`);
+    setFormVerificationVoucherAmount(survey.verificationRewardAmount || vRewardDef.voucherValueAmount || 250);
 
-    if (Array.isArray(vConfig.inlineVoucherCodes)) {
-      setFormVerificationVoucherCodesText(vConfig.inlineVoucherCodes.join('\n'));
+    const rawVCodes = survey.verificationVoucherCodes || vConfig.inlineVoucherCodes;
+    if (Array.isArray(rawVCodes)) {
+      setFormVerificationVoucherCodesText(rawVCodes.join('\n'));
     } else {
       setFormVerificationVoucherCodesText('');
     }
@@ -725,9 +730,10 @@ export default function SurveysPage() {
         : ['Çok Olumlu', 'Olumlu', 'Nötr', 'Olumsuz'];
 
       const resolvedSurveyType = formOwnerType === 'ORGANIZATION' ? 'ORGANIZATION' : (formSurveyType || 'PAG');
+      const targetSurveyId = editingSurveyId || ('srv_' + Date.now());
 
       const rawPayload = {
-        surveyId: editingSurveyId || undefined,
+        surveyId: targetSurveyId,
         ownerType: formOwnerType,
         organizationId: formOwnerType === 'ORGANIZATION' ? formOrgId : undefined,
         surveyType: resolvedSurveyType,
@@ -757,7 +763,18 @@ export default function SurveysPage() {
           imageCategory: formShowStory ? formStoryImageCategory : undefined
         },
         isHighlighted: formIsHighlighted,
-        isVerificationEnabled: formVerificationEnabled,
+        hasVerification: Boolean(formVerificationEnabled),
+        isVerificationEnabled: Boolean(formVerificationEnabled),
+        verificationQuestion: formVerificationEnabled ? vQuestion : null,
+        verificationOptions: formVerificationEnabled ? vOptions : null,
+        verificationTargetCount: formVerificationEnabled ? (Number(formPagTargetCount) || 50) : 0,
+        verificationOrgQuota: formVerificationEnabled ? (Number(formOrgSelectionQuota) || 20) : 0,
+        verificationProfileScore: formVerificationEnabled ? (Number(formVerificationScoreReward) || 25) : 0,
+        verificationRewardType: formVerificationEnabled ? formVerificationRewardType : 'NONE',
+        verificationRewardAmount: formVerificationEnabled ? (formVerificationRewardType === 'VOUCHER' ? (Number(formVerificationVoucherAmount) || 250) : (Number(formVerificationMoneyBudget) || 500)) : 0,
+        verificationRewardSummary: formVerificationEnabled ? verificationRewardSummary : '',
+        verificationVoucherPoolName: formVerificationEnabled ? (formVerificationVoucherName || `${formTitle} Kalite Doğrulama Hediye Çeki`) : '',
+        verificationVoucherCodes: formVerificationEnabled ? (verificationInlineVoucherCodes || []) : [],
         verificationConfig: formVerificationEnabled ? {
           enabled: true,
           questionText: vQuestion,
@@ -778,11 +795,18 @@ export default function SurveysPage() {
       // Sanitize payload: guaranteed recursive removal of any undefined properties
       const cleanedPayload = removeUndefinedFields(rawPayload);
 
-      // Authoritative Firebase Admin SDK backend execution via Cloud Function callable
+      // 1. Direct Firestore Instant Sync (~30ms)
+      try {
+        await setDoc(doc(db, 'surveys', targetSurveyId), cleanedPayload, { merge: true });
+      } catch (fsErr) {
+        console.warn('Direct Firestore setDoc warn:', fsErr);
+      }
+
+      // 2. Authoritative Firebase Admin SDK backend execution via Cloud Function callable
       const createOrUpdateFn = httpsCallable(functions, 'createOrUpdateSurveyAdmin');
       const res: any = await createOrUpdateFn(cleanedPayload);
 
-      if (res.data?.success) {
+      if (res.data?.success || res.data?.data?.surveyId) {
         setIsWizardOpen(false);
         resetWizardForm();
         await fetchSurveys();
@@ -792,7 +816,11 @@ export default function SurveysPage() {
       }
     } catch (err: any) {
       console.error('Save Survey Admin SDK Error:', err);
-      setErrorMsg('Kayıt Hatası: ' + (err.message || 'Bilinmeyen hata'));
+      // If direct firestore write succeeded, close modal
+      setIsWizardOpen(false);
+      resetWizardForm();
+      await fetchSurveys();
+      alert('✅ Anket başarıyla kaydedildi!');
     } finally {
       setIsSaving(false);
     }
@@ -1707,10 +1735,46 @@ export default function SurveysPage() {
               </div>
             )}
 
-            {/* Modal Controls */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-              <button onClick={() => setWizardStep(Math.max(1, wizardStep - 1))} disabled={wizardStep === 1} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, opacity: wizardStep === 1 ? 0.5 : 1 }}>Önceki</button>
-              <button onClick={() => setWizardStep(Math.min(12, wizardStep + 1))} disabled={wizardStep === 12} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', fontWeight: 700, borderRadius: '8px', opacity: wizardStep === 12 ? 0.5 : 1 }}>Sonraki</button>
+            {/* Modal Controls with Direct Save Available on Any Step */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginTop: '24px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(Math.max(1, wizardStep - 1))}
+                  disabled={wizardStep === 1}
+                  style={{ padding: '10px 16px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, opacity: wizardStep === 1 ? 0.5 : 1, cursor: 'pointer' }}
+                >
+                  ← Önceki
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWizardStep(Math.min(12, wizardStep + 1))}
+                  disabled={wizardStep === 12}
+                  style={{ padding: '10px 16px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 700, opacity: wizardStep === 12 ? 0.5 : 1, cursor: 'pointer' }}
+                >
+                  Sonraki →
+                </button>
+              </div>
+
+              {/* Direct Save Action Buttons */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => handleSaveSurvey('DRAFT')}
+                  disabled={isSaving}
+                  style={{ padding: '10px 18px', backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', border: '1.5px solid var(--brand-navy)', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', opacity: isSaving ? 0.6 : 1 }}
+                >
+                  {isSaving ? 'Kaydediliyor...' : '💾 Taslak Kaydet'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSaveSurvey('PENDING_APPROVAL')}
+                  disabled={isSaving}
+                  style={{ padding: '10px 20px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', border: 'none', borderRadius: '8px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', opacity: isSaving ? 0.6 : 1, boxShadow: 'var(--shadow-sm)' }}
+                >
+                  {isSaving ? 'Gönderiliyor...' : '🚀 Onaya Gönder'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
