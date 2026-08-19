@@ -36,9 +36,9 @@ const AuthContext = createContext<AuthContextType>({
   isOrgUser: false,
   loading: true,
   authError: null,
-  signOut: async () => {},
-  clearAuthError: () => {},
-  refreshPortalUser: async () => {}
+  signOut: async () => { },
+  clearAuthError: () => { },
+  refreshPortalUser: async () => { }
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -53,13 +53,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchPortalUser = useCallback(async (currentUser: User) => {
     // 1. Super Admin Bootstrap for admin@pagapp.com & mtntasci@gmail.com
     const userEmail = (currentUser.email || '').toLowerCase();
-    if (userEmail === 'admin@pagapp.com' || userEmail === 'mtntasci@gmail.com') {
+    if (userEmail === 'admin@pagapp.com.tr' || userEmail === 'mtntasci@gmail.com') {
       const bootstrapUser: PortalUser = {
         uid: currentUser.uid,
         email: currentUser.email || userEmail,
         role: 'SUPER_ADMIN',
         status: 'ACTIVE',
-        mustChangePassword: userEmail === 'admin@pagapp.com'
+        mustChangePassword: userEmail === 'admin@pagapp.com.tr'
       };
       setPortalUser(bootstrapUser);
       setIsAdmin(true);
