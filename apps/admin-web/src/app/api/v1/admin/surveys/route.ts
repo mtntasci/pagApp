@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
       })
       .from(surveys)
       .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
-      .limit(200);
+      .limit(2000);
 
     // Get counts in parallel
     const surveyList = await Promise.all(
