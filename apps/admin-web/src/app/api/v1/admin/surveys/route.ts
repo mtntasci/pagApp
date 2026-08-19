@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       return apiError('Anket başlığı zorunludur.');
     }
 
-    if (questionsList.length > 3) {
+    if (questionsList.length > 3 && body.surveyType !== 'PROFILE') {
       return apiError('PAG Kampanya Anketleri maksimum 3 soru içerebilir.');
     }
 

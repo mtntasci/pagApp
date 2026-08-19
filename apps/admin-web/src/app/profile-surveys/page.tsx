@@ -63,7 +63,14 @@ export default function ProfileSurveysPage() {
       if (srvRes.ok) {
         const srvJson = await srvRes.json();
         if (srvJson.success && Array.isArray(srvJson.data?.surveys)) {
-          const profileSurveys = srvJson.data.surveys.filter((s: any) => s.surveyType === 'PROFILE' || s.id.startsWith('pq_'));
+          const profileSurveys = srvJson.data.surveys
+            .filter((s: any) => s.surveyType === 'PROFILE' || (s.id && s.id.startsWith('pq_')))
+            .map((s: any) => ({
+              ...s,
+              questionText: s.questionText || s.title || 'İsimsiz Soru',
+              categoryName: s.categoryName || s.category || 'Genel',
+              showOnHome: s.showOnHome !== undefined ? s.showOnHome : s.isHighlighted
+            }));
           setQuestions(profileSurveys);
         } else {
           setQuestions([]);
@@ -181,45 +188,69 @@ export default function ProfileSurveysPage() {
 
     try {
       const parsed = JSON.parse(jsonInputText);
-      const items = Array.isArray(parsed) ? parsed : [parsed];
+      let items: any[] = [];
+      if (Array.isArray(parsed)) {
+        items = parsed;
+      } else if (Array.isArray(parsed.questions)) {
+        items = parsed.questions;
+      } else if (Array.isArray(parsed.data)) {
+        items = parsed.data;
+      } else if (Array.isArray(parsed.items)) {
+        items = parsed.items;
+      } else {
+        items = [parsed];
+      }
+
       setIsSaving(true);
+      let successCount = 0;
 
       for (const q of items) {
-        if (!q.questionText || !Array.isArray(q.options) || q.options.length < 2) {
-          throw new Error('Geçersiz soru formatı. "questionText" ve en az 2 "options" gereklidir.');
+        const qText = q.questionText || q.text || q.title || q.question;
+        const qOptions = Array.isArray(q.options) ? q.options : (Array.isArray(q.choices) ? q.choices : []);
+
+        if (!qText || qOptions.length < 2) {
+          throw new Error(`Geçersiz soru formatı: "${qText || 'Bilinmeyen'}" için en az 2 seçenek gereklidir.`);
         }
 
         const catObj = categories.find((c) => c.id === q.categoryId) || categories[0];
-        const catName = q.categoryName || (catObj ? catObj.name : 'Genel');
-        const srvId = q.id || `pq_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
-        const validOpts = q.options.map((o: any) => typeof o === 'string' ? o : (o.label || 'Seçenek'));
+        const catName = q.categoryName || q.category || (catObj ? catObj.name : 'Genel');
+        const srvId = q.id || q.questionId || q.surveyId || `pq_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+        const validOpts = qOptions.map((o: any) => typeof o === 'string' ? o : (o.label || o.text || o.title || 'Seçenek'));
+        const qReward = Number(q.profileScoreReward || q.reward || q.scoreReward) || 50;
 
-        await fetch('/api/v1/admin/surveys', {
+        const res = await fetch('/api/v1/admin/surveys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             surveyId: srvId,
-            title: q.questionText.trim(),
+            title: qText.trim(),
             description: 'Profil Anketi',
             ownerType: 'PAG',
             surveyType: 'PROFILE',
             category: catName,
             status: q.status || 'ACTIVE',
             isHighlighted: Boolean(q.showOnHome),
-            profileScoreReward: Number(q.profileScoreReward) || 50,
+            profileScoreReward: qReward,
             questions: [
               {
                 id: `q_${srvId}`,
-                text: q.questionText.trim(),
+                text: qText.trim(),
                 type: 'SINGLE_SELECT',
                 options: validOpts
               }
             ]
           })
         });
+
+        const resData = await res.json().catch(() => ({}));
+        if (!res.ok || !resData.success) {
+          throw new Error(resData.error || `Soru "${qText.substring(0, 25)}..." kaydedilemedi.`);
+        }
+
+        successCount++;
       }
 
-      setSuccessMessage(`${items.length} adet profil sorusu başarıyla içeri aktarıldı.`);
+      setSuccessMessage(`${successCount} adet profil sorusu başarıyla Neon veritabanına aktarıldı ve yayınlandı! 🚀`);
       setIsModalOpen(false);
       setJsonInputText('');
       fetchQuestionsAndCategories();
