@@ -1853,18 +1853,19 @@ export default function SurveysPage() {
                             onClick={() => handleToggleHighlight(s)}
                             title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
                             style={{
-                              padding: '6px 10px',
+                              padding: '6px 8px',
                               backgroundColor: s.isHighlighted ? '#FEF3C7' : 'var(--bg-surface-secondary)',
                               color: s.isHighlighted ? '#D97706' : 'var(--text-secondary)',
                               border: s.isHighlighted ? '1px solid #F59E0B' : '1px solid var(--border-color)',
                               borderRadius: '6px',
-                              fontSize: '11px',
-                              fontWeight: 700,
+                              fontSize: '13px',
                               cursor: 'pointer',
-                              whiteSpace: 'nowrap'
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
                             }}
                           >
-                            {s.isHighlighted ? '⭐ Öne Çıkarıldı' : '☆ Öne Çıkar'}
+                            {s.isHighlighted ? '⭐' : '☆'}
                           </button>
                           <button
                             onClick={() => handleOpenEditWizard(s)}
@@ -2035,17 +2036,16 @@ export default function SurveysPage() {
                       onClick={() => handleToggleHighlight(s)}
                       title={s.isHighlighted ? "Öne çıkarılmayı kaldır" : "En üste öne çıkar"}
                       style={{
-                        padding: '8px 12px',
+                        padding: '8px 14px',
                         backgroundColor: s.isHighlighted ? '#FEF3C7' : 'var(--bg-surface-secondary)',
                         color: s.isHighlighted ? '#D97706' : 'var(--text-secondary)',
                         border: s.isHighlighted ? '1px solid #F59E0B' : '1px solid var(--border-color)',
                         borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: 700,
+                        fontSize: '14px',
                         cursor: 'pointer'
                       }}
                     >
-                      {s.isHighlighted ? '⭐ Öne Çıkarıldı' : '☆ Öne Çıkar'}
+                      {s.isHighlighted ? '⭐' : '☆'}
                     </button>
                     <button
                       onClick={() => handleOpenEditWizard(s)}
