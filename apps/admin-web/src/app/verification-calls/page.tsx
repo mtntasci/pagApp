@@ -13,6 +13,7 @@ export interface VerificationAssignmentItem {
   verificationSurveyId: string;
   verificationRewardSummary: string;
   userDisplayName: string;
+  organizationId?: string | null;
   selectionSource: 'CUSTOMER' | 'RANDOM';
   status: string;
   assignedAgentId: string | null;
@@ -25,6 +26,8 @@ export interface VerificationAssignmentItem {
 export default function VerificationCallsPage() {
   const { user } = useAuth();
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+  const [selectedOrgId, setSelectedOrgId] = useState<string>('ALL');
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
   const [assignments, setAssignments] = useState<VerificationAssignmentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -34,21 +37,27 @@ export default function VerificationCallsPage() {
   const [isSubmittingResult, setIsSubmittingResult] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
-  // 1. Fetch campaigns
-  const fetchCampaigns = useCallback(async () => {
+  // 1. Fetch campaigns & organizations
+  const fetchData = useCallback(async () => {
     try {
       const listCampFn = httpsCallable(functions, 'listVerificationCampaigns');
-      const res: any = await listCampFn({});
-      if (res.data?.success && Array.isArray(res.data?.data?.campaigns)) {
-        setCampaigns(res.data.data.campaigns);
-        if (res.data.data.campaigns.length > 0 && !selectedCampaignId) {
-          setSelectedCampaignId(res.data.data.campaigns[0].id);
-        }
+      const listOrgsFn = httpsCallable(functions, 'listOrganizationsAdmin');
+
+      const [campRes, orgsRes]: [any, any] = await Promise.all([
+        listCampFn({}),
+        listOrgsFn()
+      ]);
+
+      if (campRes.data?.success && Array.isArray(campRes.data?.data?.campaigns)) {
+        setCampaigns(campRes.data.data.campaigns);
+      }
+      if (orgsRes.data?.success && Array.isArray(orgsRes.data?.data?.organizations)) {
+        setOrganizations(orgsRes.data.data.organizations);
       }
     } catch (err) {
-      console.error('Fetch Verification Campaigns Error:', err);
+      console.error('Fetch Verification Campaigns / Orgs Error:', err);
     }
-  }, [selectedCampaignId]);
+  }, []);
 
   // 2. Fetch assignments
   const fetchAssignments = useCallback(async (campId?: string) => {
@@ -67,8 +76,8 @@ export default function VerificationCallsPage() {
   }, []);
 
   useEffect(() => {
-    fetchCampaigns();
-  }, [fetchCampaigns]);
+    fetchData();
+  }, [fetchData]);
 
   useEffect(() => {
     fetchAssignments(selectedCampaignId);
@@ -118,23 +127,41 @@ export default function VerificationCallsPage() {
     }
   };
 
+  // Get matching organization name for assignment
+  const getOrgNameForAssignment = (a: VerificationAssignmentItem) => {
+    const matchedCamp = campaigns.find(c => c.id === a.verificationCampaignId || c.masterSurveyId === a.masterSurveyId);
+    const orgId = a.organizationId || matchedCamp?.organizationId;
+    if (!orgId) return 'PAG Platformu';
+    const org = organizations.find(o => o.organizationId === orgId);
+    return org ? org.name : orgId;
+  };
+
   const filteredAssignments = assignments.filter((a) => {
+    if (selectedOrgId !== 'ALL') {
+      const matchedCamp = campaigns.find(c => c.id === a.verificationCampaignId || c.masterSurveyId === a.masterSurveyId);
+      const orgId = a.organizationId || matchedCamp?.organizationId;
+      if (orgId !== selectedOrgId) return false;
+    }
     if (statusFilter === 'ALL') return true;
     if (statusFilter === 'PENDING') return ['QUEUED', 'ASSIGNED', 'CALL_BACK_LATER', 'NO_ANSWER'].includes(a.status);
     if (statusFilter === 'ACCEPTED') return ['ACCEPTED', 'PUSH_SENT', 'VERIFICATION_COMPLETED'].includes(a.status);
     return a.status === statusFilter;
   });
 
+  const pendingCount = assignments.filter(a => ['QUEUED', 'ASSIGNED', 'CALL_BACK_LATER', 'NO_ANSWER'].includes(a.status)).length;
+  const acceptedCount = assignments.filter(a => ['ACCEPTED', 'PUSH_SENT', 'VERIFICATION_COMPLETED'].includes(a.status)).length;
+  const completedCount = assignments.filter(a => a.status === 'VERIFICATION_COMPLETED').length;
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'QUEUED':
       case 'ASSIGNED':
-        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-secondary)' }}>Bekliyor</span>;
+        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-secondary)' }}>⏳ Bekliyor</span>;
       case 'CALLING':
         return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--warning-bg)', color: 'var(--warning-color)', border: '1px solid var(--warning-border)' }}>📞 Aranıyor</span>;
       case 'ACCEPTED':
       case 'PUSH_SENT':
-        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--success-bg)', color: 'var(--success-color)', border: '1px solid var(--success-border)' }}>✓ Kabul Etti</span>;
+        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981', border: '1px solid rgba(16, 185, 129, 0.3)' }}>✓ Kabul Etti</span>;
       case 'VERIFICATION_COMPLETED':
         return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--brand-lime)', color: 'var(--brand-midnight)' }}>⭐ Tamamlandı</span>;
       case 'DECLINED':
@@ -142,7 +169,7 @@ export default function VerificationCallsPage() {
       case 'NO_ANSWER':
         return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--warning-bg)', color: 'var(--warning-color)' }}>Ulaşılamadı</span>;
       case 'CALL_BACK_LATER':
-        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--accent-bg, #EEF2FF)', color: '#4F46E5' }}>Daha Sonra Ara</span>;
+        return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'rgba(57, 119, 246, 0.15)', color: '#3977F6' }}>Daha Sonra Ara</span>;
       case 'WRONG_PERSON_OR_ISSUE':
         return <span style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '12px', fontWeight: 700, backgroundColor: 'var(--error-bg)', color: 'var(--error-color)' }}>Yanlış Kişi</span>;
       default:
@@ -154,62 +181,117 @@ export default function VerificationCallsPage() {
     <div>
       <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h2 className="admin-header-title" style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-            Kalite Doğrulama Aramaları
+          <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
+            📞 Arama Portalı & Çağrı Havuzu
           </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
-            Çağrı Merkezi Doğrulama Paneli & Arama Havuzu
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500, margin: 0 }}>
+            Firma bazında bekleyen kalite doğrulama aramaları ve canlı görüşme konsolu
           </p>
         </div>
 
-        {/* Campaign Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)' }}>Kampanya:</label>
-          <select
-            value={selectedCampaignId}
-            onChange={(e) => setSelectedCampaignId(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: '8px',
-              border: '1px solid var(--border-color)',
-              backgroundColor: 'var(--bg-surface)',
-              color: 'var(--text-primary)',
-              fontSize: '13px',
-              fontWeight: 600,
-              minWidth: '220px'
-            }}
-          >
-            <option value="">Tüm Kampanyalar</option>
-            {campaigns.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.masterSurveyTitle} ({c.requestedCount} Katılımcı)
-              </option>
-            ))}
-          </select>
+        {/* Filters Bar: Firma & Kampanya Seçimi */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {/* Firma Seçimi */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>🏢 Firma:</label>
+            <select
+              value={selectedOrgId}
+              onChange={(e) => setSelectedOrgId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">Tüm Firmalar</option>
+              {organizations.map((org) => (
+                <option key={org.organizationId} value={org.organizationId}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Kampanya Seçimi */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>📋 Kampanya:</label>
+            <select
+              value={selectedCampaignId}
+              onChange={(e) => setSelectedCampaignId(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--bg-surface)',
+                color: 'var(--text-primary)',
+                fontSize: '13px',
+                fontWeight: 600,
+                minWidth: '200px'
+              }}
+            >
+              <option value="">Tüm Kampanyalar</option>
+              {campaigns.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.masterSurveyTitle} ({c.requestedCount} Kişi)
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </header>
+
+      {/* Summary KPI Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '16px',
+        marginBottom: '24px'
+      }}>
+        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Toplam Arama</span>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', margin: '4px 0 0 0' }}>{assignments.length}</p>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Bekleyen Aramalar</span>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: '#F59E0B', margin: '4px 0 0 0' }}>⏳ {pendingCount}</p>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Kabul Edenler</span>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: '#10B981', margin: '4px 0 0 0' }}>✓ {acceptedCount}</p>
+        </div>
+        <div style={{ backgroundColor: 'var(--bg-surface)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>Anketi Tamamlayan</span>
+          <p style={{ fontSize: '24px', fontWeight: 800, color: 'var(--brand-navy)', margin: '4px 0 0 0' }}>⭐ {completedCount}</p>
+        </div>
+      </div>
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
         {[
           { key: 'ALL', label: 'Tüm Aramalar' },
-          { key: 'PENDING', label: 'Aranacaklar' },
-          { key: 'ACCEPTED', label: 'Kabul Edilenler' },
-          { key: 'DECLINED', label: 'Reddedilenler' },
-          { key: 'NO_ANSWER', label: 'Ulaşılamayanlar' }
+          { key: 'PENDING', label: '⏳ Aranacaklar / Bekleyenler' },
+          { key: 'ACCEPTED', label: '✓ Kabul Edilenler' },
+          { key: 'DECLINED', label: '✕ Reddedilenler' },
+          { key: 'NO_ANSWER', label: '📞 Ulaşılamayanlar' }
         ].map((t) => (
           <button
             key={t.key}
             onClick={() => setStatusFilter(t.key)}
             style={{
               padding: '8px 14px',
-              borderRadius: '6px',
+              borderRadius: '8px',
               fontSize: '13px',
-              fontWeight: 600,
-              backgroundColor: statusFilter === t.key ? 'var(--brand-navy)' : 'transparent',
+              fontWeight: 700,
+              backgroundColor: statusFilter === t.key ? 'var(--brand-navy)' : 'var(--bg-surface-secondary)',
               color: statusFilter === t.key ? '#FFFFFF' : 'var(--text-secondary)',
-              border: statusFilter === t.key ? '1px solid var(--brand-navy)' : '1px solid transparent',
-              cursor: 'pointer'
+              border: statusFilter === t.key ? '1px solid var(--brand-navy)' : '1px solid var(--border-color)',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease'
             }}
           >
             {t.label}
@@ -219,38 +301,45 @@ export default function VerificationCallsPage() {
 
       {/* Assignments List Table */}
       {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Aramalar yükleniyor...</div>
+        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)', fontWeight: 600 }}>Aramalar yükleniyor...</div>
       ) : filteredAssignments.length === 0 ? (
-        <div style={{ padding: '32px', textAlign: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-          Bu filtrelere uygun arama kaydı bulunamadı.
+        <div style={{ padding: '40px', textAlign: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+          <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Bu filtrelere uygun arama kaydı bulunamadı</p>
+          <p style={{ fontSize: '13px', marginTop: '4px', margin: 0 }}>Yukarıdaki firma veya kampanya filtresini değiştirebilirsiniz.</p>
         </div>
       ) : (
         <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-          <div className="table-responsive">
+          <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
               <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Katılımcı Adı Soyadı</th>
+                <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Firma / Kurum</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Katılımcı (Maskelenmiş)</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Anket Başlığı</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Ödül Bilgisi</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Seçim Kaynağı</th>
+                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Seçim Türü</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700 }}>Arama Durumu</th>
                   <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>İşlem</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredAssignments.map((a) => (
-                  <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <tr key={a.id} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span style={{ padding: '3px 8px', borderRadius: '6px', backgroundColor: 'rgba(57, 119, 246, 0.12)', color: '#3977F6', fontSize: '12px', fontWeight: 800 }}>
+                        🏢 {getOrgNameForAssignment(a)}
+                      </span>
+                    </td>
                     <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {a.userDisplayName}
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)', fontWeight: 600 }}>
                       {a.masterSurveyTitle}
                     </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600, color: 'var(--brand-navy)' }}>
+                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--brand-navy)' }}>
                       🎁 {a.verificationRewardSummary}
                     </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-muted)' }}>
+                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
                       {a.selectionSource === 'CUSTOMER' ? '🏢 Firma Seçimi' : '🎲 PAG Random'}
                     </td>
                     <td style={{ padding: '14px 16px' }}>
@@ -264,13 +353,14 @@ export default function VerificationCallsPage() {
                           borderRadius: '8px',
                           backgroundColor: 'var(--brand-navy)',
                           color: '#FFFFFF',
-                          fontWeight: 700,
+                          fontWeight: 800,
                           fontSize: '12px',
                           border: 'none',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          boxShadow: 'var(--shadow-sm)'
                         }}
                       >
-                        📞 Ara
+                        📞 Aramayı Başlat
                       </button>
                     </td>
                   </tr>
@@ -300,7 +390,7 @@ export default function VerificationCallsPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ height: '10px', width: '10px', borderRadius: '50%', backgroundColor: '#10B981', display: 'inline-block' }} />
                   <span style={{ fontSize: '13px', fontWeight: 800, color: '#10B981', textTransform: 'uppercase' }}>
-                    Çağrı Devam Ediyor (Simulated Provider)
+                    Çağrı Devam Ediyor ({getOrgNameForAssignment(activeCallAssignment)})
                   </span>
                 </div>
                 <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
@@ -309,7 +399,7 @@ export default function VerificationCallsPage() {
               </div>
               <button
                 onClick={() => setActiveCallAssignment(null)}
-                style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                style={{ color: 'var(--text-secondary)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -318,11 +408,11 @@ export default function VerificationCallsPage() {
             {/* Campaign & Reward Context */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', padding: '12px 16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', fontSize: '13px' }}>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Ana Anket:</span>
-                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{activeCallAssignment.masterSurveyTitle}</div>
+                <span style={{ color: 'var(--text-secondary)' }}>Firma & Anket:</span>
+                <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{getOrgNameForAssignment(activeCallAssignment)} — {activeCallAssignment.masterSurveyTitle}</div>
               </div>
               <div>
-                <span style={{ color: 'var(--text-muted)' }}>Hak Kazanılacak Ödül:</span>
+                <span style={{ color: 'var(--text-secondary)' }}>Kazanılacak Ödül:</span>
                 <div style={{ fontWeight: 700, color: 'var(--brand-navy)' }}>🎁 {activeCallAssignment.verificationRewardSummary}</div>
               </div>
             </div>
@@ -330,17 +420,17 @@ export default function VerificationCallsPage() {
             {/* Dynamic Standard Agent Script */}
             <div style={{
               padding: '16px 20px',
-              backgroundColor: '#EFF6FF',
-              border: '1.5px solid #BFDBFE',
+              backgroundColor: 'rgba(57, 119, 246, 0.08)',
+              border: '1.5px solid rgba(57, 119, 246, 0.25)',
               borderRadius: '12px',
               display: 'flex',
               flexDirection: 'column',
               gap: '8px'
             }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#1E40AF', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                📜 Zorunlu Çağrı Metni (Dynamic Call Script)
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#3977F6', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                📜 Standart Çağrı Metni (Dynamic Call Script)
               </span>
-              <p style={{ fontSize: '14px', lineHeight: 1.6, color: '#1E3A8A', margin: 0, fontWeight: 500 }}>
+              <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text-primary)', margin: 0, fontWeight: 500 }}>
                 &ldquo;PAG kalite doğrulama ekibinden arıyorum. Yakın zamanda ‘<strong>{activeCallAssignment.masterSurveyTitle}</strong>’ anketine katıldınız.
                 <br /><br />
                 Kalite doğrulama sürecimiz kapsamında uygulamanıza tek soruluk ek bir anket gönderebiliriz.
@@ -358,7 +448,7 @@ export default function VerificationCallsPage() {
               <textarea
                 value={callNote}
                 onChange={(e) => setCallNote(e.target.value)}
-                placeholder="Örn: Kullanıcı katılımı onayladı, anket push bildirimi bekleniyor..."
+                placeholder="Örn: Katılımcı olumlu yanıt verdi, push bildirimi gönderildi..."
                 rows={2}
                 style={{
                   width: '100%',
@@ -367,7 +457,8 @@ export default function VerificationCallsPage() {
                   border: '1px solid var(--border-color)',
                   backgroundColor: 'var(--bg-surface)',
                   color: 'var(--text-primary)',
-                  fontSize: '13px'
+                  fontSize: '13px',
+                  outline: 'none'
                 }}
               />
             </div>
@@ -411,7 +502,7 @@ export default function VerificationCallsPage() {
                   disabled={isSubmittingResult}
                   style={{ padding: '12px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--error-color)', border: '1px solid var(--error-border)', fontWeight: 700, borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}
                 >
-                  Yanlış Kişi / Sorun
+                  Yanlış Kişi
                 </button>
               </div>
             </div>

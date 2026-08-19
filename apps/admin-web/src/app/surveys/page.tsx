@@ -192,6 +192,12 @@ export default function SurveysPage() {
   const [formQuestions, setFormQuestions] = useState([
     { id: 'q1', text: '1. Soru Metni', options: ['Seçenek 1', 'Seçenek 2'] }
   ]);
+  const [formVerificationEnabled, setFormVerificationEnabled] = useState(false);
+  const [formVerificationQuestion, setFormVerificationQuestion] = useState('Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?');
+  const [formVerificationOptionsText, setFormVerificationOptionsText] = useState('Çok Olumlu, Olumlu, Nötr, Olumsuz');
+  const [formPagTargetCount, setFormPagTargetCount] = useState(50);
+  const [formOrgSelectionQuota, setFormOrgSelectionQuota] = useState(20);
+  const [formVerificationReward, setFormVerificationReward] = useState('250 TL Hediye Çeki');
   const [formStartAt, setFormStartAt] = useState('2026-08-15T10:00');
   const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
   const [formIsHighlighted, setFormIsHighlighted] = useState(false);
@@ -489,6 +495,12 @@ export default function SurveysPage() {
     setFormQuestions([
       { id: 'q1', text: '1. Soru Metni', options: ['Seçenek 1', 'Seçenek 2'] }
     ]);
+    setFormVerificationEnabled(false);
+    setFormVerificationQuestion('Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?');
+    setFormVerificationOptionsText('Çok Olumlu, Olumlu, Nötr, Olumsuz');
+    setFormPagTargetCount(50);
+    setFormOrgSelectionQuota(20);
+    setFormVerificationReward('250 TL Hediye Çeki');
     setFormStartAt('2026-08-15T10:00');
     setFormEndAt('2026-08-30T23:59');
     setFormIsHighlighted(false);
@@ -535,6 +547,14 @@ export default function SurveysPage() {
     setFormShowStory(survey.storyConfig?.showInStory || false);
     setFormStoryLabel(survey.storyConfig?.storyLabel || '');
     setFormStoryImageCategory(survey.storyConfig?.imageCategory || 'Otomotiv');
+
+    const vConfig = survey.verificationConfig || {};
+    setFormVerificationEnabled(vConfig.enabled === true || survey.isVerificationEnabled === true);
+    setFormVerificationQuestion(vConfig.questionText || 'Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?');
+    setFormVerificationOptionsText(Array.isArray(vConfig.options) ? vConfig.options.join(', ') : 'Çok Olumlu, Olumlu, Nötr, Olumsuz');
+    setFormPagTargetCount(vConfig.pagTargetCount || 50);
+    setFormOrgSelectionQuota(vConfig.orgSelectionQuota || 20);
+    setFormVerificationReward(vConfig.verificationRewardSummary || '250 TL Hediye Çeki');
 
     if (Array.isArray(survey.questions) && survey.questions.length > 0) {
       setFormQuestions(survey.questions.map((q: any, idx: number) => ({
@@ -650,7 +670,18 @@ export default function SurveysPage() {
           storyLabel: formShowStory ? formStoryLabel : undefined,
           imageCategory: formShowStory ? formStoryImageCategory : undefined
         },
-        isHighlighted: formIsHighlighted
+        isHighlighted: formIsHighlighted,
+        isVerificationEnabled: formVerificationEnabled,
+        verificationConfig: formVerificationEnabled ? {
+          enabled: true,
+          questionText: formVerificationQuestion,
+          options: formVerificationOptionsText.split(',').map(s => s.trim()).filter(Boolean),
+          pagTargetCount: Number(formPagTargetCount) || 50,
+          orgSelectionQuota: Number(formOrgSelectionQuota) || 20,
+          verificationRewardSummary: formVerificationReward || '250 TL Hediye Çeki'
+        } : {
+          enabled: false
+        }
       };
 
       // Sanitize payload: guaranteed recursive removal of any undefined properties
@@ -1290,6 +1321,85 @@ export default function SurveysPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Kalite Doğrulama Yapılandırması */}
+                <div style={{ marginTop: '20px', padding: '18px', backgroundColor: 'rgba(57, 119, 246, 0.06)', border: '1.5px solid rgba(57, 119, 246, 0.25)', borderRadius: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+                    <input
+                      type="checkbox"
+                      id="enableVerification"
+                      checked={formVerificationEnabled}
+                      onChange={(e) => setFormVerificationEnabled(e.target.checked)}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                    />
+                    <label htmlFor="enableVerification" style={{ fontSize: '14px', fontWeight: 800, color: 'var(--brand-navy)', cursor: 'pointer' }}>
+                      🛡️ Bu Ankette Kalite Doğrulama Hizmeti Uygulansın
+                    </label>
+                  </div>
+
+                  {formVerificationEnabled && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginTop: '10px' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0 }}>
+                        Çağrı merkezi personeli anketi tamamlayan kullanıcıları arayarak tek soruluk doğrulama anketi yönlendirecektir.
+                      </p>
+
+                      <div>
+                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Sorusu Metni *</label>
+                        <input
+                          type="text"
+                          value={formVerificationQuestion}
+                          onChange={(e) => setFormVerificationQuestion(e.target.value)}
+                          placeholder="Örn: Geçtiğimiz günlerde katıldığınız anket deneyiminizi nasıl değerlendirirsiniz?"
+                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ fontSize: '12.5px', fontWeight: 700, color: 'var(--text-primary)' }}>Cevap Seçenekleri (Virgülle ayırın) *</label>
+                        <input
+                          type="text"
+                          value={formVerificationOptionsText}
+                          onChange={(e) => setFormVerificationOptionsText(e.target.value)}
+                          placeholder="Çok Olumlu, Olumlu, Nötr, Olumsuz"
+                          style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>PAG Toplam Arama Adedi</label>
+                          <input
+                            type="number"
+                            value={formPagTargetCount}
+                            onChange={(e) => setFormPagTargetCount(Number(e.target.value))}
+                            placeholder="50"
+                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Firma Katılımcı Kotası</label>
+                          <input
+                            type="number"
+                            value={formOrgSelectionQuota}
+                            onChange={(e) => setFormOrgSelectionQuota(Number(e.target.value))}
+                            placeholder="20"
+                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-primary)' }}>Doğrulama Ödülü / Hediyesi</label>
+                          <input
+                            type="text"
+                            value={formVerificationReward}
+                            onChange={(e) => setFormVerificationReward(e.target.value)}
+                            placeholder="250 TL Hediye Çeki"
+                            style={{ width: '100%', padding: '10px', marginTop: '4px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '6px', fontSize: '13px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
 

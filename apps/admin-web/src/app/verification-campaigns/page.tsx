@@ -19,9 +19,14 @@ export interface VerificationCampaign {
   createdAt: string;
 }
 
-export interface AnonymousRespondent {
+export interface MaskedRespondent {
   userId: string;
   anonymousRef: string;
+  userDisplayName: string;
+  maskedPhone: string;
+  city: string;
+  gender: string;
+  age: number;
   completedAt: string | null;
 }
 
@@ -44,21 +49,39 @@ export interface CampaignStats {
 
 export default function VerificationCampaignsPage() {
   const { isAdmin, isOrgUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<'CAMPAIGNS' | 'CREATE_CAMPAIGN'>('CAMPAIGNS');
+
+  // Campaigns List
   const [campaigns, setCampaigns] = useState<VerificationCampaign[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCampaignDetail, setSelectedCampaignDetail] = useState<{ campaign: any; stats: CampaignStats } | null>(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
 
-  // New Campaign Modal States
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  // New Campaign & Respondent Selector State
   const [availableSurveys, setAvailableSurveys] = useState<any[]>([]);
   const [selectedSurveyId, setSelectedSurveyId] = useState('');
-  const [respondents, setRespondents] = useState<AnonymousRespondent[]>([]);
+  const [surveyMetadata, setSurveyMetadata] = useState<{
+    pagTargetCount: number;
+    orgSelectionQuota: number;
+    verificationRewardSummary: string;
+  }>({
+    pagTargetCount: 50,
+    orgSelectionQuota: 20,
+    verificationRewardSummary: '250 TL Hediye Çeki'
+  });
+
+  const [respondents, setRespondents] = useState<MaskedRespondent[]>([]);
   const [isLoadingRespondents, setIsLoadingRespondents] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
-  const [randomCount, setRandomCount] = useState<number>(10);
-  const [rewardSummary, setRewardSummary] = useState('250 TL Hediye Çeki');
   const [isCreating, setIsCreating] = useState(false);
+  const [successBanner, setSuccessBanner] = useState<string | null>(null);
+
+  // Demographic Filters for Respondent Selection
+  const [filterCity, setFilterCity] = useState<string>('ALL');
+  const [filterGender, setFilterGender] = useState<string>('ALL');
+  const [filterMinAge, setFilterMinAge] = useState<string>('');
+  const [filterMaxAge, setFilterMaxAge] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // 1. Fetch campaigns
   const fetchCampaigns = useCallback(async () => {
@@ -76,50 +99,117 @@ export default function VerificationCampaignsPage() {
     }
   }, []);
 
-  // 2. Fetch available surveys for modal
-  const fetchSurveysForModal = async () => {
+  // 2. Fetch available surveys for selection
+  const fetchSurveys = useCallback(async () => {
     try {
       const listSurveysFn = httpsCallable(functions, 'listSurveysAdmin');
       const res: any = await listSurveysFn({});
       if (res.data?.success && Array.isArray(res.data.data?.surveys)) {
-        // Filter surveys: must be active/ended or have verificationConfig enabled
-        const filtered = res.data.data.surveys.filter((s: any) =>
-          isAdmin || s?.verificationConfig?.enabled === true || s?.isVerificationEnabled === true
-        );
-        setAvailableSurveys(filtered);
-        if (filtered.length > 0) {
-          setSelectedSurveyId(filtered[0].surveyId);
-          loadRespondents(filtered[0].surveyId);
+        const list = res.data.data.surveys;
+        setAvailableSurveys(list);
+        if (list.length > 0 && !selectedSurveyId) {
+          setSelectedSurveyId(list[0].surveyId);
         }
       }
     } catch (err) {
       console.error('Fetch Surveys Error:', err);
     }
-  };
+  }, [selectedSurveyId]);
 
-  // 3. Load respondents for chosen survey
-  const loadRespondents = async (surveyId: string) => {
+  // 3. Load respondents with filters
+  const loadRespondents = useCallback(async (surveyId: string) => {
     if (!surveyId) return;
     setIsLoadingRespondents(true);
-    setSelectedUserIds([]);
     try {
       const getRespFn = httpsCallable(functions, 'getCompletedRespondentsForVerification');
-      const res: any = await getRespFn({ surveyId });
-      if (res.data?.success && Array.isArray(res.data.data?.respondents)) {
-        setRespondents(res.data.data.respondents);
+      const payload: any = {
+        surveyId,
+        city: filterCity !== 'ALL' ? filterCity : undefined,
+        gender: filterGender !== 'ALL' ? filterGender : undefined,
+        minAge: filterMinAge ? parseInt(filterMinAge, 10) : undefined,
+        maxAge: filterMaxAge ? parseInt(filterMaxAge, 10) : undefined,
+        search: searchQuery.trim() || undefined
+      };
+
+      const res: any = await getRespFn(payload);
+      if (res.data?.success && res.data.data) {
+        setRespondents(res.data.data.respondents || []);
+        setSurveyMetadata({
+          pagTargetCount: res.data.data.pagTargetCount || 50,
+          orgSelectionQuota: res.data.data.orgSelectionQuota || 20,
+          verificationRewardSummary: res.data.data.verificationRewardSummary || '250 TL Hediye Çeki'
+        });
       }
     } catch (err) {
       console.error('Fetch Respondents Error:', err);
     } finally {
       setIsLoadingRespondents(false);
     }
-  };
+  }, [filterCity, filterGender, filterMinAge, filterMaxAge, searchQuery]);
 
   useEffect(() => {
     fetchCampaigns();
-  }, [fetchCampaigns]);
+    fetchSurveys();
+  }, [fetchCampaigns, fetchSurveys]);
 
-  // Open Detail
+  useEffect(() => {
+    if (selectedSurveyId && activeTab === 'CREATE_CAMPAIGN') {
+      loadRespondents(selectedSurveyId);
+    }
+  }, [selectedSurveyId, activeTab, loadRespondents]);
+
+  // Toggle Single User
+  const handleToggleUser = (uid: string) => {
+    setSelectedUserIds(prev => {
+      if (prev.includes(uid)) {
+        return prev.filter(id => id !== uid);
+      } else {
+        if (prev.length >= surveyMetadata.orgSelectionQuota) {
+          alert(`Firma seçim kotası maksimum ${surveyMetadata.orgSelectionQuota} katılımcıdır.`);
+          return prev;
+        }
+        return [...prev, uid];
+      }
+    });
+  };
+
+  // Submit and Create Verification Campaign
+  const handleCreateCampaign = async () => {
+    if (!selectedSurveyId) {
+      alert('Lütfen bir anket seçiniz.');
+      return;
+    }
+
+    const remainingToFill = Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length);
+    const confirmMsg = `Kalite Doğrulama Kampanyası Başlatılsın mı?\n\n- Firma Tarafından Seçilen: ${selectedUserIds.length} Katılımcı\n- PAG Tarafından Random Tamamlanacak: ${remainingToFill} Katılımcı\n- Toplam Arama Havuzu: ${surveyMetadata.pagTargetCount} Katılımcı\n- Ödül: ${surveyMetadata.verificationRewardSummary}`;
+
+    if (!confirm(confirmMsg)) return;
+
+    setIsCreating(true);
+    try {
+      const createFn = httpsCallable(functions, 'createVerificationCampaign');
+      const res: any = await createFn({
+        masterSurveyId: selectedSurveyId,
+        customerSelectedUserIds: selectedUserIds,
+        randomSelectedCount: remainingToFill,
+        verificationRewardSummary: surveyMetadata.verificationRewardSummary
+      });
+
+      if (res.data?.success) {
+        setSuccessBanner(`✅ Kalite Doğrulama Kampanyası başarıyla oluşturuldu! Toplam ${res.data.data.requestedCount} katılımcı arama havuzuna aktarıldı.`);
+        setSelectedUserIds([]);
+        setActiveTab('CAMPAIGNS');
+        await fetchCampaigns();
+      }
+    } catch (err: any) {
+      console.error('Create Campaign Error:', err);
+      alert('Kampanya oluşturulurken hata: ' + (err.message || 'Bilinmeyen hata'));
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // View Campaign Detail
   const handleOpenDetail = async (campaignId: string) => {
     setIsDetailLoading(true);
     try {
@@ -136,157 +226,431 @@ export default function VerificationCampaignsPage() {
     }
   };
 
-  // Toggle respondent selection
-  const handleToggleRespondent = (uid: string) => {
-    setSelectedUserIds((prev) =>
-      prev.includes(uid) ? prev.filter((id) => id !== uid) : [...prev, uid]
-    );
-  };
-
-  // Submit Create Verification Campaign
-  const handleCreateCampaign = async () => {
-    if (!selectedSurveyId) {
-      alert('Lütfen bir anket seçin.');
-      return;
-    }
-    if (selectedUserIds.length === 0 && randomCount <= 0) {
-      alert('Lütfen en az bir firma seçimi veya rastgele seçim sayısı belirleyin.');
-      return;
-    }
-
-    setIsCreating(true);
-    try {
-      const createFn = httpsCallable(functions, 'createVerificationCampaign');
-      const res: any = await createFn({
-        masterSurveyId: selectedSurveyId,
-        customerSelectedUserIds: selectedUserIds,
-        randomSelectedCount: Number(randomCount) || 0,
-        verificationRewardSummary: rewardSummary
-      });
-
-      if (res.data?.success) {
-        alert('Kalite Doğrulama Kampanyası başarıyla oluşturuldu ve çağrı havuzuna aktarıldı!');
-        setIsCreateModalOpen(false);
-        await fetchCampaigns();
-      }
-    } catch (err: any) {
-      console.error('Create Campaign Error:', err);
-      alert('Kampanya oluşturulurken hata: ' + (err.message || 'Bilinmeyen hata'));
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
   return (
     <div>
-      <header style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h2 className="admin-header-title" style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-            Kalite Doğrulama Hizmeti
+          <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
+            🛡️ Kalite Doğrulama & Katılımcı Seçimi
           </h2>
-          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
-            Kurumsal Anket Yanıt Doğrulama ve Çağrı Merkezi Kalite Kontrol Raporları
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500, margin: 0 }}>
+            Anket katılımcı havuzunu demografik kriterlerle filtreleyin, firma seçimlerinizi yapın ve doğrulama aramalarını başlatın
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setIsCreateModalOpen(true);
-            fetchSurveysForModal();
-          }}
-          style={{
-            padding: '10px 18px',
-            backgroundColor: 'var(--brand-navy)',
-            color: '#FFFFFF',
-            fontWeight: 700,
-            fontSize: '13px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}
-        >
-          🛡️ Yeni Kalite Doğrulama Başlat
-        </button>
+        {/* Action Button: Yeni Kampanya Başlat */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            onClick={() => setActiveTab(activeTab === 'CAMPAIGNS' ? 'CREATE_CAMPAIGN' : 'CAMPAIGNS')}
+            style={{
+              padding: '10px 18px',
+              borderRadius: '8px',
+              border: 'none',
+              backgroundColor: activeTab === 'CREATE_CAMPAIGN' ? 'var(--bg-surface-secondary)' : 'var(--brand-lime)',
+              color: activeTab === 'CREATE_CAMPAIGN' ? 'var(--text-primary)' : 'var(--brand-midnight)',
+              fontWeight: 800,
+              fontSize: '13.5px',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            {activeTab === 'CREATE_CAMPAIGN' ? '📋 Kampanya Listesine Dön' : '➕ Yeni Katılımcı Seçimi & Doğrulama Başlat'}
+          </button>
+        </div>
       </header>
 
-      {/* Campaigns Table */}
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Kampanyalar yükleniyor...</div>
-      ) : campaigns.length === 0 ? (
-        <div style={{ padding: '36px', textAlign: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-          Henüz oluşturulmuş bir Kalite Doğrulama kampanyası bulunmuyor.
+      {successBanner && (
+        <div style={{
+          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          color: '#10B981',
+          padding: '14px 18px',
+          borderRadius: '10px',
+          marginBottom: '24px',
+          fontWeight: 700,
+          fontSize: '14px'
+        }}>
+          {successBanner}
         </div>
-      ) : (
-        <div style={{ backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-          <div className="table-responsive">
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-              <thead>
-                <tr style={{ backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Anket Adı</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Toplam Doğrulama</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Firma Seçimi</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>PAG Random</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Doğrulama Ödülü</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700 }}>Durum</th>
-                  <th style={{ padding: '12px 16px', fontWeight: 700, textAlign: 'right' }}>İşlem</th>
-                </tr>
-              </thead>
-              <tbody>
-                {campaigns.map((c) => (
-                  <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {c.masterSurveyTitle}
-                    </td>
-                    <td style={{ padding: '14px 16px', fontWeight: 600 }}>
-                      {c.requestedCount} Katılımcı
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                      {c.customerSelectedCount}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--text-secondary)' }}>
-                      {c.randomSelectedCount}
-                    </td>
-                    <td style={{ padding: '14px 16px', color: 'var(--brand-navy)', fontWeight: 600 }}>
-                      🎁 {c.verificationRewardSummary}
-                    </td>
-                    <td style={{ padding: '14px 16px' }}>
-                      <span style={{
-                        padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: 700,
-                        backgroundColor: c.status === 'ACTIVE' ? 'var(--success-bg)' : 'var(--bg-surface-secondary)',
-                        color: c.status === 'ACTIVE' ? 'var(--success-color)' : 'var(--text-secondary)'
-                      }}>
-                        {c.status === 'ACTIVE' ? 'Aktif' : c.status}
+      )}
+
+      {/* ================================================== */}
+      {/* TAB 1: KAMPANYA LİSTESİ & İSTATİSTİKLER */}
+      {/* ================================================== */}
+      {activeTab === 'CAMPAIGNS' && (
+        <div>
+          {isLoading ? (
+            <div style={{ textAlign: 'center', padding: '48px', color: 'var(--text-secondary)' }}>Kampanyalar yükleniyor...</div>
+          ) : campaigns.length === 0 ? (
+            <div style={{ padding: '48px', textAlign: 'center', backgroundColor: 'var(--bg-surface)', borderRadius: '12px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+              <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Henüz oluşturulmuş bir Kalite Doğrulama Kampanyası bulunmuyor</p>
+              <p style={{ fontSize: '13px', marginTop: '6px', margin: 0 }}>Yukarıdaki butona tıklayarak anket katılımcı havuzundan yeni bir doğrulama süreci başlatabilirsiniz.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+              {campaigns.map((c) => (
+                <div
+                  key={c.id}
+                  style={{
+                    backgroundColor: 'var(--bg-surface)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    boxShadow: 'var(--shadow-sm)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    gap: '16px'
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--brand-navy)' }}>
+                        ID: {c.id.slice(0, 16)}...
                       </span>
-                    </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                      <button
-                        onClick={() => handleOpenDetail(c.id)}
-                        style={{
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          backgroundColor: 'var(--bg-surface-secondary)',
-                          color: 'var(--text-primary)',
-                          border: '1px solid var(--border-highlight)',
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        📊 İlerleme Raporu
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      <span style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 700, backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#10B981' }}>
+                        {c.status || 'AKTİF'}
+                      </span>
+                    </div>
+
+                    <h3 style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                      {c.masterSurveyTitle}
+                    </h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px', margin: 0 }}>
+                      🎁 Doğrulama Ödülü: <strong>{c.verificationRewardSummary}</strong>
+                    </p>
+                  </div>
+
+                  <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px 14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600 }}>
+                    <span>Hedef: <strong>{c.requestedCount} Kişi</strong></span>
+                    <span>🏢 Firma: <strong>{c.customerSelectedCount}</strong></span>
+                    <span>🎲 PAG Random: <strong>{c.randomSelectedCount}</strong></span>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={() => handleOpenDetail(c.id)}
+                      style={{
+                        flex: 1,
+                        padding: '9px',
+                        backgroundColor: 'var(--brand-navy)',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontWeight: 700,
+                        fontSize: '12.5px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      📊 Canlı Rapor & Detay
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ================================================== */}
+      {/* TAB 2: YENİ KATILIMCI SEÇİMİ & DOĞRULAMA TANIMLAMA */}
+      {/* ================================================== */}
+      {activeTab === 'CREATE_CAMPAIGN' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Adım 1 & 2: Anket Seçimi ve Demografik Filtreler */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            padding: '20px 24px',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+              <div style={{ flex: 1, minWidth: '280px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '6px' }}>
+                  1. Doğrulanacak Anketi Seçin *
+                </label>
+                <select
+                  value={selectedSurveyId}
+                  onChange={(e) => setSelectedSurveyId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border-color)',
+                    backgroundColor: 'var(--bg-surface-secondary)',
+                    color: 'var(--text-primary)',
+                    fontSize: '14px',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {availableSurveys.map((s) => (
+                    <option key={s.surveyId} value={s.surveyId}>
+                      {s.title} ({s.completedCount || s.responseCount || 0} Katılımcı)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Kota ve Hedef Bilgilendirme Rozeti */}
+              <div style={{
+                backgroundColor: 'var(--bg-surface-secondary)',
+                border: '1px solid var(--border-color)',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                display: 'flex',
+                gap: '20px',
+                alignItems: 'center'
+              }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Firma Seçim Kotası</span>
+                  <p style={{ fontSize: '16px', fontWeight: 800, color: 'var(--brand-navy)', margin: 0 }}>
+                    {selectedUserIds.length} / {surveyMetadata.orgSelectionQuota} Kişi
+                  </p>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>PAG Random Tamamlama</span>
+                  <p style={{ fontSize: '16px', fontWeight: 800, color: '#10B981', margin: 0 }}>
+                    {Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} Kişi
+                  </p>
+                </div>
+                <div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Toplam Doğrulama Hedefi</span>
+                  <p style={{ fontSize: '16px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                    {surveyMetadata.pagTargetCount} Kişi
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Demografik Filtreleme Barı */}
+            <div>
+              <span style={{ display: 'block', fontSize: '12.5px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                2. Katılımcı Havuzu Demografik Filtreleri (1000+ Katılımcı Ölçeği)
+              </span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                {/* İl Filtresi */}
+                <div>
+                  <select
+                    value={filterCity}
+                    onChange={(e) => setFilterCity(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}
+                  >
+                    <option value="ALL">Tüm İller</option>
+                    <option value="İstanbul">İstanbul</option>
+                    <option value="Ankara">Ankara</option>
+                    <option value="İzmir">İzmir</option>
+                    <option value="Antalya">Antalya</option>
+                    <option value="Bursa">Bursa</option>
+                    <option value="Adana">Adana</option>
+                  </select>
+                </div>
+
+                {/* Cinsiyet Filtresi */}
+                <div>
+                  <select
+                    value={filterGender}
+                    onChange={(e) => setFilterGender(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 }}
+                  >
+                    <option value="ALL">Tüm Cinsiyetler</option>
+                    <option value="MALE">Erkek</option>
+                    <option value="FEMALE">Kadın</option>
+                  </select>
+                </div>
+
+                {/* Yaş Aralığı */}
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <input
+                    type="number"
+                    placeholder="Min Yaş"
+                    value={filterMinAge}
+                    onChange={(e) => setFilterMinAge(e.target.value)}
+                    style={{ width: '50%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                  <span style={{ color: 'var(--text-secondary)' }}>-</span>
+                  <input
+                    type="number"
+                    placeholder="Max Yaş"
+                    value={filterMaxAge}
+                    onChange={(e) => setFilterMaxAge(e.target.value)}
+                    style={{ width: '50%', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                </div>
+
+                {/* İsim / Tel Arama */}
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Maskeli İsim / Şehir ara..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-primary)', fontSize: '13px' }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Adım 3: Maskeli Katılımcı Tablosu */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)',
+            overflow: 'hidden'
+          }}>
+            <div style={{ padding: '14px 20px', backgroundColor: 'var(--bg-surface-secondary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '13px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                👥 Katılımcı Listesi ({respondents.length} Uygun Katılımcı Bulundu)
+              </span>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  onClick={() => {
+                    const quotaRemaining = surveyMetadata.orgSelectionQuota - selectedUserIds.length;
+                    const unselected = respondents.filter(r => !selectedUserIds.includes(r.userId)).slice(0, quotaRemaining);
+                    setSelectedUserIds(prev => [...prev, ...unselected.map(u => u.userId)]);
+                  }}
+                  style={{ padding: '5px 10px', fontSize: '12px', fontWeight: 700, borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', cursor: 'pointer', color: 'var(--brand-navy)' }}
+                >
+                  Filtrelenenleri Kotaya Ekle (+{Math.max(0, surveyMetadata.orgSelectionQuota - selectedUserIds.length)})
+                </button>
+                <button
+                  onClick={() => setSelectedUserIds([])}
+                  style={{ padding: '5px 10px', fontSize: '12px', fontWeight: 700, borderRadius: '6px', border: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)', cursor: 'pointer', color: 'var(--text-secondary)' }}
+                >
+                  Seçimi Temizle
+                </button>
+              </div>
+            </div>
+
+            {isLoadingRespondents ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>Katılımcılar taranıyor...</div>
+            ) : respondents.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Seçilen filtrelere uygun katılımcı bulunamadı.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto', maxHeight: '420px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                  <thead style={{ position: 'sticky', top: 0, backgroundColor: 'var(--bg-surface-secondary)', zIndex: 10 }}>
+                    <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
+                      <th style={{ padding: '10px 16px', width: '40px' }}>Seç</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>Katılımcı (Maskelenmiş)</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>Maskeli Telefon</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>İl (Şehir)</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>Cinsiyet</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>Yaş</th>
+                      <th style={{ padding: '10px 16px', fontWeight: 700 }}>Tamamlama Tarihi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {respondents.map((r) => {
+                      const isSelected = selectedUserIds.includes(r.userId);
+                      return (
+                        <tr
+                          key={r.userId}
+                          onClick={() => handleToggleUser(r.userId)}
+                          style={{
+                            borderBottom: '1px solid var(--border-color)',
+                            backgroundColor: isSelected ? 'rgba(183, 243, 74, 0.12)' : 'transparent',
+                            cursor: 'pointer',
+                            transition: 'background-color 0.1s ease'
+                          }}
+                        >
+                          <td style={{ padding: '12px 16px' }}>
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {}} // handled by row click
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </td>
+                          <td style={{ padding: '12px 16px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            {r.userDisplayName}
+                          </td>
+                          <td style={{ padding: '12px 16px', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                            {r.maskedPhone}
+                          </td>
+                          <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            📍 {r.city}
+                          </td>
+                          <td style={{ padding: '12px 16px' }}>
+                            <span style={{
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              backgroundColor: r.gender === 'Kadın' ? 'rgba(236, 72, 153, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                              color: r.gender === 'Kadın' ? '#EC4899' : '#3B82F6'
+                            }}>
+                              {r.gender}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {r.age} Yaş
+                          </td>
+                          <td style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                            {r.completedAt ? new Date(r.completedAt).toLocaleDateString('tr-TR') : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Adım 4: Onay ve Gönderim Barı */}
+          <div style={{
+            backgroundColor: 'var(--bg-surface)',
+            padding: '20px 24px',
+            borderRadius: '12px',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--shadow-sm)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '16px'
+          }}>
+            <div>
+              <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Seçim Özeti: {selectedUserIds.length} Firma Seçimi + {Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length)} PAG Random = {surveyMetadata.pagTargetCount} Toplam Arama
+              </span>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px', margin: 0 }}>
+                Firma tarafından seçilmeyen kalan adet, PAG tarafından filtrelere uygun havuzdan firmanın seçtikleri hariç tutularak otomatik tamamlanır.
+              </p>
+            </div>
+
+            <button
+              onClick={handleCreateCampaign}
+              disabled={isCreating}
+              style={{
+                padding: '12px 28px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--brand-lime)',
+                color: 'var(--brand-midnight)',
+                border: 'none',
+                fontWeight: 900,
+                fontSize: '15px',
+                cursor: isCreating ? 'not-allowed' : 'pointer',
+                boxShadow: 'var(--shadow-md)',
+                opacity: isCreating ? 0.7 : 1
+              }}
+            >
+              {isCreating ? 'Kampanya Oluşturuluyor...' : '🚀 Firma Seçimini Onayla & Kalanı PAG Random Seçimine Bırak'}
+            </button>
           </div>
         </div>
       )}
 
-      {/* Campaign Detail / Aggregate Progress Dashboard Modal */}
+      {/* Campaign Detail Modal */}
       {selectedCampaignDetail && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -294,263 +658,50 @@ export default function VerificationCampaignsPage() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px'
         }}>
           <div style={{
-            width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto',
+            width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto',
             backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)',
-            borderRadius: '16px', padding: '28px', boxShadow: 'var(--shadow-lg)',
-            display: 'flex', flexDirection: 'column', gap: '20px'
+            borderRadius: '16px', padding: '28px', boxShadow: 'var(--shadow-lg)'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-              <div>
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--brand-navy)', textTransform: 'uppercase' }}>
-                  Kalite Doğrulama İlerleme Raporu
-                </span>
-                <h3 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
-                  {selectedCampaignDetail.campaign.masterSurveyTitle}
-                </h3>
-              </div>
-              <button
-                onClick={() => setSelectedCampaignDetail(null)}
-                style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Top Metric Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px' }}>
-              <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Doğrulama Paketi</div>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px' }}>
-                  {selectedCampaignDetail.stats.total}
-                </div>
-              </div>
-              <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Firma Seçimi</div>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--brand-navy)', marginTop: '4px' }}>
-                  {selectedCampaignDetail.stats.customerSelected}
-                </div>
-              </div>
-              <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>PAG Random</div>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#6366F1', marginTop: '4px' }}>
-                  {selectedCampaignDetail.stats.randomSelected}
-                </div>
-              </div>
-              <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>Tamamlama Oranı</div>
-                <div style={{ fontSize: '22px', fontWeight: 800, color: '#10B981', marginTop: '4px' }}>
-                  %{selectedCampaignDetail.stats.completionRate}
-                </div>
-              </div>
-            </div>
-
-            {/* Detailed Aggregate Progress Table (Zero PII Exposed) */}
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '10px', overflow: 'hidden' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-                <tbody>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>Arandı</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right' }}>{selectedCampaignDetail.stats.called}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--text-secondary)' }}>Ulaşıldı (Erişim Oranı: %{selectedCampaignDetail.stats.reachRate})</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right' }}>{selectedCampaignDetail.stats.reached}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
-                    <td style={{ padding: '10px 14px', color: '#10B981' }}>✓ Kabul Etti (Ek Anket Gönderildi)</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', color: '#10B981' }}>{selectedCampaignDetail.stats.accepted}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface-secondary)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--error-color)' }}>✕ Reddetti</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', color: 'var(--error-color)' }}>{selectedCampaignDetail.stats.declined}</td>
-                  </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: 'var(--bg-surface)' }}>
-                    <td style={{ padding: '10px 14px', color: 'var(--warning-color)' }}>Ulaşılamadı</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, textAlign: 'right', color: 'var(--warning-color)' }}>{selectedCampaignDetail.stats.noAnswer}</td>
-                  </tr>
-                  <tr style={{ backgroundColor: 'var(--bg-surface-secondary)' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--brand-navy)' }}>⭐ Ek Anket Tamamlandı</td>
-                    <td style={{ padding: '10px 14px', fontWeight: 800, textAlign: 'right', color: 'var(--brand-navy)', fontSize: '15px' }}>{selectedCampaignDetail.stats.completed}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
-              <button
-                onClick={() => setSelectedCampaignDetail(null)}
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: 'var(--bg-surface-secondary)',
-                  color: 'var(--text-primary)',
-                  border: '1px solid var(--border-highlight)',
-                  borderRadius: '8px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                Kapat
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* New Quality Verification Campaign Modal */}
-      {isCreateModalOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(15, 23, 42, 0.6)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2000, padding: '16px'
-        }}>
-          <div style={{
-            width: '100%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto',
-            backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)',
-            borderRadius: '16px', padding: '28px', boxShadow: 'var(--shadow-lg)',
-            display: 'flex', flexDirection: 'column', gap: '16px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--brand-navy)' }}>
-                🛡️ Yeni Kalite Doğrulama Başlat
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                📊 Kalite Doğrulama Canlı Raporu
               </h3>
               <button
-                onClick={() => setIsCreateModalOpen(false)}
-                style={{ color: 'var(--text-muted)', fontSize: '20px', background: 'none', border: 'none', cursor: 'pointer' }}
+                onClick={() => setSelectedCampaignDetail(null)}
+                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-secondary)' }}
               >
                 ✕
               </button>
             </div>
 
-            {/* Step 1: Select Survey */}
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                Doğrulanacak Anket:
-              </label>
-              <select
-                value={selectedSurveyId}
-                onChange={(e) => {
-                  setSelectedSurveyId(e.target.value);
-                  loadRespondents(e.target.value);
-                }}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600
-                }}
-              >
-                {availableSurveys.map((s) => (
-                  <option key={s.surveyId} value={s.surveyId}>
-                    {s.title} ({s.ownerType})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Step 2: Anonymous Respondent Selection List */}
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                  Firma Tarafından Seçilecek Katılımcılar ({selectedUserIds.length} Seçildi):
-                </label>
-                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                  (Tamamen anonim referanslar, PII gizlenmiştir)
-                </span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Hedef Havuz</span>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{selectedCampaignDetail.stats.total}</p>
               </div>
-
-              {isLoadingRespondents ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted)' }}>Katılımcı havuzu yükleniyor...</div>
-              ) : respondents.length === 0 ? (
-                <div style={{ padding: '16px', textAlign: 'center', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  Bu anket için henüz tamamlanmış katılımcı bulunmuyor.
-                </div>
-              ) : (
-                <div style={{
-                  maxHeight: '160px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', display: 'flex', flexDirection: 'column', gap: '6px'
-                }}>
-                  {respondents.map((r) => {
-                    const isChecked = selectedUserIds.includes(r.userId);
-                    return (
-                      <label
-                        key={r.userId}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: '10px', padding: '6px 10px', borderRadius: '6px',
-                          backgroundColor: isChecked ? 'var(--accent-bg, #EFF6FF)' : 'transparent',
-                          cursor: 'pointer', fontSize: '13px'
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleRespondent(r.userId)}
-                        />
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{r.anonymousRef}</span>
-                        <span style={{ color: 'var(--text-muted)', fontSize: '11px', marginLeft: 'auto' }}>
-                          {r.completedAt ? new Date(r.completedAt).toLocaleString('tr-TR') : 'Tamamlandı'}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Step 3: Random Pick Count & Reward Settings */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  PAG Sunucu Rastgele Seçim Sayısı:
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={randomCount}
-                  onChange={(e) => setRandomCount(Number(e.target.value))}
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600
-                  }}
-                />
+              <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Aranan</span>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-navy)', margin: 0 }}>{selectedCampaignDetail.stats.called}</p>
               </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                  Doğrulama Ödül Metni:
-                </label>
-                <input
-                  type="text"
-                  value={rewardSummary}
-                  onChange={(e) => setRewardSummary(e.target.value)}
-                  placeholder="250 TL Hediye Çeki"
-                  style={{
-                    width: '100%', padding: '10px 12px', borderRadius: '8px', border: '1px solid var(--border-color)',
-                    backgroundColor: 'var(--bg-surface)', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600
-                  }}
-                />
+              <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Kabul Eden</span>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: '#10B981', margin: 0 }}>{selectedCampaignDetail.stats.accepted}</p>
+              </div>
+              <div style={{ backgroundColor: 'var(--bg-surface-secondary)', padding: '12px', borderRadius: '8px' }}>
+                <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Doğrulayan</span>
+                <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--brand-lime-text, #4B8E00)', margin: 0 }}>{selectedCampaignDetail.stats.completed}</p>
               </div>
             </div>
 
-            {/* Summary Box */}
-            <div style={{ padding: '12px 16px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-              <span>Toplam Doğrulama Havuzu:</span>
-              <strong style={{ color: 'var(--brand-navy)' }}>
-                {selectedUserIds.length + (Number(randomCount) || 0)} Katılımcı ({selectedUserIds.length} Firma + {randomCount} PAG Random)
-              </strong>
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-              <button
-                onClick={() => setIsCreateModalOpen(false)}
-                style={{ padding: '10px 16px', backgroundColor: 'var(--bg-surface-secondary)', color: 'var(--text-secondary)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
-              >
-                İptal
-              </button>
-              <button
-                onClick={handleCreateCampaign}
-                disabled={isCreating}
-                style={{ padding: '10px 20px', backgroundColor: 'var(--brand-navy)', color: '#FFFFFF', borderRadius: '8px', fontWeight: 700, border: 'none', cursor: 'pointer' }}
-              >
-                {isCreating ? 'Oluşturuluyor...' : 'Kampanyayı Başlat & Arama Havuzuna Gönder'}
-              </button>
+            <div style={{ padding: '14px', backgroundColor: 'var(--bg-surface-secondary)', borderRadius: '10px', fontSize: '13px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Ulaşılma Oranı:</span>
+                <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>%{selectedCampaignDetail.stats.reachRate}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-secondary)' }}>Doğrulama Tamamlama Oranı:</span>
+                <span style={{ fontWeight: 800, color: '#10B981' }}>%{selectedCampaignDetail.stats.completionRate}</span>
+              </div>
             </div>
           </div>
         </div>

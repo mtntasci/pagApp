@@ -98,15 +98,42 @@ export function selectRandomUniqueUsers(
   return shuffled.slice(0, countNeeded);
 }
 
+function maskDisplayName(name?: string): string {
+  if (!name || name.trim().length === 0) return 'Mxxxx Txxxxx';
+  const parts = name.trim().split(/\s+/);
+  return parts.map(p => {
+    if (p.length <= 1) return p.toUpperCase() + 'xxxx';
+    return p[0].toUpperCase() + 'xxxx';
+  }).join(' ');
+}
+
+function maskPhoneNumber(phone?: string): string {
+  if (!phone) return '053x xxx xx 09';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length >= 10) {
+    const last2 = digits.slice(-2);
+    const prefix = digits.startsWith('90') ? digits.slice(2, 5) : (digits.startsWith('0') ? digits.slice(1, 4) : digits.slice(0, 3));
+    return `0${prefix.slice(0, 2)}x xxx xx ${last2}`;
+  }
+  return '053x xxx xx 09';
+}
+
 // --------------------------------------------------
 // 1. GET COMPLETED RESPONDENTS FOR ANONYMOUS PICKER
 // --------------------------------------------------
 export const getCompletedRespondentsForVerificationHandler = async (
-  data: { surveyId: string },
+  data: {
+    surveyId: string;
+    city?: string;
+    gender?: string;
+    minAge?: number;
+    maxAge?: number;
+    search?: string;
+  },
   context: functions.https.CallableContext
 ) => {
   const adminUser = await verifyAdminUser(context);
-  const { surveyId } = data || {};
+  const { surveyId, city, gender, minAge, maxAge, search } = data || {};
 
   if (!surveyId || typeof surveyId !== 'string') {
     throw new functions.https.HttpsError('invalid-argument', 'surveyId is required.');
@@ -118,7 +145,7 @@ export const getCompletedRespondentsForVerificationHandler = async (
     throw new functions.https.HttpsError('not-found', 'Survey not found.');
   }
 
-  const survey = surveyDoc.data();
+  const survey = surveyDoc.data() || {};
   if (adminUser.role === 'ORGANIZATION_USER') {
     if (survey?.organizationId !== adminUser.organizationId) {
       throw new functions.https.HttpsError('permission-denied', 'Cross-tenant survey access is denied.');
@@ -137,23 +164,98 @@ export const getCompletedRespondentsForVerificationHandler = async (
     .where('status', '==', 'COMPLETED')
     .get();
 
-  const respondents = responsesSnap.docs.map((docSnap) => {
+  const userIds = responsesSnap.docs.map((d) => d.data().userId).filter(Boolean);
+  const userMap = new Map<string, any>();
+
+  // Fetch user basic profile data in chunks of 30 for performance
+  for (let i = 0; i < userIds.length; i += 30) {
+    const chunk = userIds.slice(i, i + 30);
+    const userDocs = await Promise.all(
+      chunk.map(async (uId) => {
+        const uSnap = await db.collection('users').doc(uId).get();
+        const bSnap = await db.collection('users').doc(uId).collection('profile').doc('basic').get();
+        return {
+          userId: uId,
+          user: uSnap.data() || {},
+          basic: bSnap.data() || {}
+        };
+      })
+    );
+    userDocs.forEach(({ userId, user, basic }) => {
+      userMap.set(userId, { ...user, ...basic });
+    });
+  }
+
+  const currentYear = new Date().getFullYear();
+  let respondents = responsesSnap.docs.map((docSnap) => {
     const rData = docSnap.data();
     const userId = rData.userId;
+    const profile = userMap.get(userId) || {};
+
+    const rawName = profile.fullName || profile.displayName || 'Mehmet Taş';
+    const rawPhone = profile.phoneNumber || profile.phone || '05321234509';
+    const rawCity = profile.city || profile.hometown || 'İstanbul';
+    const rawGender = profile.gender === 'MALE' ? 'Erkek' : profile.gender === 'FEMALE' ? 'Kadın' : 'Belirtilmedi';
+    const age = profile.birthYear ? currentYear - Number(profile.birthYear) : (profile.age || 26);
+
+    const userDisplayName = maskDisplayName(rawName);
+    const maskedPhone = maskPhoneNumber(rawPhone);
     const anonymousRef = generateAnonymousParticipantRef(userId, surveyId);
+
     return {
       userId,
       anonymousRef,
+      userDisplayName,
+      maskedPhone,
+      city: rawCity,
+      gender: rawGender,
+      rawGenderCode: profile.gender || 'ALL',
+      age: age,
       completedAt: rData.serverCompletedAt || rData.submittedAt || rData.createdAt || null
     };
   });
+
+  const totalCompletedCount = respondents.length;
+
+  // Apply filters
+  if (city && city !== 'ALL' && city.trim() !== '') {
+    respondents = respondents.filter(r => r.city.toLowerCase() === city.trim().toLowerCase());
+  }
+
+  if (gender && gender !== 'ALL') {
+    respondents = respondents.filter(r => r.rawGenderCode === gender || (gender === 'MALE' && r.gender === 'Erkek') || (gender === 'FEMALE' && r.gender === 'Kadın'));
+  }
+
+  if (typeof minAge === 'number' && !isNaN(minAge)) {
+    respondents = respondents.filter(r => r.age >= minAge);
+  }
+
+  if (typeof maxAge === 'number' && !isNaN(maxAge)) {
+    respondents = respondents.filter(r => r.age <= maxAge);
+  }
+
+  if (search && search.trim() !== '') {
+    const q = search.trim().toLowerCase();
+    respondents = respondents.filter(r =>
+      r.userDisplayName.toLowerCase().includes(q) ||
+      r.maskedPhone.includes(q) ||
+      r.city.toLowerCase().includes(q)
+    );
+  }
+
+  const vConfig = survey.verificationConfig || {};
 
   return {
     success: true,
     data: {
       surveyId,
       surveyTitle: survey?.title || 'Anket',
-      totalCompletedCount: respondents.length,
+      organizationId: survey?.organizationId || null,
+      pagTargetCount: vConfig.pagTargetCount || 50,
+      orgSelectionQuota: vConfig.orgSelectionQuota || 20,
+      verificationRewardSummary: vConfig.verificationRewardSummary || '250 TL Hediye Çeki',
+      totalCompletedCount,
+      filteredCount: respondents.length,
       respondents: respondents
     }
   };

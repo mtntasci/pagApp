@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '../lib/firebase';
 
@@ -8,57 +8,69 @@ interface ActiveSurveyOption {
   surveyId: string;
   title: string;
   responseCount: number;
+  status?: string;
+  ownerType?: string;
 }
 
 export default function DashboardPage() {
   const [metrics, setMetrics] = useState({
-    activeSurveys: 5,
-    activeProfileSurveys: 12,
-    totalUsers: 1450,
-    activePushUsers: 1280,
-    basicProfileCompletedCount: 1015,
-    phoneVerifiedCount: 1160,
-    kycVerifiedCount: 725,
-    ibanSubmittedCount: 870,
-    activeSurveysList: [
-      { surveyId: 'survey-1', title: 'McDonald\'s Lezzet Deneyimi Anketi 2026', responseCount: 428 },
-      { surveyId: 'survey-2', title: 'Ford Elektrikli Araç Tercihleri', responseCount: 310 },
-      { surveyId: 'survey-3', title: 'Haftalık Kahve Tüketim Alışkanlıkları', responseCount: 195 },
-      { surveyId: 'survey-4', title: 'PAG Kullanıcı Memnuniyeti Anket 3. Dönem', responseCount: 540 }
-    ] as ActiveSurveyOption[]
+    activeSurveys: 0,
+    activeProfileSurveys: 0,
+    totalUsers: 0,
+    activePushUsers: 0,
+    totalResponses: 0,
+    basicProfileCompletedCount: 0,
+    phoneVerifiedCount: 0,
+    kycVerifiedCount: 0,
+    ibanSubmittedCount: 0,
+    activeSurveysList: [] as ActiveSurveyOption[]
   });
 
-  const [selectedSurveyId, setSelectedSurveyId] = useState<string>('survey-1');
+  const [selectedSurveyId, setSelectedSurveyId] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+
+  const loadMetrics = useCallback(async () => {
+    try {
+      setIsRefreshing(true);
+      const getMetricsCallable = httpsCallable<any, any>(functions, 'getAdminDashboardMetrics');
+      const res = await getMetricsCallable();
+      if (res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        const surveyList: ActiveSurveyOption[] = d.activeSurveysList || [];
+
+        setMetrics({
+          activeSurveys: d.activeSurveys ?? 0,
+          activeProfileSurveys: d.activeProfileSurveys ?? 0,
+          totalUsers: d.totalUsers ?? 0,
+          activePushUsers: d.activePushUsers ?? d.totalUsers ?? 0,
+          totalResponses: d.totalResponses ?? 0,
+          basicProfileCompletedCount: d.basicProfileCompletedCount ?? 0,
+          phoneVerifiedCount: d.phoneVerifiedCount ?? 0,
+          kycVerifiedCount: d.kycVerifiedCount ?? 0,
+          ibanSubmittedCount: d.ibanSubmittedCount ?? 0,
+          activeSurveysList: surveyList
+        });
+
+        if (surveyList.length > 0) {
+          // If no survey selected yet, or previous selection is invalid, select the first survey (most active)
+          setSelectedSurveyId(prev => {
+            const exists = surveyList.some(s => s.surveyId === prev);
+            return exists ? prev : surveyList[0].surveyId;
+          });
+        }
+      }
+    } catch (err) {
+      console.warn('Backend metrics call fallback to local state:', err);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
 
   useEffect(() => {
-    async function loadMetrics() {
-      try {
-        const getMetricsCallable = httpsCallable<any, any>(functions, 'getAdminDashboardMetrics');
-        const res = await getMetricsCallable();
-        if (res.data?.success && res.data?.data) {
-          const d = res.data.data;
-          setMetrics(prev => ({
-            ...prev,
-            activeSurveys: d.activeSurveys ?? prev.activeSurveys,
-            activeProfileSurveys: d.activeProfileSurveys ?? prev.activeProfileSurveys,
-            totalUsers: d.totalUsers ?? prev.totalUsers,
-            activePushUsers: d.activePushUsers ?? prev.activePushUsers,
-            basicProfileCompletedCount: d.basicProfileCompletedCount ?? prev.basicProfileCompletedCount,
-            phoneVerifiedCount: d.phoneVerifiedCount ?? prev.phoneVerifiedCount,
-            kycVerifiedCount: d.kycVerifiedCount ?? prev.kycVerifiedCount,
-            ibanSubmittedCount: d.ibanSubmittedCount ?? prev.ibanSubmittedCount,
-            activeSurveysList: (d.activeSurveysList && d.activeSurveysList.length > 0) ? d.activeSurveysList : prev.activeSurveysList
-          }));
-          if (d.activeSurveysList && d.activeSurveysList.length > 0) {
-            setSelectedSurveyId(d.activeSurveysList[0].surveyId);
-          }
-        }
-      } catch (err) {
-        console.warn('Backend metrics call fallback to local state:', err);
-      }
-    }
     loadMetrics();
-  }, []);
+  }, [loadMetrics]);
 
   const topCards = [
     { title: 'Aktif Anket', value: metrics.activeSurveys, tag: 'Canlı Yayında', tagBg: 'rgba(16, 185, 129, 0.15)', tagColor: '#10B981', icon: '📋' },
@@ -67,10 +79,10 @@ export default function DashboardPage() {
     { title: 'Aktif Kullanıcı (Push Alan)', value: metrics.activePushUsers.toLocaleString('tr-TR'), tag: 'Bildirim Aktif', tagBg: 'rgba(245, 158, 11, 0.15)', tagColor: '#F59E0B', icon: '🔔' }
   ];
 
-  const selectedSurvey = metrics.activeSurveysList.find(s => s.surveyId === selectedSurveyId) || metrics.activeSurveysList[0];
-  const activePushCount = metrics.activePushUsers || 1;
-  const responseCount = selectedSurvey ? selectedSurvey.responseCount : 0;
-  const participationPercentage = Math.min(100, Math.round((responseCount / activePushCount) * 1000) / 10);
+  const selectedSurvey = metrics.activeSurveysList.find(s => s.surveyId === selectedSurveyId) || (metrics.activeSurveysList.length > 0 ? metrics.activeSurveysList[0] : null);
+  const targetPopulation = Math.max(metrics.activePushUsers, metrics.totalUsers, 1);
+  const responseCount = selectedSurvey ? (selectedSurvey.responseCount || 0) : 0;
+  const participationPercentage = Math.min(100, Math.round((responseCount / targetPopulation) * 1000) / 10);
 
   const verificationDistributions = [
     {
@@ -117,13 +129,38 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <header style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-          Dashboard & Raporlar
-        </h2>
-        <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500 }}>
-          Canlı kullanıcı popülasyonu, aktif anket katılım oranları ve profil doğrulama istatistikleri
-        </p>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '32px' }}>
+        <div>
+          <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.3px', margin: 0 }}>
+            Dashboard & Raporlar
+          </h2>
+          <p style={{ color: 'var(--text-secondary)', marginTop: '4px', fontSize: '14px', fontWeight: 500, margin: 0 }}>
+            Canlı kullanıcı popülasyonu, anket katılım oranları ve profil doğrulama istatistikleri
+          </p>
+        </div>
+        <button
+          onClick={() => loadMetrics()}
+          disabled={isRefreshing}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            borderRadius: '8px',
+            border: '1px solid var(--border-color)',
+            backgroundColor: 'var(--bg-surface-secondary)',
+            color: 'var(--text-primary)',
+            fontWeight: 700,
+            fontSize: '13px',
+            cursor: isRefreshing ? 'not-allowed' : 'pointer',
+            opacity: isRefreshing ? 0.7 : 1
+          }}
+        >
+          <span style={{ display: 'inline-block', transform: isRefreshing ? 'rotate(360deg)' : 'none', transition: 'transform 0.8s ease' }}>
+            🔄
+          </span>
+          {isRefreshing ? 'Güncelleniyor...' : 'Verileri Yenile'}
+        </button>
       </header>
 
       {/* ================================================== */}
@@ -138,13 +175,14 @@ export default function DashboardPage() {
         {topCards.map((card, idx) => (
           <div key={idx} style={{
             backgroundColor: 'var(--bg-surface)',
-            padding: '22px 24px',
+            padding: '20px',
             borderRadius: '12px',
             border: '1px solid var(--border-color)',
             boxShadow: 'var(--shadow-sm)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px'
+            justifyContent: 'space-between',
+            height: '110px'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -163,7 +201,7 @@ export default function DashboardPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
               <p style={{ fontSize: '32px', fontWeight: 900, color: 'var(--text-primary)', letterSpacing: '-0.5px', margin: 0 }}>
-                {card.value}
+                {isLoading ? '...' : card.value}
               </p>
               <span style={{ fontSize: '24px' }}>{card.icon}</span>
             </div>
@@ -188,38 +226,41 @@ export default function DashboardPage() {
               📊 Anket Katılım Oranı Analizi
             </h3>
             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', margin: 0 }}>
-              Aktif anketlere katılan ve aktif bildirim alan (Push alan) kullanıcı oranları
+              Seçilen ankete katılan kullanıcıların aktif kitleye oranı
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
-              Aktif Anket Seçin:
-            </label>
-            <select
-              value={selectedSurveyId}
-              onChange={(e) => setSelectedSurveyId(e.target.value)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-color)',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                color: 'var(--text-primary)',
-                fontWeight: 700,
-                fontSize: '13px',
-                cursor: 'pointer',
-                outline: 'none'
-              }}
-            >
-              {metrics.activeSurveysList.map(s => (
-                <option key={s.surveyId} value={s.surveyId}>
-                  {s.title} ({s.responseCount} Katılım)
-                </option>
-              ))}
-            </select>
-          </div>
+          {metrics.activeSurveysList.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                İncelenecek Anket:
+              </label>
+              <select
+                value={selectedSurveyId}
+                onChange={(e) => setSelectedSurveyId(e.target.value)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--bg-surface-secondary)',
+                  color: 'var(--text-primary)',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  outline: 'none',
+                  maxWidth: '320px'
+                }}
+              >
+                {metrics.activeSurveysList.map(s => (
+                  <option key={s.surveyId} value={s.surveyId}>
+                    {s.title} ({s.responseCount || 0} Yanıt)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        {selectedSurvey && (
+        {selectedSurvey ? (
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -227,11 +268,12 @@ export default function DashboardPage() {
             backgroundColor: 'var(--bg-surface-secondary)',
             padding: '20px',
             borderRadius: '10px',
-            border: '1px solid var(--border-color)'
+            border: '1px solid var(--border-color)',
+            marginBottom: '20px'
           }}>
             <div>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Seçili Anket
+                İncelenen Anket
               </span>
               <p style={{ fontSize: '15px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '4px', margin: 0 }}>
                 {selectedSurvey.title}
@@ -239,18 +281,18 @@ export default function DashboardPage() {
             </div>
             <div>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Aktif Kullanıcı (Push Alan)
+                Hedef Kitle / Aktif Bildirim Alan
               </span>
               <p style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px', margin: 0 }}>
-                {activePushCount.toLocaleString('tr-TR')}
+                {targetPopulation.toLocaleString('tr-TR')} Kişi
               </p>
             </div>
             <div>
               <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                Ankete Katılan Kullanıcı
+                Ankete Katılan / Cevaplayan
               </span>
               <p style={{ fontSize: '20px', fontWeight: 800, color: '#10B981', marginTop: '2px', margin: 0 }}>
-                {responseCount.toLocaleString('tr-TR')}
+                👥 {responseCount.toLocaleString('tr-TR')} Katılımcı
               </p>
             </div>
             <div>
@@ -279,6 +321,79 @@ export default function DashboardPage() {
                 }} />
               </div>
             </div>
+          </div>
+        ) : (
+          <div style={{
+            padding: '24px',
+            textAlign: 'center',
+            backgroundColor: 'var(--bg-surface-secondary)',
+            borderRadius: '10px',
+            color: 'var(--text-secondary)',
+            fontSize: '14px',
+            fontWeight: 500
+          }}>
+            Henüz incelenecek anket bulunamadı. Anketler sekmesinden yeni bir anket yayınlayabilirsiniz.
+          </div>
+        )}
+
+        {/* Live Survey Table */}
+        {metrics.activeSurveysList.length > 1 && (
+          <div style={{ marginTop: '20px', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-secondary)', textAlign: 'left' }}>
+                  <th style={{ padding: '10px 8px', fontWeight: 700 }}>Anket Adı</th>
+                  <th style={{ padding: '10px 8px', fontWeight: 700 }}>Durum</th>
+                  <th style={{ padding: '10px 8px', fontWeight: 700 }}>Katılımcı Sayısı</th>
+                  <th style={{ padding: '10px 8px', fontWeight: 700 }}>Katılım Oranı</th>
+                </tr>
+              </thead>
+              <tbody>
+                {metrics.activeSurveysList.map((s) => {
+                  const p = Math.min(100, Math.round(((s.responseCount || 0) / targetPopulation) * 1000) / 10);
+                  const isSel = s.surveyId === selectedSurveyId;
+                  return (
+                    <tr
+                      key={s.surveyId}
+                      onClick={() => setSelectedSurveyId(s.surveyId)}
+                      style={{
+                        borderBottom: '1px solid var(--border-color)',
+                        backgroundColor: isSel ? 'rgba(183, 243, 74, 0.08)' : 'transparent',
+                        cursor: 'pointer',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                    >
+                      <td style={{ padding: '12px 8px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {s.title}
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <span style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          backgroundColor: s.status === 'ACTIVE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                          color: s.status === 'ACTIVE' ? '#10B981' : 'var(--text-secondary)'
+                        }}>
+                          {s.status === 'ACTIVE' ? 'CANLI' : (s.status || 'AKTİF')}
+                        </span>
+                      </td>
+                      <td style={{ padding: '12px 8px', fontWeight: 700, color: '#10B981' }}>
+                        👥 {s.responseCount || 0} Yanıt
+                      </td>
+                      <td style={{ padding: '12px 8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ flex: 1, maxWidth: '100px', height: '6px', backgroundColor: 'var(--border-color)', borderRadius: '3px', overflow: 'hidden' }}>
+                            <div style={{ width: `${p}%`, height: '100%', backgroundColor: '#10B981' }} />
+                          </div>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '12px' }}>%{p}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

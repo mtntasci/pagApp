@@ -34,6 +34,7 @@ import {
   createOrUpdateOrganizationAdminHandler,
   toggleOrganizationVerificationAuthAdminHandler,
   listOrganizationUsersAdminHandler,
+  listPortalUsersAdminHandler,
   approveSurveyByOrgHandler,
   finalApproveSurveyAdminHandler
 } from './admin';
@@ -172,6 +173,7 @@ export const listOrganizationsAdmin = functions.https.onCall(listOrganizationsAd
 export const createOrUpdateOrganizationAdmin = functions.https.onCall(createOrUpdateOrganizationAdminHandler);
 export const toggleOrganizationVerificationAuthAdmin = functions.https.onCall(toggleOrganizationVerificationAuthAdminHandler);
 export const listOrganizationUsersAdmin = functions.https.onCall(listOrganizationUsersAdminHandler);
+export const listPortalUsersAdmin = functions.https.onCall(listPortalUsersAdminHandler);
 export const approveSurveyByOrg = functions.https.onCall(approveSurveyByOrgHandler);
 export const finalApproveSurveyAdmin = functions.https.onCall(finalApproveSurveyAdminHandler);
 

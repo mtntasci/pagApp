@@ -209,6 +209,9 @@ export const getAdminDashboardMetricsHandler = async (
     surveyId: string;
     title: string;
     responseCount: number;
+    status?: string;
+    ownerType?: string;
+    organizationId?: string | null;
   }> = [];
 
   try {
@@ -217,10 +220,13 @@ export const getAdminDashboardMetricsHandler = async (
 
     const responseCountsBySurvey: Record<string, number> = {};
     responsesSnap.docs.forEach((rDoc) => {
-      const rData = rDoc.data();
-      const sId = rData?.surveyId;
+      const rData = rDoc.data() || {};
+      const sId = rData.surveyId || (rDoc.id.includes('_') ? rDoc.id.substring(0, rDoc.id.lastIndexOf('_')) : rDoc.id);
       if (sId) {
         responseCountsBySurvey[sId] = (responseCountsBySurvey[sId] || 0) + 1;
+      }
+      if (rDoc.id) {
+        responseCountsBySurvey[rDoc.id] = (responseCountsBySurvey[rDoc.id] || 0) + 1;
       }
     });
 
@@ -233,24 +239,28 @@ export const getAdminDashboardMetricsHandler = async (
         return;
       }
 
-      const realResponseCount = responseCountsBySurvey[doc.id] ?? s.completedCount ?? s.responseCount ?? 0;
+      const byDocId = responseCountsBySurvey[doc.id] || 0;
+      const bySurveyId = s.surveyId ? (responseCountsBySurvey[s.surveyId] || 0) : 0;
+      const docCounter = Math.max(s.completedCount || 0, s.responseCount || 0);
+      const realResponseCount = Math.max(byDocId, bySurveyId, docCounter);
 
       if (s.surveyType === 'PROFILE') {
         if (s.status === 'ACTIVE') activeProfileSurveys++;
       } else {
-        if (s.status === 'ACTIVE') {
-          activeSurveys++;
-          activeSurveysList.push({
-            surveyId: doc.id,
-            title: s.title || 'İsimsiz Anket',
-            responseCount: realResponseCount
-          });
-        }
+        if (s.status === 'ACTIVE') activeSurveys++;
+        activeSurveysList.push({
+          surveyId: doc.id,
+          title: s.title || 'İsimsiz Anket',
+          responseCount: realResponseCount,
+          status: s.status,
+          ownerType: s.ownerType || 'PAG',
+          organizationId: s.organizationId || null
+        });
       }
 
       switch (s.status) {
         case 'SCHEDULED': scheduledSurveys++; break;
-        case 'ENDED': endedSurveys++; break;
+        case 'ENDED': case 'COMPLETED': endedSurveys++; break;
         case 'DRAFT': draftSurveys++; break;
         case 'PENDING_APPROVAL':
         case 'PENDING_ADMIN_APPROVAL':
@@ -259,6 +269,9 @@ export const getAdminDashboardMetricsHandler = async (
           break;
       }
     });
+
+    // Sort activeSurveysList so that surveys with responses appear first
+    activeSurveysList.sort((a, b) => b.responseCount - a.responseCount);
 
     try {
       const profileQuestionsSnap = await db.collection('profileQuestions').get();
@@ -1149,8 +1162,57 @@ export const updateCompanyApplicationStatusAdminHandler = async (
     const docSnap = await docRef.get();
     if (docSnap.exists) {
       const appData = docSnap.data() || {};
+      let createdOrgId = appData.createdOrganizationId || null;
+
+      // When APPROVED, automatically create and provision the Organization!
+      if (status === 'APPROVED') {
+        const cleanName = (appData.companyName || 'Firma').trim();
+        const cleanSlug = cleanName.toLowerCase().replace(/[^a-z0-9_]/g, '_').substring(0, 30);
+        createdOrgId = createdOrgId || `org_${cleanSlug}_${Date.now().toString().slice(-4)}`;
+
+        const orgRef = db.collection('organizations').doc(createdOrgId);
+        const orgDoc = await orgRef.get();
+
+        const orgPayload: any = {
+          organizationId: createdOrgId,
+          name: cleanName,
+          sector: appData.sector || 'Genel',
+          contactName: appData.contactName || null,
+          contactEmail: appData.contactEmail || null,
+          contactPhone: appData.contactPhone || null,
+          website: appData.website || null,
+          status: 'ACTIVE',
+          isVerificationAuthorized: false,
+          sourceApplicationId: applicationId,
+          updatedAt: serverNow
+        };
+
+        if (!orgDoc.exists) {
+          orgPayload.createdAt = serverNow;
+        }
+
+        await orgRef.set(orgPayload, { merge: true });
+
+        // Optionally create portal user for company contact if email provided
+        if (appData.contactEmail && appData.contactEmail.includes('@')) {
+          const contactEmailClean = appData.contactEmail.trim().toLowerCase();
+          const pUserRef = db.collection('portalUsers').doc(`portal_${createdOrgId}`);
+          await pUserRef.set({
+            uid: `portal_${createdOrgId}`,
+            email: contactEmailClean,
+            role: 'ORGANIZATION_USER',
+            organizationId: createdOrgId,
+            status: 'ACTIVE',
+            mustChangePassword: true,
+            createdAt: serverNow,
+            updatedAt: serverNow
+          }, { merge: true });
+        }
+      }
+
       await docRef.update({
         status,
+        createdOrganizationId: createdOrgId,
         updatedAt: serverNow,
         updatedBy: adminUser.uid
       });
@@ -1177,6 +1239,54 @@ export const updateCompanyApplicationStatusAdminHandler = async (
   }
 
   return { success: true, data: { applicationId, status } };
+};
+
+export const listPortalUsersAdminHandler = async (
+  data: any,
+  context: functions.https.CallableContext
+) => {
+  const adminUser = await verifyAdminUser(context);
+  const db = admin.firestore();
+  const { role, organizationId, search } = data || {};
+
+  try {
+    let query: admin.firestore.Query = db.collection('portalUsers');
+    if (adminUser.role === 'ORGANIZATION_USER') {
+      query = query.where('organizationId', '==', adminUser.organizationId);
+    } else if (organizationId) {
+      query = query.where('organizationId', '==', organizationId);
+    }
+
+    if (role && role !== 'ALL') {
+      query = query.where('role', '==', role);
+    }
+
+    const snap = await query.get();
+    let users = snap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        uid: doc.id,
+        email: d.email || '',
+        role: d.role || 'PAG_STAFF',
+        organizationId: d.organizationId || null,
+        status: d.status || 'ACTIVE',
+        displayName: d.displayName || null,
+        createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : d.createdAt || null
+      };
+    });
+
+    if (search && typeof search === 'string') {
+      const q = search.trim().toLowerCase();
+      users = users.filter((u) => u.email.toLowerCase().includes(q) || (u.organizationId && u.organizationId.toLowerCase().includes(q)));
+    }
+
+    users.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+    return { success: true, data: { users, total: users.length } };
+  } catch (err: any) {
+    if (err?.code !== 7 && !err?.message?.includes('PERMISSION_DENIED')) throw err;
+    return { success: true, data: { users: [], total: 0 } };
+  }
 };
 
 export const cleanSurveyDataAdminHandler = async (
