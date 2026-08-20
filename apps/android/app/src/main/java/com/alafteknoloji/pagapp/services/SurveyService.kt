@@ -74,6 +74,27 @@ class SurveyService {
                                 }
                             }
 
+                            // Check startAt and endAt timestamps
+                            val startAtStr = item.optString("startAt", "")
+                            if (startAtStr.isNotEmpty()) {
+                                try {
+                                    val startInstant = java.time.Instant.parse(startAtStr)
+                                    if (startInstant.isAfter(java.time.Instant.now())) {
+                                        continue // Başlama tarihi henüz gelmemiş, gizle
+                                    }
+                                } catch (_: Exception) {}
+                            }
+
+                            val endAtStr = item.optString("endAt", "")
+                            if (endAtStr.isNotEmpty()) {
+                                try {
+                                    val endInstant = java.time.Instant.parse(endAtStr)
+                                    if (endInstant.isBefore(java.time.Instant.now())) {
+                                        continue // Bitiş tarihi geçmiş, gizle
+                                    }
+                                } catch (_: Exception) {}
+                            }
+
                             parsed.add(
                                 PAGSurvey(
                                     surveyId = surveyId,

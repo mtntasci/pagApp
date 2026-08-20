@@ -68,6 +68,26 @@ public class SurveyService: ObservableObject {
                             }
                         }
                         
+                        // Check startAt and endAt timestamps
+                        if let startAtStr = item["startAt"] as? String {
+                            let formatter = ISO8601DateFormatter()
+                            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                            if let startDate = formatter.date(from: startAtStr) ?? ISO8601DateFormatter().date(from: startAtStr) {
+                                if startDate > Date() {
+                                    continue // Başlama tarihi henüz gelmemiş, gizle
+                                }
+                            }
+                        }
+                        if let endAtStr = item["endAt"] as? String {
+                            let formatter = ISO8601DateFormatter()
+                            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                            if let endDate = formatter.date(from: endAtStr) ?? ISO8601DateFormatter().date(from: endAtStr) {
+                                if endDate < Date() {
+                                    continue // Bitiş tarihi geçmiş, gizle
+                                }
+                            }
+                        }
+
                         let survey = PAGSurvey(
                             surveyId: surveyId,
                             ownerType: item["ownerType"] as? String ?? "PAG",
