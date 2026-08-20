@@ -179,6 +179,14 @@ export async function GET(req: NextRequest) {
         isCompleted: completedSurveyIds.includes(s.id)
       }));
 
+    // Separate completed survey IDs (general vs profile)
+    const completedGeneralSurveyIds = completedResponses
+      .map(r => r.surveyId)
+      .filter(id => !id.startsWith('pq_'));
+    const completedProfileSurveyIds = completedResponses
+      .map(r => r.surveyId)
+      .filter(id => id.startsWith('pq_'));
+
     return apiSuccess({
       user: {
         id: user.id,
@@ -187,12 +195,14 @@ export async function GET(req: NextRequest) {
         city: user.city,
         profileScore: user.profileScore,
         rewardBalance: user.rewardBalance,
-        kycStatus: user.kycStatus
+        kycStatus: user.kycStatus,
+        completedSurveyIds: completedGeneralSurveyIds,
+        completedProfileSurveyIds: completedProfileSurveyIds
       },
       stories,
       surveys: surveysWithQuestions,
       stats: {
-        completedCount: completedSurveyIds.length,
+        completedCount: completedGeneralSurveyIds.length,
         availableCount: surveysWithQuestions.length
       }
     });

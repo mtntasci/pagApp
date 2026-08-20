@@ -269,27 +269,29 @@ fun ProfileScreen(
                             }
 
                             if (availableScoreX > 0) {
-                                // Dynamic Title: "[$availableScoreX] Yeni Puan Avantajını Kaçırma"
+                                // Dynamic Title: "$availableScoreX Puan seni bekliyor"
                                 Surface(
                                     color = PAGTheme.colors.brandLime,
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(10.dp),
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = "[$availableScoreX] Yeni Puan Avantajını Kaçırma",
+                                            text = "$availableScoreX Puan seni bekliyor",
                                             color = PAGTheme.colors.brandMidnight,
                                             fontWeight = FontWeight.ExtraBold,
-                                            fontSize = 14.sp
+                                            fontSize = 14.sp,
+                                            maxLines = 1
                                         )
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                             contentDescription = null,
-                                            tint = PAGTheme.colors.brandMidnight
+                                            tint = PAGTheme.colors.brandMidnight,
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }

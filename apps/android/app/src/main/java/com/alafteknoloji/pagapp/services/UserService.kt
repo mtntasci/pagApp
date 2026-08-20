@@ -89,6 +89,22 @@ class UserService(private val context: Context) {
                         }
                     }
 
+                    val completedSurveyIds = mutableListOf<String>()
+                    val rawComp = userData.optJSONArray("completedSurveyIds")
+                    if (rawComp != null) {
+                        for (i in 0 until rawComp.length()) {
+                            completedSurveyIds.add(rawComp.getString(i))
+                        }
+                    }
+
+                    val completedProfileSurveyIds = mutableListOf<String>()
+                    val rawProfComp = userData.optJSONArray("completedProfileSurveyIds")
+                    if (rawProfComp != null) {
+                        for (i in 0 until rawProfComp.length()) {
+                            completedProfileSurveyIds.add(rawProfComp.getString(i))
+                        }
+                    }
+
                     val user = PAGUser(
                         userId = userData.optString("userId"),
                         email = if (userData.isNull("email")) null else userData.optString("email"),
@@ -102,7 +118,9 @@ class UserService(private val context: Context) {
                         legalConsentRequired = false,
                         missingDocumentIds = emptyList(),
                         missingDocuments = missingDocs,
-                        status = userData.optString("status", "ACTIVE")
+                        status = userData.optString("status", "ACTIVE"),
+                        completedSurveyIds = completedSurveyIds,
+                        completedProfileSurveyIds = completedProfileSurveyIds
                     )
                     _currentUser.value = user
                     _currentRanking.value = PAGUserRanking(

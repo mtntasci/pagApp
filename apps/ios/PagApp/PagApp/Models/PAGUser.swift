@@ -43,6 +43,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
     public var isUnderage: Bool
     public var underageBlocked: Bool
     
+    public var completedSurveyIds: [String]
+    public var completedProfileSurveyIds: [String]
+    
     public init(
         userId: String,
         email: String? = nil,
@@ -78,7 +81,9 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         missingDocuments: [LegalDocument] = [],
         communicationPreferences: CommunicationPreferences = CommunicationPreferences(),
         isUnderage: Bool = false,
-        underageBlocked: Bool = false
+        underageBlocked: Bool = false,
+        completedSurveyIds: [String] = [],
+        completedProfileSurveyIds: [String] = []
     ) {
         self.userId = userId
         self.email = email
@@ -115,5 +120,7 @@ public struct PAGUser: Codable, Identifiable, Equatable {
         self.communicationPreferences = communicationPreferences
         self.isUnderage = isUnderage
         self.underageBlocked = underageBlocked
+        self.completedSurveyIds = completedSurveyIds
+        self.completedProfileSurveyIds = completedProfileSurveyIds
     }
 }

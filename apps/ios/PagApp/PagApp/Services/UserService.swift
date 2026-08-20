@@ -108,6 +108,9 @@ public class UserService: ObservableObject {
                 
                 let isPhoneVerified = userData["phoneVerified"] as? Bool ?? false
                 
+                let completedSurveyIds = userData["completedSurveyIds"] as? [String] ?? []
+                let completedProfileSurveyIds = userData["completedProfileSurveyIds"] as? [String] ?? []
+
                 let user = PAGUser(
                     userId: uid,
                     email: email,
@@ -143,7 +146,9 @@ public class UserService: ObservableObject {
                     missingDocuments: missingDocs,
                     communicationPreferences: commPrefs,
                     isUnderage: isUnderage,
-                    underageBlocked: underageBlocked
+                    underageBlocked: underageBlocked,
+                    completedSurveyIds: completedSurveyIds,
+                    completedProfileSurveyIds: completedProfileSurveyIds
                 )
                 
                 self.currentUser = user

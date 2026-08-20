@@ -24,5 +24,7 @@ data class PAGUser(
     val missingDocuments: List<LegalDocument> = emptyList(),
     val communicationPreferences: CommunicationPreferences = CommunicationPreferences(),
     val isUnderage: Boolean = false,
-    val underageBlocked: Boolean = false
+    val underageBlocked: Boolean = false,
+    val completedSurveyIds: List<String> = emptyList(),
+    val completedProfileSurveyIds: List<String> = emptyList()
 )

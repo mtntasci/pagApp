@@ -171,12 +171,14 @@ public struct ProfileView: View {
                                 }
 
                                 if profileSurveyService.availableScoreX > 0 {
-                                    // Dynamic Dynamic Title: "[X] Yeni Puan Avantajını Kaçırma"
+                                    // Dynamic Title: "X Puan seni bekliyor"
                                     HStack {
-                                        Text("[\(profileSurveyService.availableScoreX)] Yeni Puan Avantajını Kaçırma")
+                                        Text("\(profileSurveyService.availableScoreX) Puan seni bekliyor")
                                             .font(PAGTypography.heading)
                                             .fontWeight(.bold)
                                             .foregroundColor(PAGTheme.brandMidnight)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.85)
                                         Spacer()
                                         Image(systemName: "arrow.up.right.circle.fill")
                                             .foregroundColor(PAGTheme.brandMidnight)

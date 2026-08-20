@@ -33,11 +33,18 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Completed surveys count
-    const [{ count: compCount }] = await db
-      .select({ count: count() })
+    // Completed surveys
+    const completedResponses = await db
+      .select({ surveyId: surveyResponses.surveyId })
       .from(surveyResponses)
       .where(eq(surveyResponses.userId, userId));
+
+    const completedGeneralSurveyIds = completedResponses
+      .map(r => r.surveyId)
+      .filter(id => !id.startsWith('pq_'));
+    const completedProfileSurveyIds = completedResponses
+      .map(r => r.surveyId)
+      .filter(id => id.startsWith('pq_'));
 
     const rawName = user.displayName || 'Kullanıcı';
     const parts = rawName.split(' ');
@@ -104,7 +111,9 @@ export async function POST(req: NextRequest) {
       profileScore: Number(user.profileScore) || 0,
       rewardBalance: Number(user.rewardBalance) || 0,
       profileCompleted: isProfileCompleted,
-      completedSurveysCount: Number(compCount),
+      completedSurveysCount: completedGeneralSurveyIds.length,
+      completedSurveyIds: completedGeneralSurveyIds,
+      completedProfileSurveyIds: completedProfileSurveyIds,
       status: user.isBanned ? 'BANNED' : 'ACTIVE',
       legalConsentRequired: true,
       missingDocumentIds: ['TERMS', 'KVKK_NOTICE', 'REWARD_TERMS'],
