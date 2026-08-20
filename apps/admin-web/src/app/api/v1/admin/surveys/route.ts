@@ -102,6 +102,37 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const surveyId = body.surveyId || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const title = body.title;
+
+    const existingRows = await db.select().from(surveys).where(eq(surveys.id, surveyId)).limit(1);
+    const isExisting = existingRows.length > 0;
+
+    // Handle partial updates (such as Approve / Archive / Status change)
+    if (isExisting && (!title || !title.trim())) {
+      const updateData: any = {
+        updatedAt: new Date()
+      };
+      if (body.status !== undefined) {
+        updateData.status = body.status;
+        if (body.status === 'ACTIVE') {
+          updateData.isArchived = false;
+          const existingSurvey = existingRows[0];
+          if (!existingSurvey.startAt || new Date(existingSurvey.startAt).getTime() > Date.now()) {
+            updateData.startAt = new Date();
+          }
+        }
+      }
+      if (body.isArchived !== undefined) {
+        updateData.isArchived = Boolean(body.isArchived);
+        if (body.isArchived) updateData.status = 'ARCHIVED';
+      }
+      if (body.isHighlighted !== undefined) {
+        updateData.isHighlighted = Boolean(body.isHighlighted);
+      }
+
+      await db.update(surveys).set(updateData).where(eq(surveys.id, surveyId));
+      return apiSuccess({ surveyId, status: updateData.status || existingRows[0].status }, 'Anket durumu başarıyla güncellendi.');
+    }
+
     let questionsList: any[] = [];
     if (Array.isArray(body.questions)) {
       questionsList = body.questions;
@@ -128,8 +159,6 @@ export async function POST(req: NextRequest) {
     if (questionsList.length > 3 && body.surveyType !== 'PROFILE') {
       return apiError('PAG Kampanya Anketleri maksimum 3 soru içerebilir.');
     }
-
-    const isExisting = (await db.select({ id: surveys.id }).from(surveys).where(eq(surveys.id, surveyId)).limit(1)).length > 0;
 
     const surveyData = {
       id: surveyId,

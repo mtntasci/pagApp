@@ -875,15 +875,21 @@ export default function SurveysPage() {
 
   const handleArchiveSurvey = async (surveyId: string, archive: boolean) => {
     try {
-      await fetch('/api/v1/admin/surveys', {
+      const res = await fetch('/api/v1/admin/surveys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           surveyId,
-          status: archive ? 'ARCHIVED' : 'ACTIVE'
+          status: archive ? 'ARCHIVED' : 'ACTIVE',
+          isArchived: archive
         })
       });
-      await fetchSurveys();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        await fetchSurveys();
+      } else {
+        alert('Arşivleme hatası: ' + (data.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
       console.error('Archive Survey Error:', err);
       alert('Arşivleme hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -892,7 +898,7 @@ export default function SurveysPage() {
 
   const handleApproveSurvey = async (surveyId: string) => {
     try {
-      await fetch('/api/v1/admin/surveys', {
+      const res = await fetch('/api/v1/admin/surveys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -900,7 +906,13 @@ export default function SurveysPage() {
           status: 'ACTIVE'
         })
       });
-      await fetchSurveys();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        alert('✅ Anket başarıyla onaylandı ve canlı yayına alındı!');
+        await fetchSurveys();
+      } else {
+        alert('Onaylama hatası: ' + (data.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
       console.error('Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -909,7 +921,7 @@ export default function SurveysPage() {
 
   const handleFinalApproveSurveyAdmin = async (surveyId: string) => {
     try {
-      await fetch('/api/v1/admin/surveys', {
+      const res = await fetch('/api/v1/admin/surveys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -917,8 +929,13 @@ export default function SurveysPage() {
           status: 'ACTIVE'
         })
       });
-      alert('Anket süper admin onayıyla canlı yayına alındı! 🚀');
-      await fetchSurveys();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        alert('✅ Anket süper admin onayıyla canlı yayına alındı! 🚀');
+        await fetchSurveys();
+      } else {
+        alert('Onaylama hatası: ' + (data.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
       console.error('Final Approve Survey Error:', err);
       alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
@@ -927,7 +944,7 @@ export default function SurveysPage() {
 
   const handleApproveSurveyByOrg = async (surveyId: string) => {
     try {
-      await fetch('/api/v1/admin/surveys', {
+      const res = await fetch('/api/v1/admin/surveys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -935,11 +952,16 @@ export default function SurveysPage() {
           status: 'PENDING_APPROVAL'
         })
       });
-      alert('Anket firma tarafından onaylandı ve PAG Admin son onayına iletildi! ✅');
-      await fetchSurveys();
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        alert('Anket PAG Super Admin onayına gönderildi.');
+        await fetchSurveys();
+      } else {
+        alert('Hata: ' + (data.error || 'Bilinmeyen hata'));
+      }
     } catch (err: any) {
       console.error('Org Approve Survey Error:', err);
-      alert('Onaylama hatası: ' + (err.message || 'Bilinmeyen hata'));
+      alert('Hata: ' + (err.message || 'Bilinmeyen hata'));
     }
   };
 
