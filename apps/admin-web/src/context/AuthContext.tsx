@@ -2,8 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { usePathname, useRouter } from 'next/navigation';
 
 export interface PortalUser {

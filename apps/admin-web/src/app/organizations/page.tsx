@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface OrganizationItem {
@@ -104,10 +102,10 @@ export default function OrganizationsPage() {
     setSelectedOrgForUsers(org);
     setIsLoadingUsers(true);
     try {
-      const listUsersFn = httpsCallable(functions, 'listOrganizationUsersAdmin');
-      const res: any = await listUsersFn({ organizationId: org.organizationId });
-      if (res.data?.success && Array.isArray(res.data.data?.users)) {
-        setOrgUsers(res.data.data.users);
+      const res = await fetch('/api/v1/admin/users').then(r => r.json()).catch(() => null);
+      if (res?.success && Array.isArray(res.data?.users)) {
+        const filtered = res.data.users.filter((u: any) => u.organizationId === org.organizationId);
+        setOrgUsers(filtered);
       }
     } catch (err: any) {
       console.error('Fetch Org Users Error:', err);
@@ -120,10 +118,14 @@ export default function OrganizationsPage() {
   const handleToggleVerificationAuth = async (org: OrganizationItem) => {
     const newStatus = !org.isVerificationAuthorized;
     try {
-      const toggleFn = httpsCallable(functions, 'toggleOrganizationVerificationAuthAdmin');
-      await toggleFn({
-        organizationId: org.organizationId,
-        isVerificationAuthorized: newStatus
+      await fetch('/api/v1/admin/organizations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: org.organizationId,
+          name: org.name,
+          isActive: newStatus
+        })
       });
       setOrganizations(prev =>
         prev.map(o => o.organizationId === org.organizationId ? { ...o, isVerificationAuthorized: newStatus } : o)

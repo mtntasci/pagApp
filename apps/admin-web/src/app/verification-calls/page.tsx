@@ -1,8 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationAssignmentItem {
@@ -143,15 +141,12 @@ export default function VerificationCallsPage() {
     setActiveCallAssignment(assignment);
     setCallNote(assignment.agentNote || '');
     try {
-      const startCallFn = httpsCallable(functions, 'startVerificationCall');
-      await startCallFn({ assignmentId: assignment.id });
       // Update local status
       setAssignments((prev) =>
         prev.map((a) => (a.id === assignment.id ? { ...a, status: 'CALLING' } : a))
       );
     } catch (err: any) {
       console.error('Start Call Error:', err);
-      alert('Çağrı başlatılırken hata oluştu: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setIsCalling(false);
     }
@@ -163,27 +158,19 @@ export default function VerificationCallsPage() {
     setIsSubmittingResult(true);
     try {
       // 1. Neon PostgreSQL API call
-      try {
-        await fetch('/api/v1/admin/verification/calls/result', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            assignmentId: activeCallAssignment.id,
-            callResult: result,
-            notes: callNote
-          })
-        });
-      } catch (neonErr) {
-        // Fallback
-      }
-
-      // 2. Firebase Callable sync
-      const submitResultFn = httpsCallable(functions, 'submitVerificationCallResult');
-      await submitResultFn({
-        assignmentId: activeCallAssignment.id,
-        result,
-        agentNote: callNote
+      const res = await fetch('/api/v1/admin/verification/calls/result', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignmentId: activeCallAssignment.id,
+          callResult: result,
+          notes: callNote
+        })
       });
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Sonuç kaydedilemedi');
+      }
 
       // Refresh assignments
       await fetchAssignments(selectedCampaignId);

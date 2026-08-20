@@ -3,8 +3,6 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 
 export interface VerificationCampaign {
@@ -240,19 +238,18 @@ function VerificationCampaignsContent() {
   };
 
   // 3. Load respondents with filters (manual search trigger)
-  const loadRespondents = useCallback(async (surveyId?: string, overrideFilters?: any) => {
-    const targetId = surveyId || selectedSurveyId;
-    if (!targetId) return;
-    setIsLoadingRespondents(true);
-    try {
-      const cCity = overrideFilters?.city !== undefined ? overrideFilters.city : filterCity;
-      const cGender = overrideFilters?.gender !== undefined ? overrideFilters.gender : filterGender;
-      const cMinAge = overrideFilters?.minAge !== undefined ? overrideFilters.minAge : filterMinAge;
-      const cMaxAge = overrideFilters?.maxAge !== undefined ? overrideFilters.maxAge : filterMaxAge;
-      const cSearch = overrideFilters?.search !== undefined ? overrideFilters.search : searchQuery;
-
-      // 1. Try high-performance PostgreSQL API route first
+  const loadRespondents = useCallback(
+    async (surveyId?: string, overrideFilters?: any) => {
+      const targetId = surveyId || selectedSurveyId;
+      if (!targetId) return;
+      setIsLoadingRespondents(true);
       try {
+        const cCity = overrideFilters?.city !== undefined ? overrideFilters.city : filterCity;
+        const cGender = overrideFilters?.gender !== undefined ? overrideFilters.gender : filterGender;
+        const cMinAge = overrideFilters?.minAge !== undefined ? overrideFilters.minAge : filterMinAge;
+        const cMaxAge = overrideFilters?.maxAge !== undefined ? overrideFilters.maxAge : filterMaxAge;
+        const cSearch = overrideFilters?.search !== undefined ? overrideFilters.search : searchQuery;
+
         const params = new URLSearchParams({
           surveyId: targetId,
           city: cCity !== 'ALL' ? cCity : '',
@@ -263,55 +260,22 @@ function VerificationCampaignsContent() {
         });
         const apiRes = await fetch(`/api/v1/admin/verification/respondents?${params.toString()}`);
         const apiData = await apiRes.json();
-        if (apiData.success && apiData.data && Array.isArray(apiData.data.respondents) && apiData.data.respondents.length > 0) {
+        if (apiData.success && apiData.data && Array.isArray(apiData.data.respondents)) {
           setRespondents(apiData.data.respondents);
           setSurveyMetadata({
             pagTargetCount: apiData.data.pagTargetCount || 50,
             orgSelectionQuota: apiData.data.orgSelectionQuota || 20,
             verificationRewardSummary: apiData.data.verificationRewardSummary || '250 TL Hediye Çeki'
           });
-          setIsLoadingRespondents(false);
-          return;
         }
-      } catch (neonErr) {
-        // Fallback to Firebase
+      } catch (err) {
+        console.error('Fetch Respondents Error:', err);
+      } finally {
+        setIsLoadingRespondents(false);
       }
-
-      // 2. Fallback to Firebase callable
-      const getRespFn = httpsCallable(functions, 'getCompletedRespondentsForVerification');
-      const payload: any = {
-        surveyId: targetId,
-        city: cCity !== 'ALL' ? cCity : undefined,
-        gender: cGender !== 'ALL' ? cGender : undefined,
-        minAge: cMinAge ? parseInt(cMinAge, 10) : undefined,
-        maxAge: cMaxAge ? parseInt(cMaxAge, 10) : undefined,
-        search: cSearch.trim() || undefined
-      };
-
-      const res: any = await getRespFn(payload);
-      if (res.data?.success && res.data.data) {
-        const rawList = res.data.data.respondents || [];
-        const normalized = rawList.map((r: any) => ({
-          ...r,
-          userDisplayName: typeof r.userDisplayName === 'object' ? (r.userDisplayName?.name || 'Katılımcı') : String(r.userDisplayName || 'Katılımcı'),
-          maskedPhone: typeof r.maskedPhone === 'object' ? (r.maskedPhone?.phone || '053x xxx xx 00') : String(r.maskedPhone || '053x xxx xx 00'),
-          city: formatCityName(r.city),
-          gender: typeof r.gender === 'object' ? (r.gender?.label || 'Belirtilmedi') : String(r.gender || 'Belirtilmedi'),
-          age: typeof r.age === 'number' ? r.age : (typeof r.age === 'object' ? 25 : Number(r.age) || 25)
-        }));
-        setRespondents(normalized);
-        setSurveyMetadata({
-          pagTargetCount: res.data.data.pagTargetCount || 50,
-          orgSelectionQuota: res.data.data.orgSelectionQuota || 20,
-          verificationRewardSummary: res.data.data.verificationRewardSummary || '250 TL Hediye Çeki'
-        });
-      }
-    } catch (err) {
-      console.error('Fetch Respondents Error:', err);
-    } finally {
-      setIsLoadingRespondents(false);
-    }
-  }, [selectedSurveyId, filterCity, filterGender, filterMinAge, filterMaxAge, searchQuery]);
+    },
+    [selectedSurveyId, filterCity, filterGender, filterMinAge, filterMaxAge, searchQuery]
+  );
 
   useEffect(() => {
     fetchCampaigns();
@@ -354,18 +318,24 @@ function VerificationCampaignsContent() {
 
       setIsCreating(true);
       try {
-        const createFn = httpsCallable(functions, 'createVerificationCampaign');
-        const res: any = await createFn({
-          masterSurveyId: selectedSurveyId,
-          customerSelectedUserIds: selectedUserIds,
-          randomSelectedCount: Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length),
-          verificationRewardSummary: surveyMetadata.verificationRewardSummary
+        const res = await fetch('/api/v1/admin/verification/campaigns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            masterSurveyId: selectedSurveyId,
+            customerSelectedUserIds: selectedUserIds,
+            randomSelectedCount: Math.max(0, surveyMetadata.pagTargetCount - selectedUserIds.length),
+            verificationRewardSummary: surveyMetadata.verificationRewardSummary
+          })
         });
+        const data = await res.json();
 
-        if (res.data?.success) {
+        if (data?.success) {
           setSuccessBanner(`✅ Firma katılımcı seçiminiz (${selectedUserIds.length} kişi) başarıyla kaydedildi ve PAG onayına iletildi.`);
           setActiveTab('CAMPAIGNS');
           await fetchCampaigns();
+        } else {
+          alert(data?.error || 'Kampanya oluşturulamadı.');
         }
       } catch (err: any) {
         console.error('Create Campaign Error:', err);
@@ -384,19 +354,25 @@ function VerificationCampaignsContent() {
 
     setIsCreating(true);
     try {
-      const createFn = httpsCallable(functions, 'createVerificationCampaign');
-      const res: any = await createFn({
-        masterSurveyId: selectedSurveyId,
-        customerSelectedUserIds: selectedUserIds,
-        randomSelectedCount: remainingToFill,
-        verificationRewardSummary: surveyMetadata.verificationRewardSummary
+      const res = await fetch('/api/v1/admin/verification/campaigns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          masterSurveyId: selectedSurveyId,
+          customerSelectedUserIds: selectedUserIds,
+          randomSelectedCount: remainingToFill,
+          verificationRewardSummary: surveyMetadata.verificationRewardSummary
+        })
       });
+      const data = await res.json();
 
-      if (res.data?.success) {
-        setSuccessBanner(`✅ Kalite Doğrulama Kampanyası başarıyla oluşturuldu! Toplam ${res.data.data.requestedCount} katılımcı çağrı merkezine aktarıldı.`);
+      if (data?.success) {
+        setSuccessBanner(`✅ Kalite Doğrulama Kampanyası başarıyla oluşturuldu! Toplam ${data.data?.requestedCount || 0} katılımcı çağrı merkezine aktarıldı.`);
         setSelectedUserIds([]);
         setActiveTab('CAMPAIGNS');
         await fetchCampaigns();
+      } else {
+        alert(data?.error || 'Kampanya oluşturulamadı.');
       }
     } catch (err: any) {
       console.error('Create Campaign Error:', err);
@@ -410,14 +386,28 @@ function VerificationCampaignsContent() {
   const handleOpenDetail = async (campaignId: string) => {
     setIsDetailLoading(true);
     try {
-      const getDetailFn = httpsCallable(functions, 'getVerificationCampaignDetail');
-      const res: any = await getDetailFn({ campaignId });
-      if (res.data?.success && res.data.data) {
-        setSelectedCampaignDetail(res.data.data);
+      const found = campaigns.find(c => c.id === campaignId);
+      if (found) {
+        setSelectedCampaignDetail({
+          campaign: found,
+          stats: {
+            total: found.requestedCount,
+            called: 0,
+            pending: found.requestedCount,
+            accepted: 0,
+            declined: 0,
+            noAnswer: 0,
+            callBackLater: 0,
+            wrongPerson: 0,
+            pushSent: 0,
+            completed: 0,
+            reachRate: 0,
+            completionRate: 0
+          }
+        });
       }
     } catch (err: any) {
       console.error('Get Detail Error:', err);
-      alert('Detay yüklenirken hata: ' + (err.message || 'Bilinmeyen hata'));
     } finally {
       setIsDetailLoading(false);
     }

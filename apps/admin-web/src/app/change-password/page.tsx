@@ -2,8 +2,7 @@
 
 import React, { useState } from 'react';
 import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
-import { httpsCallable } from 'firebase/functions';
-import { auth, functions } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 
@@ -59,14 +58,10 @@ export default function ChangePasswordPage() {
       // 2. Update Firebase Auth Password
       await updatePassword(user, newPassword);
 
-      // 3. Mark mustChangePassword = false via Firebase Admin SDK backend callable
-      const completeChangeFn = httpsCallable(functions, 'completePasswordChangePortalUser');
-      await completeChangeFn({});
-
-      // 4. Refresh auth context portalUser state
+      // 3. Refresh auth context portalUser state
       await refreshPortalUser();
 
-      // 5. Redirect to Dashboard
+      // 4. Redirect to Dashboard
       router.push('/');
     } catch (err: any) {
       console.error('Change Password Error:', err);
