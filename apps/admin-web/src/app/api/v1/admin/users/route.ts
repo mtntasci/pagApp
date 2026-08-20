@@ -56,13 +56,39 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const email = String(body.email || '').trim().toLowerCase();
-    const role = body.role || 'CALL_AGENT';
+    const role = body.role || 'CALL_CENTER_AGENT';
     const organizationId = body.organizationId || null;
     const displayName = body.displayName || (email ? email.split('@')[0] : 'Portal Kullanıcısı');
-    const firebaseUid = body.uid || `puid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const temporaryPassword = body.temporaryPassword || 'Pag2026!';
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBNTV8DGRFKNXMne_q4TTH2-HmMNijmlaE";
 
     if (!email) {
       return apiError('E-posta adresi zorunludur.');
+    }
+
+    let firebaseUid = body.uid || null;
+
+    // Create / Sync Firebase Auth User
+    try {
+      const fbRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          password: String(temporaryPassword),
+          returnSecureToken: true
+        })
+      });
+      const fbData = await fbRes.json();
+      if (fbData.localId) {
+        firebaseUid = fbData.localId;
+      }
+    } catch (fbErr) {
+      console.warn('Firebase Auth user creation warning:', fbErr);
+    }
+
+    if (!firebaseUid) {
+      firebaseUid = `puid_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     }
 
     const existing = await db.select().from(portalUsers).where(eq(portalUsers.email, email)).limit(1);
@@ -72,6 +98,7 @@ export async function POST(req: NextRequest) {
         role,
         organizationId,
         displayName,
+        firebaseUid: firebaseUid || existing[0].firebaseUid,
         isActive: true
       }).where(eq(portalUsers.id, existing[0].id));
     } else {

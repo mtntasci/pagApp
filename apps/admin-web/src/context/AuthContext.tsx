@@ -141,11 +141,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/login?error=unauthorized');
       } else if (user && isAuthorized && portalUser?.mustChangePassword === true && pathname !== '/change-password') {
         router.push('/change-password');
-      } else if (user && isCallCenterAgent && pathname !== '/verification-calls' && pathname !== '/change-password' && !isPublicRoute) {
-        router.push('/verification-calls');
       }
     }
-  }, [user, isAuthorized, isCallCenterAgent, portalUser, loading, pathname, router]);
+  }, [user, isAuthorized, portalUser, loading, pathname, router]);
 
   const signOut = async () => {
     await firebaseSignOut(auth);
