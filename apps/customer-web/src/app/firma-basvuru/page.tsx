@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/lib/firebase';
 
 export default function FirmaBasvuruPage() {
   const [formData, setFormData] = useState({
@@ -32,30 +30,25 @@ export default function FirmaBasvuruPage() {
     setIsSubmitting(true);
 
     try {
-      const submitFn = httpsCallable(functions, 'submitCompanyApplication');
-      const res: any = await submitFn({
-        companyName: formData.companyName,
-        contactName: formData.contactName,
-        contactEmail: formData.contactEmail,
-        contactPhone: formData.contactPhone,
-        website: formData.website,
-        message: formData.message
+      const res = await fetch('/api/v1/applications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
       });
+      const data = await res.json();
 
-      if (res.data?.success) {
-        if (res.data.isDuplicate) {
-          setErrorMsg(res.data.message || 'Başvurunuz daha önce alınmıştır.');
-        } else {
-          setSubmitSuccess(true);
-          setFormData({
-            companyName: '',
-            contactName: '',
-            contactEmail: '',
-            contactPhone: '',
-            website: '',
-            message: ''
-          });
-        }
+      if (data?.success) {
+        setSubmitSuccess(true);
+        setFormData({
+          companyName: '',
+          contactName: '',
+          contactEmail: '',
+          contactPhone: '',
+          website: '',
+          message: ''
+        });
+      } else {
+        setErrorMsg(data?.error || 'Başvuru gönderilemedi.');
       }
     } catch (err: any) {
       console.error('Company Application Error:', err);

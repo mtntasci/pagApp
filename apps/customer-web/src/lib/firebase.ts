@@ -1,5 +1,4 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFunctions } from 'firebase/functions';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBNTV8DGRFKNXMne_q4TTH2-HmMNijmlaE",
@@ -10,5 +9,4 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:1011540629150:web:34838483b562d9deb5cd8f"
 };
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const functions = getFunctions(app);
+export const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
