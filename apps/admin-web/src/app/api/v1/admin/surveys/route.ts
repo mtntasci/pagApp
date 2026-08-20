@@ -102,7 +102,24 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const surveyId = body.surveyId || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const title = body.title;
-    const questionsList: any[] = Array.isArray(body.questions) ? body.questions : [];
+    let questionsList: any[] = [];
+    if (Array.isArray(body.questions)) {
+      questionsList = body.questions;
+    } else if (Array.isArray(body.sorular)) {
+      questionsList = body.sorular;
+    } else if (Array.isArray(body.items)) {
+      questionsList = body.items;
+    } else if (Array.isArray(body.questionList)) {
+      questionsList = body.questionList;
+    } else if (body.questionText || body.question || body.soru || body.options || body.choices || body.secenekler) {
+      questionsList = [
+        {
+          id: `q_${surveyId}_1`,
+          text: body.questionText || body.question || body.soru || body.title,
+          options: body.options || body.choices || body.secenekler || body.answers || ['Seçenek 1', 'Seçenek 2']
+        }
+      ];
+    }
 
     if (!title || !title.trim()) {
       return apiError('Anket başlığı zorunludur.');
