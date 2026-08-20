@@ -115,11 +115,13 @@ export async function POST(req: NextRequest) {
         updateData.status = body.status;
         if (body.status === 'ACTIVE') {
           updateData.isArchived = false;
-          const existingSurvey = existingRows[0];
-          if (!existingSurvey.startAt || new Date(existingSurvey.startAt).getTime() > Date.now()) {
-            updateData.startAt = new Date();
-          }
         }
+      }
+      if (body.startAt !== undefined) {
+        updateData.startAt = body.startAt ? new Date(body.startAt) : null;
+      }
+      if (body.endAt !== undefined) {
+        updateData.endAt = body.endAt ? new Date(body.endAt) : null;
       }
       if (body.isArchived !== undefined) {
         updateData.isArchived = Boolean(body.isArchived);
@@ -168,11 +170,11 @@ export async function POST(req: NextRequest) {
       organizationId: body.organizationId || null,
       surveyType: body.surveyType || 'PAG',
       category: body.category || 'Genel',
-      status: body.status || 'DRAFT',
+      status: body.status || (isExisting ? existingRows[0].status : 'DRAFT'),
       isHighlighted: Boolean(body.isHighlighted),
       isArchived: Boolean(body.isArchived),
       profileScoreReward: Number(body.profileScoreReward) || 50,
-      targetingConfig: body.targetingConfig || { type: 'ALL' },
+      targetingConfig: body.targetingConfig || body.targeting || { type: 'ALL' },
       rewardDefinition: body.rewardDefinition || { rewardType: 'NONE' },
       storyConfig: body.storyConfig || null,
       hasVerification: Boolean(body.hasVerification),

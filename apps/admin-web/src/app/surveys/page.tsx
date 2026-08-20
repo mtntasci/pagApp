@@ -151,6 +151,19 @@ const STORY_CATEGORY_IMAGES: Record<string, { id: string; name: string; images: 
   }
 };
 
+function toDatetimeLocalString(dateInput: any): string {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
 export default function SurveysPage() {
   const [activeTab, setActiveTab] = useState<'ALL' | 'DRAFT' | 'PENDING' | 'PENDING_ADMIN_APPROVAL' | 'PENDING_ORG_APPROVAL' | 'SCHEDULED' | 'ACTIVE' | 'ENDED' | 'ARCHIVED'>('ALL');
   const [isWizardOpen, setIsWizardOpen] = useState(false);
@@ -202,8 +215,8 @@ export default function SurveysPage() {
   const [formVerificationVoucherName, setFormVerificationVoucherName] = useState('250 TL Kalite Doğrulama Hediye Çeki');
   const [formVerificationVoucherAmount, setFormVerificationVoucherAmount] = useState(250);
   const [formVerificationVoucherCodesText, setFormVerificationVoucherCodesText] = useState('');
-  const [formStartAt, setFormStartAt] = useState('2026-08-15T10:00');
-  const [formEndAt, setFormEndAt] = useState('2026-08-30T23:59');
+  const [formStartAt, setFormStartAt] = useState(() => toDatetimeLocalString(new Date()));
+  const [formEndAt, setFormEndAt] = useState(() => toDatetimeLocalString(new Date(Date.now() + 30 * 24 * 3600 * 1000)));
   const [formIsHighlighted, setFormIsHighlighted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -539,8 +552,8 @@ export default function SurveysPage() {
     setFormVerificationVoucherName('250 TL Kalite Doğrulama Hediye Çeki');
     setFormVerificationVoucherAmount(250);
     setFormVerificationVoucherCodesText('');
-    setFormStartAt('2026-08-15T10:00');
-    setFormEndAt('2026-08-30T23:59');
+    setFormStartAt(toDatetimeLocalString(new Date()));
+    setFormEndAt(toDatetimeLocalString(new Date(Date.now() + 30 * 24 * 3600 * 1000)));
     setFormIsHighlighted(false);
     setErrorMsg(null);
   };
@@ -552,39 +565,46 @@ export default function SurveysPage() {
   };
 
   const handleOpenEditWizard = (survey: any) => {
-    setEditingSurveyId(survey.surveyId);
+    setEditingSurveyId(survey.surveyId || survey.id);
     setFormOwnerType(survey.ownerType || 'PAG');
     setFormOrgId(survey.organizationId || '');
     setFormTitle(survey.title || '');
     setFormDesc(survey.description || '');
     setFormSurveyType(survey.surveyType || 'PAG');
     setFormCategory(survey.category || 'Genel');
-    setFormIsHighlighted(survey.isHighlighted || false);
-    setFormTargeting(survey.targeting?.type || 'ALL');
-    if (survey.targeting?.profileFilters) {
-      setFormProfileMinAge(survey.targeting.profileFilters.minAge ? String(survey.targeting.profileFilters.minAge) : '');
-      setFormProfileMaxAge(survey.targeting.profileFilters.maxAge ? String(survey.targeting.profileFilters.maxAge) : '');
-      setFormProfileMaritalStatus(survey.targeting.profileFilters.maritalStatus || 'ALL');
-      setFormProfileChildrenStatus(survey.targeting.profileFilters.childrenStatus || 'ALL');
-      setFormProfileHometown(survey.targeting.profileFilters.hometown || '');
+    setFormIsHighlighted(Boolean(survey.isHighlighted));
+
+    const tConfig = survey.targetingConfig || survey.targeting || {};
+    setFormTargeting(tConfig.type || 'ALL');
+    const pFilters = tConfig.profileFilters || {};
+    setFormProfileMinAge(pFilters.minAge ? String(pFilters.minAge) : '');
+    setFormProfileMaxAge(pFilters.maxAge ? String(pFilters.maxAge) : '');
+    setFormProfileMaritalStatus(pFilters.maritalStatus || 'ALL');
+    setFormProfileChildrenStatus(pFilters.childrenStatus || 'ALL');
+    setFormProfileHometown(pFilters.hometown || '');
+
+    setFormScoreReward(Number(survey.profileScoreReward) || 50);
+
+    const rDef = survey.rewardDefinition || {};
+    setFormFinancialReward(rDef.rewardType || 'NONE');
+    setFormMoneyModel(rDef.distributionModel || 'RANKED');
+    setFormMoneyBudget(Number(rDef.totalBudget) || 1000);
+    if (Array.isArray(rDef.rankedRules) && rDef.rankedRules.length > 0) {
+      setFormRank1(rDef.rankedRules[0]?.amount || 300);
+      setFormRank2(rDef.rankedRules[1]?.amount || 200);
+      setFormRank3(rDef.rankedRules[2]?.amount || 100);
     }
-    setFormScoreReward(survey.profileScoreReward || 50);
-    if (survey.rewardDefinition) {
-      setFormFinancialReward(survey.rewardDefinition.rewardType || 'NONE');
-      setFormMoneyModel(survey.rewardDefinition.distributionModel || 'RANKED');
-      setFormMoneyBudget(survey.rewardDefinition.totalBudget || 1000);
-      if (Array.isArray(survey.rewardDefinition.rankedRules)) {
-        setFormRank1(survey.rewardDefinition.rankedRules[0]?.amount || 300);
-        setFormRank2(survey.rewardDefinition.rankedRules[1]?.amount || 200);
-        setFormRank3(survey.rewardDefinition.rankedRules[2]?.amount || 100);
-      }
-      setFormVoucherName(survey.rewardDefinition.voucherPoolName || '');
+    setFormVoucherName(rDef.voucherPoolName || '');
+    if (Array.isArray(rDef.inlineVoucherCodes)) {
+      setFormVoucherCodesText(rDef.inlineVoucherCodes.join('\n'));
     } else {
-      setFormFinancialReward('NONE');
+      setFormVoucherCodesText('');
     }
-    setFormShowStory(survey.storyConfig?.showInStory || false);
-    setFormStoryLabel(survey.storyConfig?.storyLabel || '');
-    setFormStoryImageCategory(survey.storyConfig?.imageCategory || 'Otomotiv');
+
+    const sStory = survey.storyConfig || {};
+    setFormShowStory(Boolean(sStory.showInStory));
+    setFormStoryLabel(sStory.storyLabel || '');
+    setFormStoryImageCategory(sStory.imageCategory || 'Otomotiv');
 
     const vConfig = survey.verificationConfig || {};
     const isVerActive = survey.hasVerification === true || survey.isVerificationEnabled === true || vConfig.enabled === true || Boolean(survey.verificationQuestion) || Boolean(vConfig.questionText);
@@ -640,17 +660,19 @@ export default function SurveysPage() {
       ]);
     }
 
-    if (survey.startAt) {
-      const d = new Date(survey.startAt);
-      if (!isNaN(d.getTime())) {
-        setFormStartAt(d.toISOString().slice(0, 16));
-      }
+    const rawStart = survey.startAt || survey.start_at;
+    if (rawStart) {
+      setFormStartAt(toDatetimeLocalString(rawStart));
+    } else {
+      setFormStartAt(toDatetimeLocalString(new Date()));
     }
-    if (survey.endAt) {
-      const d = new Date(survey.endAt);
-      if (!isNaN(d.getTime())) {
-        setFormEndAt(d.toISOString().slice(0, 16));
-      }
+
+    const rawEnd = survey.endAt || survey.end_at;
+    if (rawEnd) {
+      setFormEndAt(toDatetimeLocalString(rawEnd));
+    } else {
+      const defaultEnd = new Date(Date.now() + 30 * 24 * 3600 * 1000);
+      setFormEndAt(toDatetimeLocalString(defaultEnd));
     }
 
     setErrorMsg(null);
@@ -838,10 +860,10 @@ export default function SurveysPage() {
           storyConfig: cleanedPayload.storyConfig,
           hasVerification: Boolean(formVerificationEnabled),
           verificationConfig: cleanedPayload.verificationConfig,
-          verificationTargetCount: Number(formPagTargetCount) || 50,
-          verificationOrgQuota: Number(formOrgSelectionQuota) || 20,
-          startAt: formStartAt ? new Date(formStartAt).toISOString() : new Date().toISOString(),
-          endAt: formEndAt ? new Date(formEndAt).toISOString() : null,
+          verificationTargetCount: formVerificationEnabled ? (Number(formPagTargetCount) || 50) : 0,
+          verificationOrgQuota: formVerificationEnabled ? (Number(formOrgSelectionQuota) || 20) : 0,
+          startAt: formStartAt && !isNaN(new Date(formStartAt).getTime()) ? new Date(formStartAt).toISOString() : new Date().toISOString(),
+          endAt: formEndAt && !isNaN(new Date(formEndAt).getTime()) ? new Date(formEndAt).toISOString() : null,
           questions: formattedQuestions.map(q => ({
             id: q.questionId,
             text: q.text,
