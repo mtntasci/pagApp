@@ -8,6 +8,7 @@ import { usePathname, useRouter } from 'next/navigation';
 export interface PortalUser {
   uid: string;
   email: string;
+  displayName?: string;
   role: 'SUPER_ADMIN' | 'PAG_STAFF' | 'ORGANIZATION_USER' | 'CALL_CENTER_AGENT';
   organizationId?: string | null;
   status: 'ACTIVE' | 'DISABLED';
@@ -56,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const bootstrapUser: PortalUser = {
         uid: currentUser.uid,
         email: currentUser.email || userEmail,
+        displayName: 'Süper Admin',
         role: 'SUPER_ADMIN',
         status: 'ACTIVE',
         mustChangePassword: false
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const pUser: PortalUser = {
               uid: found.uid,
               email: found.email,
+              displayName: found.displayName || (found.email ? found.email.split('@')[0] : 'Kullanıcı'),
               role: found.role,
               organizationId: found.organizationId,
               status: found.status
@@ -139,11 +142,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         router.push('/login');
       } else if (user && !isAuthorized && !isPublicRoute) {
         router.push('/login?error=unauthorized');
-      } else if (user && isAuthorized && portalUser?.mustChangePassword === true && pathname !== '/change-password') {
-        router.push('/change-password');
+      } else if (user && isCallCenterAgent && pathname !== '/verification-calls' && pathname !== '/change-password' && !isPublicRoute) {
+        // Çağrı merkezi kullanıcısı yalnızca Arama Portalı ve Şifre Değiştirme ekranına erişebilir
+        router.push('/verification-calls');
       }
     }
-  }, [user, isAuthorized, portalUser, loading, pathname, router]);
+  }, [user, isAuthorized, isCallCenterAgent, portalUser, loading, pathname, router]);
 
   const signOut = async () => {
     await firebaseSignOut(auth);

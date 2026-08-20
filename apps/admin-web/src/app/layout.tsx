@@ -23,6 +23,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
   const { user, portalUser, isAdmin, isCallCenterAgent, isOrgUser, signOut } = useAuth();
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
 
   // Accordion Menus State: Kapalı başlar (default false), tıklayınca aşağı açılır
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
@@ -201,7 +202,7 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
                   PAG PORTAL
                 </h1>
                 <p style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)', marginTop: '2px', margin: 0 }}>
-                  Kurumsal Yönetim
+                  {isCallCenterAgent ? 'Arama Portalı' : 'Kurumsal Yönetim'}
                 </p>
               </div>
             </div>
@@ -216,200 +217,341 @@ function NavigationWrapper({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Navigation Menu */}
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            {/* 1. Dashboard (Direct Top Link) */}
-            <Link
-              href="/"
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                color: pathname === '/' ? 'var(--brand-navy)' : 'var(--text-secondary)',
-                fontSize: '13.5px',
-                fontWeight: pathname === '/' ? 800 : 600,
-                backgroundColor: pathname === '/' ? 'var(--bg-surface-secondary)' : 'transparent',
-                borderLeft: pathname === '/' ? '4px solid var(--brand-navy)' : '4px solid transparent',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>📊</span>
-              <span>Dashboard</span>
-            </Link>
+          {isCallCenterAgent ? (
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <Link
+                href="/verification-calls"
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '12px 14px',
+                  borderRadius: '8px',
+                  color: pathname === '/verification-calls' ? 'var(--brand-navy)' : 'var(--text-secondary)',
+                  fontSize: '14px',
+                  fontWeight: pathname === '/verification-calls' ? 800 : 600,
+                  backgroundColor: pathname === '/verification-calls' ? 'var(--bg-surface-secondary)' : 'transparent',
+                  borderLeft: pathname === '/verification-calls' ? '4px solid var(--brand-navy)' : '4px solid transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '18px' }}>📞</span>
+                <span>Arama Portalı</span>
+              </Link>
+            </nav>
+          ) : (
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {/* 1. Dashboard (Direct Top Link) */}
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  color: pathname === '/' ? 'var(--brand-navy)' : 'var(--text-secondary)',
+                  fontSize: '13.5px',
+                  fontWeight: pathname === '/' ? 800 : 600,
+                  backgroundColor: pathname === '/' ? 'var(--bg-surface-secondary)' : 'transparent',
+                  borderLeft: pathname === '/' ? '4px solid var(--brand-navy)' : '4px solid transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>📊</span>
+                <span>Dashboard</span>
+              </Link>
 
-            {/* 2. Accordion Group: Anket Yönetimi */}
-            {menuGroups.map((group) => {
-              const isOpen = !!openGroups[group.key];
-              const hasActiveChild = group.items.some(item => pathname === item.href);
+              {/* 2. Accordion Group: Anket Yönetimi */}
+              {menuGroups.map((group) => {
+                const isOpen = !!openGroups[group.key];
+                const hasActiveChild = group.items.some(item => pathname === item.href);
 
-              return (
-                <div key={group.key} style={{ display: 'flex', flexDirection: 'column' }}>
-                  {/* Group Header Button (Accordion Trigger) */}
-                  <button
-                    onClick={() => toggleGroup(group.key)}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: hasActiveChild && !isOpen ? 'rgba(57, 119, 246, 0.08)' : 'transparent',
-                      color: hasActiveChild ? 'var(--brand-navy)' : 'var(--text-primary)',
-                      fontSize: '13.5px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      transition: 'background-color 0.15s ease'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '16px' }}>{group.icon}</span>
-                      <span>{group.title}</span>
-                    </div>
-                    <span style={{
-                      fontSize: '12px',
-                      color: 'var(--text-muted)',
-                      transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                      transition: 'transform 0.2s ease'
-                    }}>
-                      ▼
-                    </span>
-                  </button>
+                return (
+                  <div key={group.key} style={{ display: 'flex', flexDirection: 'column' }}>
+                    {/* Group Header Button (Accordion Trigger) */}
+                    <button
+                      onClick={() => toggleGroup(group.key)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        border: 'none',
+                        backgroundColor: hasActiveChild && !isOpen ? 'rgba(57, 119, 246, 0.08)' : 'transparent',
+                        color: hasActiveChild ? 'var(--brand-navy)' : 'var(--text-primary)',
+                        fontSize: '13.5px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'background-color 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '16px' }}>{group.icon}</span>
+                        <span>{group.title}</span>
+                      </div>
+                      <span style={{
+                        fontSize: '12px',
+                        color: 'var(--text-muted)',
+                        transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease'
+                      }}>
+                        ▼
+                      </span>
+                    </button>
 
-                  {/* Collapsible Submenu Items */}
-                  {isOpen && (
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '3px',
-                      paddingLeft: '18px',
-                      marginTop: '4px',
-                      marginBottom: '4px',
-                      borderLeft: '2px solid var(--border-color)',
-                      marginLeft: '14px'
-                    }}>
-                      {group.items.map((subItem) => {
-                        const isSubActive = pathname === subItem.href;
-                        return (
-                          <Link
-                            key={`${group.key}-${subItem.href}-${subItem.label}`}
-                            href={subItem.href}
-                            onClick={() => setIsMobileMenuOpen(false)}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '8px 10px',
-                              borderRadius: '6px',
-                              color: isSubActive ? 'var(--brand-navy)' : 'var(--text-secondary)',
-                              fontSize: '12.5px',
-                              fontWeight: isSubActive ? 800 : 500,
-                              backgroundColor: isSubActive ? 'var(--bg-surface-secondary)' : 'transparent',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <span style={{ fontSize: '14px' }}>{subItem.icon}</span>
-                            <span>{subItem.label}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    {/* Collapsible Submenu Items */}
+                    {isOpen && (
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '3px',
+                        paddingLeft: '18px',
+                        marginTop: '4px',
+                        marginBottom: '4px',
+                        borderLeft: '2px solid var(--border-color)',
+                        marginLeft: '14px'
+                      }}>
+                        {group.items.map((subItem) => {
+                          const isSubActive = pathname === subItem.href;
+                          return (
+                            <Link
+                              key={`${group.key}-${subItem.href}-${subItem.label}`}
+                              href={subItem.href}
+                              onClick={() => setIsMobileMenuOpen(false)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '8px 10px',
+                                borderRadius: '6px',
+                                color: isSubActive ? 'var(--brand-navy)' : 'var(--text-secondary)',
+                                fontSize: '12.5px',
+                                fontWeight: isSubActive ? 800 : 500,
+                                backgroundColor: isSubActive ? 'var(--bg-surface-secondary)' : 'transparent',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ fontSize: '14px' }}>{subItem.icon}</span>
+                              <span>{subItem.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
 
-            {/* 3. Story Bar (Direct Top Link) */}
-            <Link
-              href="/stories"
-              onClick={() => setIsMobileMenuOpen(false)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 12px',
-                borderRadius: '8px',
-                color: pathname === '/stories' ? 'var(--brand-navy)' : 'var(--text-secondary)',
-                fontSize: '13.5px',
-                fontWeight: pathname === '/stories' ? 800 : 600,
-                backgroundColor: pathname === '/stories' ? 'var(--bg-surface-secondary)' : 'transparent',
-                borderLeft: pathname === '/stories' ? '4px solid var(--brand-navy)' : '4px solid transparent',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <span style={{ fontSize: '16px' }}>⭐</span>
-              <span>Story Bar</span>
-            </Link>
-          </nav>
+              {/* 3. Story Bar (Direct Top Link) */}
+              <Link
+                href="/stories"
+                onClick={() => setIsMobileMenuOpen(false)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  color: pathname === '/stories' ? 'var(--brand-navy)' : 'var(--text-secondary)',
+                  fontSize: '13.5px',
+                  fontWeight: pathname === '/stories' ? 800 : 600,
+                  backgroundColor: pathname === '/stories' ? 'var(--bg-surface-secondary)' : 'transparent',
+                  borderLeft: pathname === '/stories' ? '4px solid var(--brand-navy)' : '4px solid transparent',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>⭐</span>
+                <span>Story Bar</span>
+              </Link>
+            </nav>
+          )}
 
-          {/* Bottom User Controls */}
+          {/* Bottom User Controls with Upward Profile Popover Menu */}
           <div style={{
             marginTop: 'auto',
-            padding: '14px 10px',
-            borderTop: '1px solid var(--border-color)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px'
+            position: 'relative',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--border-color)'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--brand-navy)',
-                color: '#FFFFFF',
+            {/* Upward Dropdown / Popover Menu */}
+            {isProfileMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '100%',
+                  left: 0,
+                  right: 0,
+                  marginBottom: '10px',
+                  backgroundColor: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-lg)',
+                  padding: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  zIndex: 200
+                }}
+              >
+                {/* User Info Header inside menu */}
+                <div style={{
+                  padding: '8px 10px',
+                  borderBottom: '1px solid var(--border-color)',
+                  marginBottom: '4px'
+                }}>
+                  <p style={{
+                    fontSize: '12.5px',
+                    fontWeight: 800,
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {portalUser?.displayName || portalUser?.email?.split('@')[0] || 'Kullanıcı'}
+                  </p>
+                  <span style={{
+                    fontSize: '10.5px',
+                    fontWeight: 700,
+                    color: portalUser?.role === 'SUPER_ADMIN' ? '#EF4444' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '#10B981' : '#3977F6')
+                  }}>
+                    {portalUser?.role === 'SUPER_ADMIN' ? '👑 Süper Admin' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '📞 Çağrı Merkezi' : (portalUser?.role === 'ORGANIZATION_USER' ? '🏢 Firma Temsilcisi' : '🛡️ PAG Ekibi'))}
+                  </span>
+                </div>
+
+                {/* 1. Profil / Hesap Bilgisi */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    fontSize: '12px',
+                    color: 'var(--text-secondary)',
+                    borderRadius: '6px'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>👤</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{portalUser?.email || user?.email}</span>
+                </div>
+
+                {/* 2. Şifre Değiştir */}
+                <Link
+                  href="/change-password"
+                  onClick={() => { setIsProfileMenuOpen(false); setIsMobileMenuOpen(false); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--text-primary)',
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    backgroundColor: pathname === '/change-password' ? 'var(--bg-surface-secondary)' : 'transparent',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>🔑</span>
+                  <span>Şifre İşlemleri</span>
+                </Link>
+
+                {/* 3. Çıkış Yap */}
+                <button
+                  onClick={() => { setIsProfileMenuOpen(false); signOut(); }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '8px 10px',
+                    borderRadius: '6px',
+                    color: 'var(--error-color)',
+                    backgroundColor: 'transparent',
+                    border: 'none',
+                    fontSize: '12.5px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background-color 0.15s ease'
+                  }}
+                >
+                  <span style={{ fontSize: '14px' }}>🚪</span>
+                  <span>Çıkış Yap</span>
+                </button>
+              </div>
+            )}
+
+            {/* Trigger Button: User Box */}
+            <div
+              onClick={() => setIsProfileMenuOpen(!isProfileMenuOpen)}
+              style={{
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '13px'
-              }}>
-                {(portalUser?.email || user?.email || 'U')[0].toUpperCase()}
-              </div>
-              <div style={{ overflow: 'hidden' }}>
-                <p style={{
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  color: 'var(--text-primary)',
-                  margin: 0,
-                  textOverflow: 'ellipsis',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap'
-                }}>
-                  {portalUser?.email || user?.email}
-                </p>
-                <span style={{
-                  fontSize: '10px',
-                  fontWeight: 700,
-                  color: portalUser?.role === 'SUPER_ADMIN' ? '#EF4444' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '#10B981' : '#3977F6')
-                }}>
-                  {portalUser?.role === 'SUPER_ADMIN' ? '👑 Süper Admin' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '📞 Çağrı Merkezi' : (portalUser?.role === 'ORGANIZATION_USER' ? '🏢 Firma Temsilcisi' : '🛡️ PAG Ekibi'))}
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={() => signOut()}
-              style={{
-                width: '100%',
-                padding: '8px',
-                backgroundColor: 'var(--bg-surface-secondary)',
-                color: 'var(--error-color)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '6px',
-                fontSize: '12px',
-                fontWeight: 700,
+                justifyContent: 'space-between',
+                padding: '8px 10px',
+                borderRadius: '10px',
                 cursor: 'pointer',
-                textAlign: 'center',
+                backgroundColor: isProfileMenuOpen ? 'var(--bg-surface-secondary)' : 'transparent',
+                border: '1px solid',
+                borderColor: isProfileMenuOpen ? 'var(--border-highlight)' : 'transparent',
                 transition: 'all 0.15s ease'
               }}
             >
-              🚪 Çıkış Yap
-            </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                <div style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--brand-navy)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '13px',
+                  flexShrink: 0
+                }}>
+                  {(portalUser?.email || user?.email || 'U')[0].toUpperCase()}
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <p style={{
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    color: 'var(--text-primary)',
+                    margin: 0,
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {portalUser?.displayName || portalUser?.email || user?.email}
+                  </p>
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    color: portalUser?.role === 'SUPER_ADMIN' ? '#EF4444' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '#10B981' : '#3977F6')
+                  }}>
+                    {portalUser?.role === 'SUPER_ADMIN' ? '👑 Süper Admin' : (portalUser?.role === 'CALL_CENTER_AGENT' ? '📞 Çağrı Merkezi' : (portalUser?.role === 'ORGANIZATION_USER' ? '🏢 Firma Temsilcisi' : '🛡️ PAG Ekibi'))}
+                  </span>
+                </div>
+              </div>
+
+              <span style={{
+                fontSize: '11px',
+                color: 'var(--text-muted)',
+                transform: isProfileMenuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                transition: 'transform 0.2s ease',
+                flexShrink: 0
+              }}>
+                ▲
+              </span>
+            </div>
           </div>
         </aside>
 

@@ -61,8 +61,12 @@ export default function ChangePasswordPage() {
       // 3. Refresh auth context portalUser state
       await refreshPortalUser();
 
-      // 4. Redirect to Dashboard
-      router.push('/');
+      // 4. Redirect based on role
+      if (portalUser?.role === 'CALL_CENTER_AGENT') {
+        router.push('/verification-calls');
+      } else {
+        router.push('/');
+      }
     } catch (err: any) {
       console.error('Change Password Error:', err);
       if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
@@ -211,26 +215,53 @@ export default function ChangePasswordPage() {
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            style={{
-              width: '100%',
-              padding: '14px',
-              backgroundColor: 'var(--brand-navy)',
-              color: '#FFFFFF',
-              fontWeight: 700,
-              fontSize: '14px',
-              borderRadius: '8px',
-              border: 'none',
-              cursor: isSubmitting ? 'not-allowed' : 'pointer',
-              opacity: isSubmitting ? 0.7 : 1,
-              marginTop: '8px',
-              boxShadow: 'var(--shadow-sm)'
-            }}
-          >
-            {isSubmitting ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                padding: '14px',
+                backgroundColor: 'var(--brand-navy)',
+                color: '#FFFFFF',
+                fontWeight: 700,
+                fontSize: '14px',
+                borderRadius: '8px',
+                border: 'none',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1,
+                boxShadow: 'var(--shadow-sm)'
+              }}
+            >
+              {isSubmitting ? 'Güncelleniyor...' : 'Şifreyi Güncelle'}
+            </button>
+
+            {!isForced && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (portalUser?.role === 'CALL_CENTER_AGENT') {
+                    router.push('/verification-calls');
+                  } else {
+                    router.push('/');
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  backgroundColor: 'var(--bg-surface-secondary)',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                  fontSize: '13px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border-color)',
+                  cursor: 'pointer'
+                }}
+              >
+                Vazgeç / Geri Dön
+              </button>
+            )}
+          </div>
         </form>
       </div>
     </div>
