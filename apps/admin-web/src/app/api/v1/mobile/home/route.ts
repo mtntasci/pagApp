@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, apiUnauthorized, apiSuccess, apiError } from '@/lib/serverAuth';
 import { db, surveys, questions, surveyResponses, profileScoreLedger } from '@/db';
-import { eq, and, inArray, desc, or } from 'drizzle-orm';
+import { eq, and, inArray, desc, or, sql } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 export async function GET(req: NextRequest) {
   const auth = await authenticateRequest(req);
@@ -25,18 +27,17 @@ export async function GET(req: NextRequest) {
 
     const now = new Date();
 
-    // 2. Fetch active surveys
+    // 2. Fetch active non-profile surveys
     let activeSurveys = await db
       .select()
       .from(surveys)
       .where(
         and(
-          eq(surveys.isArchived, false),
+          or(eq(surveys.isArchived, false), sql`${surveys.isArchived} IS NULL`),
           or(eq(surveys.status, 'ACTIVE'), eq(surveys.status, 'APPROVED'))
         )
       )
-      .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
-      .limit(100);
+      .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt));
 
     // Filter out profile surveys from main campaign feed
     activeSurveys = activeSurveys.filter(s => s.surveyType !== 'PROFILE' && !s.id.startsWith('pq_'));
