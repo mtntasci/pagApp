@@ -86,9 +86,37 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return apiSuccess({ message: 'Portal kullanıcısı başarıyla kaydedildi.' });
+    return apiSuccess({ message: 'Portal kullanıcısı başarıyla kaydedildi.', data: { uid: firebaseUid } });
   } catch (err: any) {
     console.error('Save Portal User Error:', err);
     return apiError('Kullanıcı kaydedilirken hata: ' + (err.message || 'Bilinmeyen hata'));
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await authenticateRequest(req);
+  if (!auth) {
+    return apiUnauthorized();
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get('email')?.trim().toLowerCase();
+    const uid = searchParams.get('uid')?.trim();
+
+    if (!email && !uid) {
+      return apiError('Silinecek kullanıcının email veya uid bilgisi gereklidir.');
+    }
+
+    if (email) {
+      await db.delete(portalUsers).where(eq(portalUsers.email, email));
+    } else if (uid) {
+      await db.delete(portalUsers).where(eq(portalUsers.firebaseUid, uid));
+    }
+
+    return apiSuccess({ message: 'Kullanıcı başarıyla silindi.' });
+  } catch (err: any) {
+    console.error('Delete Portal User Error:', err);
+    return apiError('Kullanıcı silinirken hata: ' + (err.message || 'Bilinmeyen hata'));
   }
 }

@@ -116,20 +116,26 @@ export default function ApplicationsPage() {
 
     setIsCreatingUser(true);
     try {
-      const createFn = httpsCallable(functions, 'createPortalUserAdmin');
-      const res: any = await createFn({
-        email: newUserEmail.trim(),
-        temporaryPassword: newUserPassword,
-        role: newUserRole,
-        organizationId: newUserRole === 'ORGANIZATION_USER' ? newUserOrgId.trim() : null
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newUserEmail.trim().toLowerCase(),
+          temporaryPassword: newUserPassword,
+          role: newUserRole,
+          organizationId: newUserRole === 'ORGANIZATION_USER' ? newUserOrgId.trim() : null
+        })
       });
+      const data = await res.json();
 
-      if (res.data?.success) {
+      if (data?.success) {
         alert(`Kullanıcı (${newUserRole}) başarıyla oluşturuldu!\nE-posta: ${newUserEmail}\nGeçici Şifre: ${newUserPassword}`);
         setIsCreateUserModalOpen(false);
         setNewUserEmail('');
         setNewUserPassword('');
         setNewUserOrgId('');
+      } else {
+        alert(data?.error || 'Kullanıcı oluşturulamadı.');
       }
     } catch (err: any) {
       console.error('Create User Error:', err);

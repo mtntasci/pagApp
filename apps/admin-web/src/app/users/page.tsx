@@ -102,17 +102,21 @@ export default function PortalUsersPage() {
 
     try {
       setIsSubmitting(true);
-      const createFn = httpsCallable<any, any>(functions, 'createPortalUserAdmin');
-      const res = await createFn({
-        email: newEmail.trim().toLowerCase(),
-        temporaryPassword: newPassword,
-        role: newRole,
-        organizationId: (newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') ? newOrgId : null
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newEmail.trim().toLowerCase(),
+          temporaryPassword: newPassword,
+          role: newRole,
+          organizationId: (newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') ? newOrgId : null
+        })
       });
+      const data = await res.json();
 
-      if (res.data?.success) {
+      if (data?.success) {
         const createdUser: PortalUserItem = {
-          uid: res.data.data?.uid || `usr_${Date.now()}`,
+          uid: data.data?.uid || `usr_${Date.now()}`,
           email: newEmail.trim().toLowerCase(),
           role: newRole,
           organizationId: (newRole === 'ORGANIZATION_USER' || newRole === 'ORGANIZATION_ADMIN' || newRole === 'ORGANIZATION_VERIFIER') ? newOrgId : null,
@@ -128,7 +132,7 @@ export default function PortalUsersPage() {
         setNewPassword('Pag2026!');
         await loadData();
       } else {
-        setModalError(res.data?.error || 'Kullanıcı oluşturulamadı.');
+        setModalError(data?.error || 'Kullanıcı oluşturulamadı.');
       }
     } catch (err: any) {
       setModalError(err.message || 'Kullanıcı oluşturulurken bir hata oluştu.');
@@ -429,26 +433,63 @@ export default function PortalUsersPage() {
                         {u.createdAt ? new Date(u.createdAt).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'right' }}>
-                        {isAdmin && (
-                          <button
-                            onClick={() => handleOpenResetPassword(u)}
-                            style={{
-                              padding: '6px 12px',
-                              borderRadius: '6px',
-                              backgroundColor: 'var(--bg-surface-secondary)',
-                              color: 'var(--brand-navy)',
-                              border: '1px solid var(--border-highlight)',
-                              fontSize: '12px',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px'
-                            }}
-                          >
-                            🔑 Şifre Yenile
-                          </button>
-                        )}
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                          {isAdmin && (
+                            <button
+                              onClick={() => handleOpenResetPassword(u)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                backgroundColor: 'var(--bg-surface-secondary)',
+                                color: 'var(--brand-navy)',
+                                border: '1px solid var(--border-highlight)',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              🔑 Şifre
+                            </button>
+                          )}
+                          {isAdmin && (
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`${u.email} kullanıcısını silmek istediğinize emin misiniz?`)) return;
+                                try {
+                                  const res = await fetch(`/api/v1/admin/users?email=${encodeURIComponent(u.email)}`, { method: 'DELETE' });
+                                  const d = await res.json();
+                                  if (d.success) {
+                                    setUsers(prev => prev.filter(item => item.email !== u.email));
+                                    setSuccessMessage(`✅ ${u.email} başarıyla silindi.`);
+                                  } else {
+                                    alert(d.error || 'Kullanıcı silinemedi.');
+                                  }
+                                } catch (err: any) {
+                                  alert('Hata: ' + (err.message || 'Bilinmeyen hata'));
+                                }
+                              }}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                color: '#EF4444',
+                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}
+                              title="Kullanıcıyı Sil"
+                            >
+                              🗑️ Sil
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

@@ -237,21 +237,27 @@ export default function OrganizationsPage() {
 
     setIsCreatingUser(true);
     try {
-      const createFn = httpsCallable(functions, 'createPortalUserAdmin');
-      const res: any = await createFn({
-        email: newUserEmail.trim(),
-        temporaryPassword: newUserPassword,
-        role: 'ORGANIZATION_USER',
-        organizationId: selectedOrgForUsers.organizationId
+      const res = await fetch('/api/v1/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newUserEmail.trim().toLowerCase(),
+          temporaryPassword: newUserPassword,
+          role: 'ORGANIZATION_USER',
+          organizationId: selectedOrgForUsers.organizationId
+        })
       });
+      const data = await res.json();
 
-      if (res.data?.success) {
+      if (data?.success) {
         alert(`Kullanıcı oluşturuldu!\nE-posta: ${newUserEmail}\nFirma: ${selectedOrgForUsers.name}`);
         setIsAddUserModalOpen(false);
         setNewUserEmail('');
         setNewUserPassword('');
         await handleOpenOrgUsers(selectedOrgForUsers);
         await fetchOrganizations();
+      } else {
+        alert(data?.error || 'Kullanıcı eklenemedi.');
       }
     } catch (err: any) {
       console.error('Create Org User Error:', err);
