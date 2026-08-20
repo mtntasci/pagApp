@@ -362,6 +362,7 @@ export default function SurveysPage() {
           throw new Error('Geçersiz anket formatı. "title" ve en az 1 soru ("questions") gereklidir.');
         }
 
+        const srvId = surveyObj.surveyId || surveyObj.id || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
         const formattedQuestions = rawQs.slice(0, 3).map((q: any, idx: number) => {
           let rawOpts = Array.isArray(q.options)
             ? q.options
@@ -395,14 +396,13 @@ export default function SurveysPage() {
 
           const qText = q.text || q.questionText || q.question || q.title || q.soru || q.prompt || `${idx + 1}. Soru`;
           return {
-            id: q.id || q.questionId || `q${idx + 1}`,
+            id: `${srvId}_${q.id || q.questionId || `q${idx + 1}`}`,
             text: String(qText).trim(),
             type: q.type || q.questionType || 'SINGLE_SELECT',
             options: opts
           };
         });
 
-        const srvId = surveyObj.surveyId || surveyObj.id || `srv_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`;
         await fetch('/api/v1/admin/surveys', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -414,7 +414,7 @@ export default function SurveysPage() {
             category: surveyObj.category || 'Genel',
             title: title.trim(),
             description: surveyObj.description || '',
-            status: 'PENDING_APPROVAL',
+            status: surveyObj.status || 'PENDING_APPROVAL',
             startAt: surveyObj.startAt ? new Date(surveyObj.startAt).toISOString() : new Date().toISOString(),
             endAt: surveyObj.endAt ? new Date(surveyObj.endAt).toISOString() : null,
             questions: formattedQuestions,
@@ -614,13 +614,30 @@ export default function SurveysPage() {
     }
 
     if (Array.isArray(survey.questions) && survey.questions.length > 0) {
-      setFormQuestions(survey.questions.map((q: any, idx: number) => ({
-        id: q.questionId || `q${idx + 1}`,
-        text: q.text || '',
-        options: Array.isArray(q.options)
-          ? q.options.map((opt: any) => typeof opt === 'string' ? opt : (opt.label || ''))
-          : ['Seçenek 1', 'Seçenek 2']
-      })));
+      setFormQuestions(survey.questions.map((q: any, idx: number) => {
+        let rawOpts = Array.isArray(q.options) ? q.options : [];
+        if (typeof rawOpts === 'string') {
+          rawOpts = (rawOpts as string).split(',').map((s: string) => s.trim()).filter(Boolean);
+        }
+        const optLabels = rawOpts.map((opt: any, oI: number) => {
+          if (typeof opt === 'string') return opt.trim();
+          return (opt.label || opt.text || opt.title || opt.name || opt.value || `Seçenek ${oI + 1}`).trim();
+        }).filter(Boolean);
+
+        return {
+          id: q.id || q.questionId || `q${idx + 1}`,
+          text: q.text || q.questionText || '',
+          options: optLabels.length > 0 ? optLabels : ['Seçenek 1', 'Seçenek 2']
+        };
+      }));
+    } else {
+      setFormQuestions([
+        {
+          id: 'q1',
+          text: survey.title || '1. Soru Metni',
+          options: ['Seçenek 1', 'Seçenek 2', 'Seçenek 3', 'Seçenek 4']
+        }
+      ]);
     }
 
     if (survey.startAt) {

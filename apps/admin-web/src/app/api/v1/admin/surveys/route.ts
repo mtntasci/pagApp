@@ -202,11 +202,14 @@ export async function POST(req: NextRequest) {
         });
 
         const questionText = q.text || q.questionText || q.question || q.title || q.soru || q.prompt || `${idx + 1}. Soru`;
+        const questionUniqueId = q.id && q.id.startsWith(surveyId)
+          ? q.id
+          : `${surveyId}_${q.id || q.questionId || `q${idx + 1}`}`;
 
         return {
-          id: q.id || `q_${surveyId}_${idx + 1}`,
+          id: questionUniqueId,
           surveyId,
-          questionOrder: idx + 1,
+          questionOrder: typeof q.order === 'number' ? q.order : (idx + 1),
           text: String(questionText).trim(),
           questionType: q.type || q.questionType || 'SINGLE_SELECT',
           options: formattedOpts,
