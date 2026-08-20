@@ -159,9 +159,15 @@ public struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, PAGSpacing.sm)
-                        .padding(.vertical, PAGSpacing.md)
                     }
                     .frame(maxWidth: .infinity)
+                }
+                .refreshable {
+                    await verificationService.checkPendingVerification()
+                    await basicProfileService.fetchBasicProfile()
+                    await storyService.fetchStories()
+                    await surveyService.fetchEligibleSurveys()
+                    await profileSurveyService.fetchProfileQuestions(batchSize: 3)
                 }
             }
             .navigationBarHidden(true)

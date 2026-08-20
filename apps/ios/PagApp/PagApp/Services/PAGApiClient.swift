@@ -25,7 +25,10 @@ public class PAGApiClient {
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("no-cache, no-store, must-revalidate", forHTTPHeaderField: "Cache-Control")
+        request.setValue("no-cache", forHTTPHeaderField: "Pragma")
         
         if let token = await getAuthToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

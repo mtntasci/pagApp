@@ -142,9 +142,29 @@ export function apiForbidden(message = 'Bu işlem için yetkiniz bulunmamaktadı
 }
 
 export function apiError(message: string, status = 400) {
-  return NextResponse.json({ success: false, error: message }, { status });
+  return NextResponse.json(
+    { success: false, error: message },
+    {
+      status,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    }
+  );
 }
 
 export function apiSuccess<T>(data: T, message?: string, meta?: any) {
-  return NextResponse.json({ success: true, message, data, meta }, { status: 200 });
+  return NextResponse.json(
+    { success: true, message, data, meta },
+    {
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
+    }
+  );
 }

@@ -30,21 +30,25 @@ class StoryService {
                         val label = item.optString("label", "Anket")
                         val imageCategory = item.optString("category", "story_tech")
 
+                        val rawImgUrl = item.optString("imageUrl")
+                        val imgUrl = if (rawImgUrl.isNullOrBlank() || rawImgUrl == "null") null else rawImgUrl
+                        val pos = item.optInt("position", item.optInt("sortOrder", i + 1))
+
                         parsed.add(
                             StoryMock(
                                 id = sid,
                                 type = StoryType.SURVEY,
                                 surveyId = surveyId,
                                 image = imageCategory,
-                                imageUrl = null,
+                                imageUrl = imgUrl,
                                 shortLabel = label,
-                                position = i + 1,
+                                position = pos,
                                 isActive = true
                             )
                         )
                     }
                 }
-                _stories.value = parsed
+                _stories.value = parsed.sortedBy { it.position }
             } else {
                 _stories.value = emptyList()
             }

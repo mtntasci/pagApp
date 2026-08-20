@@ -199,7 +199,9 @@ export default function SurveysPage() {
   const [formVoucherCodesText, setFormVoucherCodesText] = useState('');
   const [formShowStory, setFormShowStory] = useState(false);
   const [formStoryLabel, setFormStoryLabel] = useState('');
-  const [formStoryImageCategory, setFormStoryImageCategory] = useState('Otomotiv');
+  const [formStoryImageCategory, setFormStoryImageCategory] = useState('Genel');
+  const [formStoryImageUrl, setFormStoryImageUrl] = useState('');
+  const [formStoryPosition, setFormStoryPosition] = useState<number>(999);
   const [formQuestions, setFormQuestions] = useState([
     { id: 'q1', text: '1. Soru Metni', options: ['Seçenek 1', 'Seçenek 2'] }
   ]);
@@ -536,7 +538,9 @@ export default function SurveysPage() {
     setFormVoucherCodesText('');
     setFormShowStory(false);
     setFormStoryLabel('');
-    setFormStoryImageCategory('Otomotiv');
+    setFormStoryImageCategory('Genel');
+    setFormStoryImageUrl('');
+    setFormStoryPosition(999);
     setFormQuestions([
       { id: 'q1', text: '1. Soru Metni', options: ['Seçenek 1', 'Seçenek 2'] }
     ]);
@@ -602,9 +606,11 @@ export default function SurveysPage() {
     }
 
     const sStory = survey.storyConfig || {};
-    setFormShowStory(Boolean(sStory.showInStory));
-    setFormStoryLabel(sStory.storyLabel || '');
-    setFormStoryImageCategory(sStory.imageCategory || 'Otomotiv');
+    setFormShowStory(Boolean(sStory.showInStory || sStory.isStory));
+    setFormStoryLabel(sStory.storyLabel || sStory.label || sStory.shortLabel || '');
+    setFormStoryImageCategory(sStory.imageCategory || sStory.category || survey.category || 'Genel');
+    setFormStoryImageUrl(sStory.imageUrl || '');
+    setFormStoryPosition(Number(sStory.position !== undefined ? sStory.position : (sStory.sortOrder !== undefined ? sStory.sortOrder : 999)) || 999);
 
     const vConfig = survey.verificationConfig || {};
     const isVerActive = survey.hasVerification === true || survey.isVerificationEnabled === true || vConfig.enabled === true || Boolean(survey.verificationQuestion) || Boolean(vConfig.questionText);
@@ -802,10 +808,19 @@ export default function SurveysPage() {
         profileScoreReward: Number(formScoreReward) || 50,
         rewardDefinition: rewardDef,
         inlineVoucherCodes: inlineVoucherCodes,
-        storyConfig: {
-          showInStory: formShowStory,
-          storyLabel: formShowStory ? formStoryLabel : undefined,
-          imageCategory: formShowStory ? formStoryImageCategory : undefined
+        storyConfig: formShowStory ? {
+          showInStory: true,
+          label: formStoryLabel.trim() || formTitle,
+          shortLabel: formStoryLabel.trim() || formTitle,
+          storyLabel: formStoryLabel.trim() || formTitle,
+          imageCategory: formStoryImageCategory || 'Genel',
+          imageUrl: formStoryImageUrl.trim() || null,
+          position: Number(formStoryPosition) || 999,
+          sortOrder: Number(formStoryPosition) || 999,
+          isActive: true
+        } : {
+          showInStory: false,
+          isActive: false
         },
         isHighlighted: formIsHighlighted,
         hasVerification: Boolean(formVerificationEnabled),
@@ -1452,19 +1467,54 @@ export default function SurveysPage() {
                       </div>
                       <div>
                         <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
-                          Kategoriye Özel Preset Görsel Seçimi ({formCategory})
+                          ⭐ Sıra Numarası (Sort Order)
+                        </label>
+                        <input
+                          type="number"
+                          value={formStoryPosition}
+                          onChange={(e) => setFormStoryPosition(Number(e.target.value))}
+                          placeholder="999 (Öne almak için 1, 2, 3...)"
+                          style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', fontWeight: 700 }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="admin-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                      <div>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Kategoriye Özel Tema Seçimi ({formCategory})
                         </label>
                         <select
                           value={formStoryImageCategory}
                           onChange={(e) => setFormStoryImageCategory(e.target.value)}
                           style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px', color: 'var(--text-primary)' }}
                         >
-                          {(STORY_CATEGORY_IMAGES[formCategory]?.images || STORY_CATEGORY_IMAGES['Genel']?.images || []).map((img) => (
-                            <option key={img.id} value={img.file}>
-                              {img.label} — ({img.file})
-                            </option>
-                          ))}
+                          <option value="Genel">Genel / PAG Teması</option>
+                          <option value="Teknoloji">Teknoloji</option>
+                          <option value="Otomotiv & Ulaşım">Otomotiv & Ulaşım</option>
+                          <option value="Yeme & İçme">Yeme & İçme</option>
+                          <option value="Alışveriş & Tüketim">Alışveriş & Tüketim</option>
+                          <option value="Finans">Finans</option>
+                          <option value="Yaşam">Yaşam</option>
+                          <option value="Spor & Sağlıklı Yaşam">Spor & Sağlık</option>
+                          <option value="Seyahat & Eğlence">Seyahat & Eğlence</option>
+                          <option value="Ev & Yaşam">Ev & Yaşam</option>
+                          <option value="Moda & Kişisel Bakım">Moda & Kişisel Bakım</option>
+                          <option value="Medya & Dijital İçerik">Medya & Dijital İçerik</option>
+                          <option value="Eğitim & Kariyer">Eğitim & Kariyer</option>
                         </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          🌐 Özel Story Görsel URL'si (Opsiyonel)
+                        </label>
+                        <input
+                          type="text"
+                          value={formStoryImageUrl}
+                          onChange={(e) => setFormStoryImageUrl(e.target.value)}
+                          placeholder="https://example.com/banner.png"
+                          style={{ width: '100%', padding: '12px', marginTop: '6px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-highlight)', borderRadius: '8px' }}
+                        />
                       </div>
                     </div>
 
@@ -1474,20 +1524,25 @@ export default function SurveysPage() {
                         width: '72px',
                         height: '72px',
                         borderRadius: '50%',
-                        background: (STORY_CATEGORY_IMAGES[formCategory]?.images?.find(i => i.file === formStoryImageCategory)?.color) || 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
+                        background: formStoryImageUrl ? '#0F172A' : 'linear-gradient(135deg, #3B82F6, #1D4ED8)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: '28px',
                         boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-                        border: '3px solid var(--brand-navy)'
+                        border: '3px solid #84CC16',
+                        overflow: 'hidden'
                       }}>
-                        ⭐
+                        {formStoryImageUrl ? (
+                          <img src={formStoryImageUrl} alt="Story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { (e.target as any).style.display = 'none'; }} />
+                        ) : (
+                          '⭐'
+                        )}
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                           <span style={{ fontSize: '12px', padding: '2px 8px', backgroundColor: 'var(--brand-navy)', color: 'white', borderRadius: '4px', fontWeight: 700 }}>
-                            {formCategory}
+                            {formStoryPosition < 999 ? `⭐ Sıra #${formStoryPosition}` : `#${formStoryPosition}`}
                           </span>
                           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                             {formStoryImageCategory}
@@ -1496,9 +1551,6 @@ export default function SurveysPage() {
                         <h5 style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--text-primary)', margin: 0 }}>
                           {formStoryLabel || formTitle || 'Story Başlığı'}
                         </h5>
-                        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                          Önerilen Görsel Ölçüleri: <strong>400x400 px (Thumbnail)</strong> / <strong>1080x1920 px (Full Story Cover)</strong>
-                        </p>
                       </div>
                     </div>
                   </div>

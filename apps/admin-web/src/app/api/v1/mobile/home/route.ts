@@ -170,14 +170,25 @@ export async function GET(req: NextRequest) {
     // 5. Extract Stories
     const stories = activeSurveys
       .filter(s => s.storyConfig && ((s.storyConfig as any).showInStory || (s.storyConfig as any).isStory))
-      .map(s => ({
-        surveyId: s.id,
-        title: s.title,
-        label: (s.storyConfig as any).label || (s.storyConfig as any).storyLabel || s.category || 'Öne Çıkan',
-        category: (s.storyConfig as any).category || (s.storyConfig as any).imageCategory || 'story_tech',
-        profileScoreReward: s.profileScoreReward,
-        isCompleted: completedSurveyIds.includes(s.id)
-      }));
+      .map(s => {
+        const sc = (s.storyConfig as any) || {};
+        const pos = Number(sc.position !== undefined ? sc.position : (sc.sortOrder !== undefined ? sc.sortOrder : 999)) || 999;
+        return {
+          id: s.id,
+          storyId: s.id,
+          surveyId: s.id,
+          title: s.title,
+          label: sc.label || sc.shortLabel || sc.storyLabel || s.category || 'Öne Çıkan',
+          shortLabel: sc.label || sc.shortLabel || sc.storyLabel || s.category || 'Öne Çıkan',
+          category: sc.imageCategory || sc.category || s.category || 'story_tech',
+          imageUrl: sc.imageUrl || null,
+          position: pos,
+          sortOrder: pos,
+          profileScoreReward: s.profileScoreReward,
+          isCompleted: completedSurveyIds.includes(s.id)
+        };
+      })
+      .sort((a, b) => a.position - b.position);
 
     // Separate completed survey IDs (general vs profile)
     const completedGeneralSurveyIds = completedResponses
