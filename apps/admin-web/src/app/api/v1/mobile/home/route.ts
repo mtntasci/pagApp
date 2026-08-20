@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
     
     const completedSurveyIds = completedResponses.map(r => r.surveyId);
 
+    const now = new Date();
+
     // 2. Fetch active surveys
     let activeSurveys = await db
       .select()
@@ -34,10 +36,27 @@ export async function GET(req: NextRequest) {
         )
       )
       .orderBy(desc(surveys.isHighlighted), desc(surveys.createdAt))
-      .limit(30);
+      .limit(100);
 
     // Filter out profile surveys from main campaign feed
     activeSurveys = activeSurveys.filter(s => s.surveyType !== 'PROFILE' && !s.id.startsWith('pq_'));
+
+    // Filter out surveys that have NOT started yet (startAt in future) or have expired (endAt in past)
+    activeSurveys = activeSurveys.filter(s => {
+      if (s.startAt) {
+        const start = new Date(s.startAt);
+        if (!isNaN(start.getTime()) && start.getTime() > now.getTime()) {
+          return false; // Başlama tarihi henüz gelmemiş, mobilde gösterme!
+        }
+      }
+      if (s.endAt) {
+        const end = new Date(s.endAt);
+        if (!isNaN(end.getTime()) && end.getTime() < now.getTime()) {
+          return false; // Bitiş tarihi geçmiş, mobilde gösterme!
+        }
+      }
+      return true;
+    });
 
     // Filter out already completed
     if (completedSurveyIds.length > 0) {
@@ -87,23 +106,63 @@ export async function GET(req: NextRequest) {
 
     // Attach questions to surveys
     const surveysWithQuestions = eligibleSurveys.map(s => {
-      const sQuestions = allQuestions
+      let sQuestions = allQuestions
         .filter(q => q.surveyId === s.id)
         .sort((a, b) => a.questionOrder - b.questionOrder)
-        .map(q => ({
-          questionId: q.id,
-          text: q.text,
-          order: q.questionOrder,
-          type: q.questionType,
-          options: q.options,
-          isRequired: q.isRequired
-        }));
+        .map(q => {
+          let rawOpts = Array.isArray(q.options) ? q.options : [];
+          if (typeof rawOpts === 'string') {
+            rawOpts = (rawOpts as string).split(',').map(str => str.trim()).filter(Boolean);
+          }
+          const formattedOpts = rawOpts.map((opt: any, index: number) => {
+            if (typeof opt === 'string') {
+              return { optionId: `opt_${index + 1}`, label: opt.trim(), order: index + 1 };
+            }
+            return {
+              optionId: opt.optionId || opt.id || `opt_${index + 1}`,
+              label: opt.label || opt.text || opt.title || `Seçenek ${index + 1}`,
+              order: typeof opt.order === 'number' ? opt.order : index + 1
+            };
+          });
+
+          return {
+            questionId: q.id,
+            text: q.text,
+            order: q.questionOrder,
+            type: q.questionType || 'SINGLE_SELECT',
+            options: formattedOpts.length > 0 ? formattedOpts : [
+              { optionId: 'opt_1', label: 'Evet / Katılıyorum', order: 1 },
+              { optionId: 'opt_2', label: 'Hayır / Katılmıyorum', order: 2 }
+            ],
+            isRequired: q.isRequired !== undefined ? q.isRequired : true
+          };
+        });
+
+      // Fallback if no questions exist in DB
+      if (sQuestions.length === 0) {
+        sQuestions = [
+          {
+            questionId: `q_${s.id}_1`,
+            text: s.title || 'Bu konu hakkındaki genel görüşünüz nedir?',
+            order: 1,
+            type: 'SINGLE_SELECT',
+            options: [
+              { optionId: 'opt_1', label: 'Çok Olumlu / Katılıyorum', order: 1 },
+              { optionId: 'opt_2', label: 'Olumlu / Kısmen Katılıyorum', order: 2 },
+              { optionId: 'opt_3', label: 'Kararsızım / Fikrim Yok', order: 3 },
+              { optionId: 'opt_4', label: 'Olumsuz / Katılmıyorum', order: 4 }
+            ],
+            isRequired: true
+          }
+        ];
+      }
 
       const rDef = (s.rewardDefinition as any) || {};
       return {
         ...s,
         surveyId: s.id,
         questions: sQuestions,
+        questionCount: sQuestions.length,
         rewardSummary: rDef.totalBudget ? `${rDef.totalBudget} TL Havuz` : (rDef.voucherPoolName || null)
       };
     });

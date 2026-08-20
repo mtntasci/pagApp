@@ -56,13 +56,19 @@ class SurveyService {
                                             if (opt is String) {
                                                 optList.add(PAGQuestionOption("opt_${oIdx + 1}", opt, oIdx + 1))
                                             } else if (opt is JSONObject) {
+                                                val label = opt.optString("label").ifEmpty { opt.optString("text").ifEmpty { opt.optString("title", "Seçenek ${oIdx + 1}") } }
+                                                val optId = opt.optString("optionId").ifEmpty { opt.optString("id", "opt_${oIdx + 1}") }
                                                 optList.add(PAGQuestionOption(
-                                                    opt.optString("optionId", "opt_${oIdx + 1}"),
-                                                    opt.optString("label", ""),
+                                                    optId,
+                                                    label,
                                                     opt.optInt("order", oIdx + 1)
                                                 ))
                                             }
                                         }
+                                    }
+                                    if (optList.isEmpty()) {
+                                        optList.add(PAGQuestionOption("opt_1", "Evet / Katılıyorum", 1))
+                                        optList.add(PAGQuestionOption("opt_2", "Hayır / Katılmıyorum", 2))
                                     }
                                     qList.add(PAGQuestion(qId, qIdx + 1, "SINGLE_SELECT", qText, optList))
                                 }

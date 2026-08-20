@@ -103,7 +103,15 @@ export async function GET(req: NextRequest) {
       if (response && response.answers) {
         // Answered
         const answersObj = response.answers as any;
-        const selectedOptId = answersObj[q.id] || answersObj.selectedOptionId || (typeof answersObj === 'string' ? answersObj : '');
+        let selectedOptId = '';
+        if (Array.isArray(answersObj)) {
+          const match = answersObj.find((a: any) => a.questionId === q.id || a.id === q.id || a.questionId === srv.id);
+          selectedOptId = match?.optionId || match?.selectedOptionId || (typeof match === 'string' ? match : (answersObj[0]?.optionId || ''));
+        } else if (typeof answersObj === 'object' && answersObj !== null) {
+          selectedOptId = answersObj[q.id] || answersObj[srv.id] || answersObj.selectedOptionId || answersObj.optionId || '';
+        } else if (typeof answersObj === 'string') {
+          selectedOptId = answersObj;
+        }
         const matchingOpt = formattedOptions.find((o: any) => o.optionId === selectedOptId);
 
         answeredQuestions.push({

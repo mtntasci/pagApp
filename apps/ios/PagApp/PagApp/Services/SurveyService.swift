@@ -39,9 +39,31 @@ public class SurveyService: ObservableObject {
                                     }
                                 } else if let rawOptObjects = q["options"] as? [[String: Any]] {
                                     for (oIdx, optObj) in rawOptObjects.enumerated() {
-                                        options.append(PAGQuestionOption(optionId: optObj["optionId"] as? String ?? "opt_\(oIdx + 1)", label: optObj["label"] as? String ?? "", order: oIdx + 1))
+                                        let oId = optObj["optionId"] as? String ?? optObj["id"] as? String ?? "opt_\(oIdx + 1)"
+                                        let oLabel = optObj["label"] as? String ?? optObj["text"] as? String ?? "Seçenek \(oIdx + 1)"
+                                        let oOrder = optObj["order"] as? Int ?? (oIdx + 1)
+                                        options.append(PAGQuestionOption(optionId: oId, label: oLabel, order: oOrder))
+                                    }
+                                } else if let rawOptAny = q["options"] as? [Any] {
+                                    for (oIdx, item) in rawOptAny.enumerated() {
+                                        if let str = item as? String {
+                                            options.append(PAGQuestionOption(optionId: "opt_\(oIdx + 1)", label: str, order: oIdx + 1))
+                                        } else if let dict = item as? [String: Any] {
+                                            let oId = dict["optionId"] as? String ?? dict["id"] as? String ?? "opt_\(oIdx + 1)"
+                                            let oLabel = dict["label"] as? String ?? dict["text"] as? String ?? "Seçenek \(oIdx + 1)"
+                                            let oOrder = dict["order"] as? Int ?? (oIdx + 1)
+                                            options.append(PAGQuestionOption(optionId: oId, label: oLabel, order: oOrder))
+                                        }
                                     }
                                 }
+                                
+                                if options.isEmpty {
+                                    options = [
+                                        PAGQuestionOption(optionId: "opt_1", label: "Evet / Katılıyorum", order: 1),
+                                        PAGQuestionOption(optionId: "opt_2", label: "Hayır / Katılmıyorum", order: 2)
+                                    ]
+                                }
+                                
                                 qList.append(PAGQuestion(questionId: qId, order: qIdx + 1, type: "SINGLE_SELECT", text: qText, options: options))
                             }
                         }
