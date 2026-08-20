@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { authenticateRequest, apiUnauthorized, apiSuccess, apiError } from '@/lib/serverAuth';
-import { db, organizations } from '@/db';
+import { db, organizations, portalUsers, surveys } from '@/db';
 import { eq, desc } from 'drizzle-orm';
 
 export const dynamic = 'force-dynamic';
@@ -12,11 +12,11 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const list = await db
-      .select()
-      .from(organizations)
-      .orderBy(desc(organizations.createdAt))
-      .limit(100);
+    const [list, usersList, surveyList] = await Promise.all([
+      db.select().from(organizations).orderBy(desc(organizations.createdAt)).limit(100),
+      db.select({ organizationId: portalUsers.organizationId }).from(portalUsers),
+      db.select({ organizationId: surveys.organizationId }).from(surveys)
+    ]);
 
     const formatted = list.map(o => ({
       organizationId: o.id,
@@ -26,6 +26,8 @@ export async function GET(req: NextRequest) {
       logoUrl: o.logoUrl,
       description: o.description,
       isActive: o.isActive,
+      portalUserCount: usersList.filter(u => u.organizationId === o.id).length,
+      surveyCount: surveyList.filter(s => s.organizationId === o.id).length,
       createdAt: o.createdAt.toISOString()
     }));
 

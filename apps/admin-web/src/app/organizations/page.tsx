@@ -76,8 +76,8 @@ export default function OrganizationsPage() {
             contactPhone: null,
             status: o.isActive ? 'ACTIVE' : 'DISABLED',
             isVerificationAuthorized: true,
-            surveyCount: 0,
-            portalUserCount: 0,
+            surveyCount: Number(o.surveyCount) || 0,
+            portalUserCount: Number(o.portalUserCount) || 0,
             createdAt: o.createdAt
           })));
           setIsLoading(false);

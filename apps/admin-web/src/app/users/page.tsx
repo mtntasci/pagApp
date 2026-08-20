@@ -223,6 +223,48 @@ export default function PortalUsersPage() {
     return org ? org.name : orgId;
   };
 
+  const isRoleMatching = (userRole: string, tabId: string) => {
+    if (tabId === 'ALL') return true;
+    if (tabId === 'CALL_CENTER_AGENT') {
+      return userRole === 'CALL_CENTER_AGENT' || userRole === 'CALL_AGENT';
+    }
+    if (tabId === 'ORGANIZATION_USER') {
+      return userRole === 'ORGANIZATION_USER' || userRole === 'ORGANIZATION_ADMIN' || userRole === 'ORGANIZATION_VERIFIER' || userRole === 'ORG_ADMIN';
+    }
+    if (tabId === 'PAG_STAFF') {
+      return userRole === 'PAG_STAFF' || userRole === 'ADMIN';
+    }
+    if (tabId === 'SUPER_ADMIN') {
+      return userRole === 'SUPER_ADMIN';
+    }
+    return userRole === tabId;
+  };
+
+  const filteredUsers = users.filter((u) => {
+    // 1. Role filter
+    if (!isRoleMatching(u.role, roleFilter)) {
+      return false;
+    }
+
+    // 2. Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const emailMatch = (u.email || '').toLowerCase().includes(q);
+      const nameMatch = (u.displayName || '').toLowerCase().includes(q);
+      const orgName = getOrgName(u.organizationId).toLowerCase();
+      const orgMatch = orgName.includes(q);
+      if (!emailMatch && !nameMatch && !orgMatch) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const getTabCount = (tabId: string) => {
+    return users.filter(u => isRoleMatching(u.role, tabId)).length;
+  };
+
   return (
     <div>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', marginBottom: '32px' }}>
@@ -295,26 +337,41 @@ export default function PortalUsersPage() {
             { id: 'ORGANIZATION_USER', label: '🏢 Firma Temsilcileri' },
             { id: 'PAG_STAFF', label: '🛡️ PAG Ekibi' },
             { id: 'SUPER_ADMIN', label: '👑 Süper Admin' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setRoleFilter(tab.id)}
-              style={{
-                padding: '8px 14px',
-                borderRadius: '8px',
-                border: '1px solid',
-                borderColor: roleFilter === tab.id ? 'var(--brand-navy)' : 'var(--border-color)',
-                backgroundColor: roleFilter === tab.id ? 'var(--brand-navy)' : 'var(--bg-surface-secondary)',
-                color: roleFilter === tab.id ? '#FFFFFF' : 'var(--text-secondary)',
-                fontWeight: 700,
-                fontSize: '13px',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+          ].map(tab => {
+            const count = getTabCount(tab.id);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setRoleFilter(tab.id)}
+                style={{
+                  padding: '8px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid',
+                  borderColor: roleFilter === tab.id ? 'var(--brand-navy)' : 'var(--border-color)',
+                  backgroundColor: roleFilter === tab.id ? 'var(--brand-navy)' : 'var(--bg-surface-secondary)',
+                  color: roleFilter === tab.id ? '#FFFFFF' : 'var(--text-secondary)',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                <span>{tab.label}</span>
+                <span style={{
+                  fontSize: '11px',
+                  padding: '2px 6px',
+                  borderRadius: '10px',
+                  backgroundColor: roleFilter === tab.id ? 'rgba(255,255,255,0.2)' : 'var(--border-color)',
+                  color: roleFilter === tab.id ? '#FFFFFF' : 'var(--text-primary)'
+                }}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Search */}
@@ -350,10 +407,14 @@ export default function PortalUsersPage() {
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)', fontWeight: 600 }}>
             Kullanıcılar yükleniyor...
           </div>
-        ) : users.length === 0 ? (
+        ) : filteredUsers.length === 0 ? (
           <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-            <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Kayıtlı kullanıcı bulunamadı</p>
-            <p style={{ fontSize: '13px', marginTop: '4px', margin: 0 }}>Yeni personel eklemek için yukarıdaki butonu kullanabilirsiniz.</p>
+            <p style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>
+              {users.length === 0 ? 'Kayıtlı kullanıcı bulunamadı' : 'Seçilen filtreye uygun kullanıcı bulunamadı'}
+            </p>
+            <p style={{ fontSize: '13px', marginTop: '4px', margin: 0 }}>
+              {users.length === 0 ? 'Yeni personel eklemek için yukarıdaki butonu kullanabilirsiniz.' : 'Filtreleri veya arama kriterini değiştirerek tekrar deneyiniz.'}
+            </p>
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -369,7 +430,7 @@ export default function PortalUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {filteredUsers.map((u) => {
                   const badge = getRoleBadge(u.role);
                   return (
                     <tr key={u.uid} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.15s ease' }}>
