@@ -106,9 +106,16 @@ func main() {
 		r.Use(authMW.Authenticate)
 	}
 
-	// Health Check
+	// Root & Health Checks (for Docker, AlafCloud, Coolify probes)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, `{"status":"ok","service":"pag-backend","time":"%s"}`, time.Now().Format(time.RFC3339))
+	})
+
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 		fmt.Fprintf(w, `{"status":"ok","time":"%s"}`, time.Now().Format(time.RFC3339))
 	})
 
