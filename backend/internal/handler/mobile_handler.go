@@ -42,29 +42,73 @@ func NewMobileHandler(
 // GET & POST /api/v1/mobile/bootstrap
 func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r.Context())
+
+	// Read optional device info from POST body
+	var devBody struct {
+		DeviceID   string  `json:"deviceId"`
+		Platform   string  `json:"platform"`
+		AppVersion *string `json:"appVersion"`
+	}
+	if r.Method == http.MethodPost && r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&devBody)
+	}
+
+	// Guest fallback if not authenticated yet
 	if user == nil {
-		writeError(w, "Yetkilendirme başarısız", http.StatusUnauthorized)
+		writeSuccess(w, map[string]any{
+			"userId":                    "guest",
+			"id":                        "guest",
+			"firebaseUid":               "",
+			"displayName":               "Misafir Kullanıcı",
+			"firstName":                 "Misafir",
+			"lastName":                  "",
+			"email":                     nil,
+			"phone":                     nil,
+			"status":                    "GUEST",
+			"kycStatus":                 "NOT_STARTED",
+			"iban":                      nil,
+			"tckn":                      nil,
+			"ibanVerified":              false,
+			"profileScore":              0,
+			"profileCompleted":          false,
+			"phoneVerified":             false,
+			"emailVerified":             false,
+			"rewardBalance":             0,
+			"rewardBalanceFloat":        0.0,
+			"completedSurveyIds":        []string{},
+			"completedProfileSurveyIds": []string{},
+			"missingDocuments":          defaultLegalDocuments(),
+			"missingDocumentIds":        []string{"TERMS", "KVKK_NOTICE", "REWARD_TERMS"},
+			"communicationPreferences": map[string]bool{
+				"pushMarketing":  true,
+				"smsMarketing":   false,
+				"emailMarketing": false,
+				"phoneMarketing": false,
+			},
+			"user": map[string]any{
+				"id":            "guest",
+				"displayName":   "Misafir Kullanıcı",
+				"profileScore":  0,
+				"rewardBalance": "0.00",
+			},
+			"config": map[string]any{
+				"minWithdrawalAmount": 100,
+				"termsAccepted":       false,
+				"kvkkAccepted":        false,
+			},
+		}, "Misafir oturumu hazırlandı.")
 		return
 	}
 
-	// Try reading optional device info from POST body
-	if r.Method == http.MethodPost && r.Body != nil {
-		var devBody struct {
-			DeviceID   string  `json:"deviceId"`
-			Platform   string  `json:"platform"`
-			AppVersion *string `json:"appVersion"`
-		}
-		_ = json.NewDecoder(r.Body).Decode(&devBody)
-		if devBody.DeviceID != "" {
-			_ = h.deviceRepo.Upsert(r.Context(), &model.Device{
-				ID:         devBody.DeviceID,
-				UserID:     user.ID,
-				FCMToken:   devBody.DeviceID,
-				Platform:   devBody.Platform,
-				AppVersion: devBody.AppVersion,
-				IsActive:   true,
-			})
-		}
+	if devBody.DeviceID != "" {
+		_ = h.deviceRepo.Upsert(r.Context(), &model.Device{
+			ID:         devBody.DeviceID,
+			UserID:     user.ID,
+			FCMToken:   devBody.DeviceID,
+			Platform:   devBody.Platform,
+			AppVersion: devBody.AppVersion,
+			IsActive:   true,
+		})
 	}
 
 	// Split DisplayName into firstName / lastName
@@ -111,9 +155,9 @@ func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		"photoUrl":                  nil,
 		"status":                    "ACTIVE",
 		"kycStatus":                 user.KYCStatus,
-		"iban":                      nil,
-		"tckn":                      nil,
-		"ibanVerified":              false,
+		"iban":                      user.IBAN,
+		"tckn":                      user.TCKN,
+		"ibanVerified":              user.IBAN != nil && *user.IBAN != "",
 		"profileScore":              user.ProfileScore,
 		"profileCompleted":          user.City != nil && *user.City != "",
 		"phoneVerified":             user.PhoneVerified,
@@ -135,8 +179,8 @@ func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		"occupation":                user.Occupation,
 		"completedSurveyIds":        regularCompleted,
 		"completedProfileSurveyIds": profileCompleted,
-		"missingDocuments":          []any{},
-		"missingDocumentIds":        []string{},
+		"missingDocuments":          defaultLegalDocuments(),
+		"missingDocumentIds":        []string{"TERMS", "KVKK_NOTICE", "REWARD_TERMS"},
 		"communicationPreferences": map[string]bool{
 			"pushMarketing":  true,
 			"smsMarketing":   false,
@@ -153,6 +197,8 @@ func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 			"rewardBalance": user.RewardBalance,
 			"kycStatus":     user.KYCStatus,
 			"phoneVerified": user.PhoneVerified,
+			"iban":          user.IBAN,
+			"tckn":          user.TCKN,
 		},
 		"config": map[string]any{
 			"minWithdrawalAmount": 100,
@@ -297,7 +343,48 @@ func (h *MobileHandler) GetProfile(w http.ResponseWriter, r *http.Request) {
 		user = freshUser
 	}
 
-	writeSuccess(w, user, "Profil bilgileri getirildi.")
+	var birthDateStr *string
+	if user.BirthDate != nil {
+		formatted := user.BirthDate.Format("2006-01-02")
+		birthDateStr = &formatted
+	}
+
+	nameParts := strings.Fields(user.DisplayName)
+	firstName := ""
+	lastName := ""
+	if len(nameParts) > 0 {
+		firstName = nameParts[0]
+		if len(nameParts) > 1 {
+			lastName = strings.Join(nameParts[1:], " ")
+		}
+	}
+
+	writeSuccess(w, map[string]any{
+		"id":             user.ID,
+		"userId":         user.ID,
+		"firebaseUid":    user.FirebaseUID,
+		"displayName":    user.DisplayName,
+		"firstName":      firstName,
+		"lastName":       lastName,
+		"phone":          user.Phone,
+		"email":          user.Email,
+		"gender":         user.Gender,
+		"city":           user.City,
+		"district":       user.District,
+		"birthDate":      birthDateStr,
+		"age":            user.Age,
+		"maritalStatus":  user.MaritalStatus,
+		"childrenStatus": user.ChildrenStatus,
+		"hometown":       user.Hometown,
+		"education":      user.Education,
+		"occupation":     user.Occupation,
+		"iban":           user.IBAN,
+		"tckn":           user.TCKN,
+		"kycStatus":      user.KYCStatus,
+		"profileScore":   user.ProfileScore,
+		"rewardBalance":  user.RewardBalance,
+		"phoneVerified":  user.PhoneVerified,
+	}, "Profil bilgileri getirildi.")
 }
 
 // PUT /api/v1/mobile/profile
@@ -308,19 +395,89 @@ func (h *MobileHandler) UpdateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var body model.User
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		writeError(w, "Geçersiz istek gövdesi", http.StatusBadRequest)
+	var input struct {
+		DisplayName    *string `json:"displayName"`
+		FirstName      *string `json:"firstName"`
+		LastName       *string `json:"lastName"`
+		Gender         *string `json:"gender"`
+		City           *string `json:"city"`
+		District       *string `json:"district"`
+		BirthDate      *string `json:"birthDate"`
+		Age            *int    `json:"age"`
+		MaritalStatus  *string `json:"maritalStatus"`
+		ChildrenStatus *string `json:"childrenStatus"`
+		Hometown       *string `json:"hometown"`
+		Education      *string `json:"education"`
+		Occupation     *string `json:"occupation"`
+		IBAN           *string `json:"iban"`
+		TCKN           *string `json:"tckn"`
+		KYCStatus      *string `json:"kycStatus"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		writeError(w, "Geçersiz istek gövdesi: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	body.ID = user.ID
-	if err := h.userRepo.UpdateProfile(r.Context(), &body); err != nil {
+	dName := user.DisplayName
+	if input.DisplayName != nil && *input.DisplayName != "" {
+		dName = *input.DisplayName
+	} else if input.FirstName != nil || input.LastName != nil {
+		fn := ""
+		if input.FirstName != nil {
+			fn = *input.FirstName
+		}
+		ln := ""
+		if input.LastName != nil {
+			ln = *input.LastName
+		}
+		combined := strings.TrimSpace(fn + " " + ln)
+		if combined != "" {
+			dName = combined
+		}
+	}
+
+	u := &model.User{
+		ID:             user.ID,
+		DisplayName:    dName,
+		Gender:         input.Gender,
+		City:           input.City,
+		District:       input.District,
+		MaritalStatus:  input.MaritalStatus,
+		ChildrenStatus: input.ChildrenStatus,
+		Hometown:       input.Hometown,
+		Education:      input.Education,
+		Occupation:     input.Occupation,
+		IBAN:           input.IBAN,
+		TCKN:           input.TCKN,
+	}
+
+	if input.KYCStatus != nil && *input.KYCStatus != "" {
+		u.KYCStatus = *input.KYCStatus
+	}
+	if input.Age != nil && *input.Age > 0 {
+		u.Age = *input.Age
+	}
+
+	if input.BirthDate != nil && *input.BirthDate != "" {
+		parsedTime, err := parseFlexibleDate(*input.BirthDate)
+		if err == nil {
+			u.BirthDate = &parsedTime
+			if u.Age == 0 {
+				u.Age = time.Now().Year() - parsedTime.Year()
+			}
+		}
+	}
+
+	if err := h.userRepo.UpdateProfile(r.Context(), u); err != nil {
 		writeError(w, "Profil güncellenemedi: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	updated, _ := h.userRepo.FindByID(r.Context(), user.ID)
+	if updated == nil {
+		updated = user
+	}
 	writeSuccess(w, updated, "Profil başarıyla güncellendi.")
 }
 
@@ -431,10 +588,26 @@ func (h *MobileHandler) GetWallet(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "Cüzdan geçmişi alınamadı: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	if history == nil {
+		history = []model.RewardLedger{}
+	}
+
+	scoreHistory, _ := h.ledgerRepo.GetUserScoreHistory(r.Context(), user.ID)
+	if scoreHistory == nil {
+		scoreHistory = []model.ProfileScoreLedger{}
+	}
+
+	vouchers, _ := h.ledgerRepo.GetUserVouchers(r.Context(), user.ID)
+	if vouchers == nil {
+		vouchers = []model.Voucher{}
+	}
 
 	writeSuccess(w, map[string]any{
 		"rewardBalance": user.RewardBalance,
 		"profileScore":  user.ProfileScore,
+		"rewardHistory": history,
+		"scoreHistory":  scoreHistory,
+		"vouchers":      vouchers,
 		"history":       history,
 	}, "Cüzdan bilgileri getirildi.")
 }
@@ -483,14 +656,97 @@ func (h *MobileHandler) UpdateLocationPermission(w http.ResponseWriter, r *http.
 
 // GET /api/v1/mobile/legal/documents
 func (h *MobileHandler) GetLegalDocuments(w http.ResponseWriter, r *http.Request) {
-	writeSuccess(w, []map[string]string{
-		{"docType": "TERMS", "title": "Kullanım Koşulları", "version": "1.0"},
-		{"docType": "PRIVACY", "title": "Gizlilik Politikası", "version": "1.0"},
-		{"docType": "KVKK", "title": "KVKK Aydınlatma Metni", "version": "1.0"},
-	}, "Yasal belgeler getirildi.")
+	writeSuccess(w, defaultLegalDocuments(), "Yasal belgeler getirildi.")
 }
 
 // POST /api/v1/mobile/legal/acceptances
 func (h *MobileHandler) AcceptLegalDocument(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r.Context())
+	var body struct {
+		DocumentID string `json:"documentId"`
+		DocType    string `json:"docType"`
+		Version    string `json:"version"`
+		Accepted   *bool  `json:"accepted"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	docType := body.DocType
+	if docType == "" {
+		docType = body.DocumentID
+	}
+	if docType == "" {
+		docType = "TERMS"
+	}
+	version := body.Version
+	if version == "" {
+		version = "1.0"
+	}
+	accepted := true
+	if body.Accepted != nil {
+		accepted = *body.Accepted
+	}
+
+	if user != nil {
+		cid := fmt.Sprintf("uc_%d_%s", time.Now().Unix(), randString(5))
+		_ = h.ledgerRepo.RecordConsent(r.Context(), cid, user.ID, docType, version, accepted)
+	}
+
 	writeSuccess(w, map[string]bool{"accepted": true}, "Yasal onay kaydedildi.")
 }
+
+func defaultLegalDocuments() []map[string]any {
+	return []map[string]any{
+		{
+			"documentId":           "TERMS",
+			"type":                 "TERMS",
+			"version":              "1.0",
+			"title":                "Kullanım Koşulları ve Üyelik Sözleşmesi",
+			"url":                  "https://www.pagapp.com.tr/terms",
+			"contentHash":          "PAG_TERMS_V1.0",
+			"isRequired":           true,
+			"isActive":             true,
+			"requiresReacceptance": false,
+		},
+		{
+			"documentId":           "KVKK_NOTICE",
+			"type":                 "KVKK_NOTICE",
+			"version":              "1.0",
+			"title":                "Kullanıcı Gizliliği ve KVKK Aydınlatma Metni",
+			"url":                  "https://www.pagapp.com.tr/user-privacy",
+			"contentHash":          "PAG_KVKK_NOTICE_V1.0",
+			"isRequired":           true,
+			"isActive":             true,
+			"requiresReacceptance": false,
+		},
+		{
+			"documentId":           "REWARD_TERMS",
+			"type":                 "REWARD_TERMS",
+			"version":              "1.0",
+			"title":                "Ödül ve Kampanya Katılım Koşulları",
+			"url":                  "https://www.pagapp.com.tr/reward-terms",
+			"contentHash":          "PAG_REWARD_TERMS_V1.0",
+			"isRequired":           true,
+			"isActive":             true,
+			"requiresReacceptance": false,
+		},
+	}
+}
+
+func parseFlexibleDate(s string) (time.Time, error) {
+	s = strings.TrimSpace(s)
+	formats := []string{
+		"2006-01-02",
+		time.RFC3339,
+		"2006-01-02T15:04:05Z07:00",
+		"2006-01-02T15:04:05",
+		"02.01.2006",
+		"02/01/2006",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t, nil
+		}
+	}
+	return time.Time{}, fmt.Errorf("cannot parse date: %s", s)
+}
+

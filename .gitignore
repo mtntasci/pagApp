@@ -18,6 +18,11 @@ dist-server
 # TypeScript Build Outputs (backend function build outputs only)
 backend/functions/lib/
 
+# Go
+backend/main
+backend/pag-server
+*.exe
+
 # Test & Coverage
 coverage
 **/coverage

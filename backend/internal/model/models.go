@@ -22,6 +22,8 @@ type User struct {
 	Hometown       *string    `json:"hometown,omitempty"`
 	Education      *string    `json:"education,omitempty"`
 	Occupation     *string    `json:"occupation,omitempty"`
+	IBAN           *string    `json:"iban,omitempty"`
+	TCKN           *string    `json:"tckn,omitempty"`
 	PhoneVerified  bool       `json:"phoneVerified"`
 	KYCStatus      string     `json:"kycStatus"`
 	ProfileScore   int        `json:"profileScore"`

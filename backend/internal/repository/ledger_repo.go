@@ -123,6 +123,57 @@ func (r *LedgerRepository) GetUserWallet(ctx context.Context, userID string) ([]
 	return list, nil
 }
 
+func (r *LedgerRepository) GetUserScoreHistory(ctx context.Context, userID string) ([]model.ProfileScoreLedger, error) {
+	query := `
+		SELECT id, user_id, source_type, source_id, score_delta, idempotency_key, metadata, created_at
+		FROM profile_score_ledger
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT 50
+	`
+	rows, err := r.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.ProfileScoreLedger
+	for rows.Next() {
+		var item model.ProfileScoreLedger
+		if err := rows.Scan(&item.ID, &item.UserID, &item.SourceType, &item.SourceID, &item.ScoreDelta, &item.IdempotencyKey, &item.Metadata, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, item)
+	}
+	return list, nil
+}
+
+func (r *LedgerRepository) GetUserVouchers(ctx context.Context, userID string) ([]model.Voucher, error) {
+	query := `
+		SELECT id, survey_id, organization_id, pool_name, code, amount, status, assigned_user_id, assigned_at, created_at
+		FROM vouchers
+		WHERE assigned_user_id = $1
+		ORDER BY assigned_at DESC
+		LIMIT 50
+	`
+	rows, err := r.pool.Query(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var list []model.Voucher
+	for rows.Next() {
+		var item model.Voucher
+		if err := rows.Scan(&item.ID, &item.SurveyID, &item.OrganizationID, &item.PoolName, &item.Code, &item.Amount, &item.Status, &item.AssignedUserID, &item.AssignedAt, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		list = append(list, item)
+	}
+	return list, nil
+}
+
+
 func (r *LedgerRepository) CreateWithdrawalRequest(ctx context.Context, req *model.WithdrawalRequest) error {
 	query := `
 		INSERT INTO withdrawal_requests (id, user_id, amount, currency, iban, account_holder_name, status, created_at, updated_at)
@@ -168,4 +219,21 @@ func (r *LedgerRepository) ListWithdrawalRequests(ctx context.Context, status st
 		list = append(list, item)
 	}
 	return list, nil
+}
+
+func (r *LedgerRepository) Pool() *pgxpool.Pool {
+	return r.pool
+}
+
+func (r *LedgerRepository) RecordConsent(ctx context.Context, id, userID, docType, version string, accepted bool) error {
+	query := `
+		INSERT INTO user_consents (id, user_id, doc_type, version, accepted, accepted_at)
+		VALUES ($1, $2, $3, $4, $5, NOW())
+		ON CONFLICT (user_id, doc_type) DO UPDATE SET
+			version = EXCLUDED.version,
+			accepted = EXCLUDED.accepted,
+			accepted_at = NOW()
+	`
+	_, err := r.pool.Exec(ctx, query, id, userID, docType, version, accepted)
+	return err
 }

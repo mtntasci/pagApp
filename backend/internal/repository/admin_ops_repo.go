@@ -18,30 +18,70 @@ func NewAdminOpsRepository(pool *pgxpool.Pool) *AdminOpsRepository {
 	return &AdminOpsRepository{pool: pool}
 }
 
-// Metrics
+type ActiveSurveySummary struct {
+	SurveyID      string `json:"surveyId"`
+	Title         string `json:"title"`
+	Category      string `json:"category"`
+	ResponseCount int    `json:"responseCount"`
+}
+
 type DashboardMetrics struct {
-	TotalUsers          int `json:"totalUsers"`
-	ActivePushUsers     int `json:"activePushUsers"`
-	TotalSurveys        int `json:"totalSurveys"`
-	ActiveSurveys       int `json:"activeSurveys"`
-	CompletedResponses  int `json:"completedResponses"`
-	TotalRewardsPaid    int `json:"totalRewardsPaid"`
-	PendingApplications int `json:"pendingApplications"`
+	TotalUsers                 int                   `json:"totalUsers"`
+	ActivePushUsers            int                   `json:"activePushUsers"`
+	TotalSurveys               int                   `json:"totalSurveys"`
+	ActiveSurveys              int                   `json:"activeSurveys"`
+	ActiveProfileSurveys       int                   `json:"activeProfileSurveys"`
+	CompletedResponses         int                   `json:"completedResponses"`
+	TotalResponses             int                   `json:"totalResponses"`
+	TotalRewardsPaid           int                   `json:"totalRewardsPaid"`
+	PendingApplications        int                   `json:"pendingApplications"`
+	BasicProfileCompletedCount int                   `json:"basicProfileCompletedCount"`
+	PhoneVerifiedCount         int                   `json:"phoneVerifiedCount"`
+	KYCVerifiedCount           int                   `json:"kycVerifiedCount"`
+	IBANSubmittedCount         int                   `json:"ibanSubmittedCount"`
+	ActiveSurveysList          []ActiveSurveySummary `json:"activeSurveysList"`
 }
 
 func (r *AdminOpsRepository) GetDashboardMetrics(ctx context.Context) (*DashboardMetrics, error) {
-	m := &DashboardMetrics{}
+	m := &DashboardMetrics{
+		ActiveSurveysList: make([]ActiveSurveySummary, 0),
+	}
 
 	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users`).Scan(&m.TotalUsers)
 	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM devices WHERE is_active = TRUE`).Scan(&m.ActivePushUsers)
 	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM surveys WHERE is_archived = FALSE`).Scan(&m.TotalSurveys)
-	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM surveys WHERE status = 'ACTIVE' AND is_archived = FALSE`).Scan(&m.ActiveSurveys)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM surveys WHERE status = 'ACTIVE' AND is_archived = FALSE AND (survey_type != 'PROFILE' AND NOT id LIKE 'pq_%')`).Scan(&m.ActiveSurveys)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM surveys WHERE status = 'ACTIVE' AND is_archived = FALSE AND (survey_type = 'PROFILE' OR id LIKE 'pq_%')`).Scan(&m.ActiveProfileSurveys)
 	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM survey_responses`).Scan(&m.CompletedResponses)
+	m.TotalResponses = m.CompletedResponses
 	_ = r.pool.QueryRow(ctx, `SELECT COALESCE(SUM(amount), 0) FROM reward_ledger WHERE status = 'CREDITED'`).Scan(&m.TotalRewardsPaid)
 	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM company_applications WHERE status = 'PENDING'`).Scan(&m.PendingApplications)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE city IS NOT NULL AND city != ''`).Scan(&m.BasicProfileCompletedCount)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE phone_verified = TRUE`).Scan(&m.PhoneVerifiedCount)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE kyc_status = 'VERIFIED'`).Scan(&m.KYCVerifiedCount)
+	_ = r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE iban IS NOT NULL AND iban != ''`).Scan(&m.IBANSubmittedCount)
 
 	if m.ActivePushUsers == 0 && m.TotalUsers > 0 {
 		m.ActivePushUsers = m.TotalUsers
+	}
+
+	activeRows, err := r.pool.Query(ctx, `
+		SELECT s.id, s.title, s.category, COUNT(r.id) as resp_count
+		FROM surveys s
+		LEFT JOIN survey_responses r ON s.id = r.survey_id
+		WHERE s.status = 'ACTIVE' AND s.is_archived = FALSE
+		GROUP BY s.id, s.title, s.category
+		ORDER BY resp_count DESC
+		LIMIT 10
+	`)
+	if err == nil {
+		defer activeRows.Close()
+		for activeRows.Next() {
+			var item ActiveSurveySummary
+			if err := activeRows.Scan(&item.SurveyID, &item.Title, &item.Category, &item.ResponseCount); err == nil {
+				m.ActiveSurveysList = append(m.ActiveSurveysList, item)
+			}
+		}
 	}
 
 	return m, nil

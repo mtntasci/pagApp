@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -66,6 +67,28 @@ func (h *AdminHandler) ListSurveys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	filterType := r.URL.Query().Get("type")
+	if filterType == "" {
+		filterType = r.URL.Query().Get("surveyType")
+	}
+	if filterType == "PROFILE" {
+		filtered := make([]model.Survey, 0)
+		for _, s := range surveys {
+			if s.SurveyType == "PROFILE" || strings.HasPrefix(s.ID, "pq_") {
+				filtered = append(filtered, s)
+			}
+		}
+		surveys = filtered
+	} else if filterType == "CAMPAIGN" || filterType == "GENERAL" {
+		filtered := make([]model.Survey, 0)
+		for _, s := range surveys {
+			if s.SurveyType != "PROFILE" && !strings.HasPrefix(s.ID, "pq_") {
+				filtered = append(filtered, s)
+			}
+		}
+		surveys = filtered
+	}
+
 	// Fetch questions for each survey
 	surveyIDs := make([]string, 0, len(surveys))
 	for _, s := range surveys {
@@ -77,13 +100,17 @@ func (h *AdminHandler) ListSurveys(w http.ResponseWriter, r *http.Request) {
 		surveys[i].QuestionCount = len(surveys[i].Questions)
 	}
 
-	writeSuccessWithMeta(w, surveys, "Anketler getirildi.", map[string]any{"total": total})
+	writeSuccessWithMeta(w, map[string]any{
+		"surveys": surveys,
+		"total":   len(surveys),
+	}, "Anketler getirildi.", map[string]any{"total": total})
 }
 
 // POST /api/v1/admin/surveys
 func (h *AdminHandler) CreateOrUpdateSurvey(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		model.Survey
+		SurveyID  string           `json:"surveyId"`
 		Questions []model.Question `json:"questions"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -91,6 +118,9 @@ func (h *AdminHandler) CreateOrUpdateSurvey(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	if body.ID == "" && body.SurveyID != "" {
+		body.ID = body.SurveyID
+	}
 	if body.ID == "" {
 		body.ID = fmt.Sprintf("srv_%d_%s", time.Now().Unix(), randString(5))
 	}
@@ -107,6 +137,40 @@ func (h *AdminHandler) CreateOrUpdateSurvey(w http.ResponseWriter, r *http.Reque
 	}
 
 	writeSuccess(w, body.Survey, "Anket başarıyla kaydedildi.")
+}
+
+// DELETE /api/v1/admin/surveys
+func (h *AdminHandler) DeleteSurvey(w http.ResponseWriter, r *http.Request) {
+	surveyID := r.URL.Query().Get("id")
+	if surveyID == "" {
+		surveyID = r.URL.Query().Get("surveyId")
+	}
+	surveyType := r.URL.Query().Get("type")
+	if surveyType == "" {
+		surveyType = r.URL.Query().Get("surveyType")
+	}
+
+	if surveyType == "PROFILE" {
+		_ = h.surveyRepo.AdminDeleteByType(r.Context(), "PROFILE")
+		writeSuccess(w, nil, "Tüm profil anketleri başarıyla silindi.")
+		return
+	}
+	if surveyType == "GENERAL" || surveyType == "CAMPAIGN" {
+		_ = h.surveyRepo.AdminDeleteNonProfile(r.Context())
+		writeSuccess(w, nil, "Tüm genel anketler başarıyla silindi.")
+		return
+	}
+
+	if surveyID == "" {
+		writeError(w, "Silinecek anket kimliği (id) zorunludur.", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.surveyRepo.AdminDelete(r.Context(), surveyID); err != nil {
+		writeError(w, "Anket silinemedi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeSuccess(w, map[string]string{"surveyId": surveyID}, "Anket başarıyla silindi.")
 }
 
 // GET /api/v1/admin/users
@@ -166,7 +230,7 @@ func (h *AdminHandler) ListOrganizations(w http.ResponseWriter, r *http.Request)
 		writeError(w, "Kurumlar alınamadı: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeSuccess(w, list, "Kurumlar listelendi.")
+	writeSuccess(w, map[string]any{"organizations": list}, "Kurumlar listelendi.")
 }
 
 // POST /api/v1/admin/organizations
@@ -198,13 +262,61 @@ func (h *AdminHandler) ListCategories(w http.ResponseWriter, r *http.Request) {
 		writeError(w, "Kategoriler alınamadı: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeSuccess(w, list, "Kategoriler listelendi.")
+	writeSuccess(w, map[string]any{"categories": list}, "Kategoriler listelendi.")
 }
 
 // POST /api/v1/admin/categories
 func (h *AdminHandler) CreateCategory(w http.ResponseWriter, r *http.Request) {
+	bodyBytes, _ := io.ReadAll(r.Body)
+
+	var raw map[string]json.RawMessage
+	_ = json.Unmarshal(bodyBytes, &raw)
+
+	// Check if bulk categories update: { "categories": [...] }
+	if catRaw, ok := raw["categories"]; ok {
+		var catList []struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			Icon      string `json:"icon"`
+			SortOrder int    `json:"sortOrder"`
+			IsVisible *bool  `json:"isVisible"`
+			IsActive  *bool  `json:"isActive"`
+		}
+		if err := json.Unmarshal(catRaw, &catList); err == nil && len(catList) > 0 {
+			for idx, c := range catList {
+				order := c.SortOrder
+				if order == 0 {
+					order = idx + 1
+				}
+				active := true
+				if c.IsVisible != nil {
+					active = *c.IsVisible
+				} else if c.IsActive != nil {
+					active = *c.IsActive
+				}
+				catID := c.ID
+				if catID == "" {
+					catID = fmt.Sprintf("cat_%d_%s", time.Now().Unix(), randString(4))
+				}
+				var iconPtr *string
+				if c.Icon != "" {
+					iconPtr = &c.Icon
+				}
+				_ = h.adminOpsRepo.UpsertCategory(r.Context(), &model.SurveyCategory{
+					ID:        catID,
+					Name:      c.Name,
+					Icon:      iconPtr,
+					SortOrder: order,
+					IsActive:  active,
+				})
+			}
+			writeSuccess(w, map[string]string{"message": "Kategoriler güncellendi."}, "Kategoriler güncellendi.")
+			return
+		}
+	}
+
 	var body model.SurveyCategory
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+	if err := json.Unmarshal(bodyBytes, &body); err != nil || body.Name == "" {
 		writeError(w, "Kategori adı zorunludur.", http.StatusBadRequest)
 		return
 	}
@@ -227,7 +339,10 @@ func (h *AdminHandler) ListApplications(w http.ResponseWriter, r *http.Request) 
 		writeError(w, "Başvurular alınamadı: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeSuccess(w, list, "Başvurular listelendi.")
+	if list == nil {
+		list = []model.CompanyApplication{}
+	}
+	writeSuccess(w, map[string]any{"applications": list}, "Başvurular listelendi.")
 }
 
 // POST /api/v1/admin/applications

@@ -33,7 +33,12 @@ func main() {
 		log.Fatalf("[FATAL] Could not load config: %v", err)
 	}
 
-	// 2. Initialize PostgreSQL Pool
+	// 2. Auto-run embedded migrations to ensure all tables, indexes, and initial seeds exist
+	if err := database.AutoMigrate(cfg.DatabaseURL); err != nil {
+		log.Printf("[MIGRATE WARNING] Auto-migration notice: %v (server will continue starting)", err)
+	}
+
+	// 3. Initialize PostgreSQL Pool
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -126,8 +131,8 @@ func main() {
 	// MOBILE REST API ROUTES (/api/v1/mobile/*)
 	// ========================================================================
 	r.Route("/api/v1/mobile", func(mr chi.Router) {
-		mr.Get("/bootstrap", middleware.RequireUser(mobileHandler.Bootstrap))
-		mr.Post("/bootstrap", middleware.RequireUser(mobileHandler.Bootstrap))
+		mr.Get("/bootstrap", mobileHandler.Bootstrap)
+		mr.Post("/bootstrap", mobileHandler.Bootstrap)
 		mr.Get("/profile-questions", middleware.RequireUser(mobileHandler.GetProfileQuestions))
 		mr.Post("/profile-questions", middleware.RequireUser(mobileHandler.SubmitProfileQuestions))
 		mr.Get("/home", middleware.RequireUser(mobileHandler.Home))
@@ -151,6 +156,7 @@ func main() {
 		ar.Get("/dashboard/metrics", middleware.RequirePortalUser(adminHandler.GetMetrics))
 		ar.Get("/surveys", middleware.RequirePortalUser(adminHandler.ListSurveys))
 		ar.Post("/surveys", middleware.RequirePortalUser(adminHandler.CreateOrUpdateSurvey))
+		ar.Delete("/surveys", middleware.RequirePortalUser(adminHandler.DeleteSurvey))
 		ar.Get("/users", middleware.RequirePortalUser(adminHandler.ListPortalUsers))
 		ar.Post("/users", middleware.RequirePortalUser(adminHandler.CreatePortalUser))
 		ar.Delete("/users", middleware.RequirePortalUser(adminHandler.DeletePortalUser))

@@ -24,7 +24,7 @@ func (r *UserRepository) FindByFirebaseUID(ctx context.Context, firebaseUID stri
 		SELECT id, firebase_uid, phone, email, display_name, gender, city, district,
 		       birth_date, age, marital_status, children_status, hometown, education,
 		       occupation, phone_verified, kyc_status, profile_score, reward_balance,
-		       is_banned, created_at, updated_at
+		       is_banned, created_at, updated_at, iban, tckn
 		FROM users
 		WHERE firebase_uid = $1
 		LIMIT 1
@@ -38,7 +38,7 @@ func (r *UserRepository) FindByID(ctx context.Context, id string) (*model.User, 
 		SELECT id, firebase_uid, phone, email, display_name, gender, city, district,
 		       birth_date, age, marital_status, children_status, hometown, education,
 		       occupation, phone_verified, kyc_status, profile_score, reward_balance,
-		       is_banned, created_at, updated_at
+		       is_banned, created_at, updated_at, iban, tckn
 		FROM users
 		WHERE id = $1
 		LIMIT 1
@@ -53,12 +53,12 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 			id, firebase_uid, phone, email, display_name, gender, city, district,
 			birth_date, age, marital_status, children_status, hometown, education,
 			occupation, phone_verified, kyc_status, profile_score, reward_balance,
-			is_banned, created_at, updated_at
+			is_banned, created_at, updated_at, iban, tckn
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8,
 			$9, $10, $11, $12, $13, $14,
 			$15, $16, $17, $18, $19,
-			$20, $21, $22
+			$20, $21, $22, $23, $24
 		)
 	`
 	now := time.Now()
@@ -68,7 +68,7 @@ func (r *UserRepository) Create(ctx context.Context, u *model.User) error {
 		u.ID, u.FirebaseUID, u.Phone, u.Email, u.DisplayName, u.Gender, u.City, u.District,
 		u.BirthDate, u.Age, u.MaritalStatus, u.ChildrenStatus, u.Hometown, u.Education,
 		u.Occupation, u.PhoneVerified, u.KYCStatus, u.ProfileScore, u.RewardBalance,
-		u.IsBanned, u.CreatedAt, u.UpdatedAt,
+		u.IsBanned, u.CreatedAt, u.UpdatedAt, u.IBAN, u.TCKN,
 	)
 	return err
 }
@@ -81,19 +81,22 @@ func (r *UserRepository) UpdateProfile(ctx context.Context, u *model.User) error
 			city = COALESCE($3, city),
 			district = COALESCE($4, district),
 			birth_date = COALESCE($5, birth_date),
-			age = COALESCE($6, age),
+			age = CASE WHEN $6 > 0 THEN $6 ELSE age END,
 			marital_status = COALESCE($7, marital_status),
 			children_status = COALESCE($8, children_status),
 			hometown = COALESCE($9, hometown),
 			education = COALESCE($10, education),
 			occupation = COALESCE($11, occupation),
+			iban = COALESCE($12, iban),
+			tckn = COALESCE($13, tckn),
+			kyc_status = CASE WHEN $14 != '' THEN $14 ELSE kyc_status END,
 			updated_at = NOW()
-		WHERE id = $12
+		WHERE id = $15
 	`
 	_, err := r.pool.Exec(ctx, query,
 		u.DisplayName, u.Gender, u.City, u.District, u.BirthDate,
 		u.Age, u.MaritalStatus, u.ChildrenStatus, u.Hometown,
-		u.Education, u.Occupation, u.ID,
+		u.Education, u.Occupation, u.IBAN, u.TCKN, u.KYCStatus, u.ID,
 	)
 	return err
 }
@@ -148,7 +151,7 @@ func scanUser(row pgx.Row) (*model.User, error) {
 		&u.ID, &u.FirebaseUID, &u.Phone, &u.Email, &u.DisplayName, &u.Gender, &u.City, &u.District,
 		&u.BirthDate, &u.Age, &u.MaritalStatus, &u.ChildrenStatus, &u.Hometown, &u.Education,
 		&u.Occupation, &u.PhoneVerified, &u.KYCStatus, &u.ProfileScore, &u.RewardBalance,
-		&u.IsBanned, &u.CreatedAt, &u.UpdatedAt,
+		&u.IsBanned, &u.CreatedAt, &u.UpdatedAt, &u.IBAN, &u.TCKN,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -158,3 +161,4 @@ func scanUser(row pgx.Row) (*model.User, error) {
 	}
 	return &u, nil
 }
+

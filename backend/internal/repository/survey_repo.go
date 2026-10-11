@@ -313,6 +313,22 @@ func (r *SurveyRepository) AdminUpdateStatus(ctx context.Context, surveyID strin
 	return err
 }
 
+func (r *SurveyRepository) AdminDelete(ctx context.Context, surveyID string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM surveys WHERE id = $1`, surveyID)
+	return err
+}
+
+func (r *SurveyRepository) AdminDeleteByType(ctx context.Context, surveyType string) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM surveys WHERE survey_type = $1`, surveyType)
+	return err
+}
+
+func (r *SurveyRepository) AdminDeleteNonProfile(ctx context.Context) error {
+	_, err := r.pool.Exec(ctx, `DELETE FROM surveys WHERE survey_type != 'PROFILE' AND NOT id LIKE 'pq_%'`)
+	return err
+}
+
+
 func scanSurvey(row pgx.Row) (*model.Survey, error) {
 	var s model.Survey
 	var targeting, reward, story, verif []byte
