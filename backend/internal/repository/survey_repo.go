@@ -2,10 +2,13 @@ package repository
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -400,3 +403,285 @@ func matchesTargeting(targetingRaw json.RawMessage, user *model.User) bool {
 
 	return true
 }
+
+type ProfileQuestionOption struct {
+	OptionID string `json:"optionId"`
+	Label    string `json:"label"`
+	Order    int    `json:"order"`
+}
+
+type UnansweredProfileQuestion struct {
+	ID                 string                  `json:"id"`
+	SurveyID           string                  `json:"surveyId"`
+	QuestionText       string                  `json:"questionText"`
+	CategoryID         string                  `json:"categoryId"`
+	CategoryName       string                  `json:"categoryName"`
+	TargetingGender    string                  `json:"targetingGender"`
+	Options            []ProfileQuestionOption `json:"options"`
+	ProfileScoreReward int                     `json:"profileScoreReward"`
+	Status             string                  `json:"status"`
+	ShowOnHome         bool                    `json:"showOnHome"`
+}
+
+type AnsweredProfileQuestion struct {
+	QuestionID          string                  `json:"questionId"`
+	SurveyID            string                  `json:"surveyId"`
+	QuestionText        string                  `json:"questionText"`
+	CategoryID          string                  `json:"categoryId"`
+	CategoryName        string                  `json:"categoryName"`
+	Options             []ProfileQuestionOption `json:"options"`
+	SelectedOptionID    string                  `json:"selectedOptionId"`
+	SelectedOptionLabel string                  `json:"selectedOptionLabel"`
+	UpdatedAt           string                  `json:"updatedAt"`
+}
+
+type ProfileQuestionsResponse struct {
+	UnansweredQuestions []UnansweredProfileQuestion `json:"unansweredQuestions"`
+	AnsweredQuestions   []AnsweredProfileQuestion   `json:"answeredQuestions"`
+	AvailableScoreX     int                         `json:"availableScoreX"`
+	TotalCount          int                         `json:"totalCount"`
+	AnsweredCount       int                         `json:"answeredCount"`
+}
+
+type ProfileAnswerInput struct {
+	QuestionID string  `json:"questionId"`
+	OptionID   string  `json:"optionId"`
+	SurveyID   *string `json:"surveyId,omitempty"`
+}
+
+func (r *SurveyRepository) ListProfileQuestionsForUser(ctx context.Context, userID string) (*ProfileQuestionsResponse, error) {
+	// 1. Fetch active PROFILE surveys
+	querySurveys := `
+		SELECT id, title, category, profile_score_reward, status
+		FROM surveys
+		WHERE survey_type = 'PROFILE' AND is_archived = FALSE
+		ORDER BY created_at ASC
+	`
+	rows, err := r.pool.Query(ctx, querySurveys)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	type srvMeta struct {
+		id       string
+		title    string
+		category string
+		reward   int
+		status   string
+	}
+	var surveysList []srvMeta
+	var surveyIDs []string
+	for rows.Next() {
+		var s srvMeta
+		if err := rows.Scan(&s.id, &s.title, &s.category, &s.reward, &s.status); err == nil {
+			surveysList = append(surveysList, s)
+			surveyIDs = append(surveyIDs, s.id)
+		}
+	}
+
+	resp := &ProfileQuestionsResponse{
+		UnansweredQuestions: make([]UnansweredProfileQuestion, 0),
+		AnsweredQuestions:   make([]AnsweredProfileQuestion, 0),
+		AvailableScoreX:     0,
+		TotalCount:          len(surveysList),
+		AnsweredCount:       0,
+	}
+
+	if len(surveysList) == 0 {
+		return resp, nil
+	}
+
+	// 2. Fetch questions for these surveys
+	questionsBySurvey, err := r.GetQuestionsForSurveys(ctx, surveyIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Fetch user responses for these surveys
+	userResponses := make(map[string]struct {
+		answers   []byte
+		updatedAt time.Time
+	})
+	respRows, err := r.pool.Query(ctx, `SELECT survey_id, answers, completed_at FROM survey_responses WHERE user_id = $1`, userID)
+	if err == nil {
+		defer respRows.Close()
+		for respRows.Next() {
+			var sID string
+			var rawAns []byte
+			var compAt time.Time
+			if err := respRows.Scan(&sID, &rawAns, &compAt); err == nil {
+				userResponses[sID] = struct {
+					answers   []byte
+					updatedAt time.Time
+				}{answers: rawAns, updatedAt: compAt}
+			}
+		}
+	}
+
+	// 4. Partition into answered & unanswered
+	for _, srv := range surveysList {
+		qs := questionsBySurvey[srv.id]
+		if len(qs) == 0 {
+			continue
+		}
+		q := qs[0] // 1 question per profile survey
+
+		// Parse options
+		var rawOpts []map[string]interface{}
+		_ = json.Unmarshal(q.Options, &rawOpts)
+		var options []ProfileQuestionOption
+		for i, ro := range rawOpts {
+			optID, _ := ro["optionId"].(string)
+			if optID == "" {
+				optID, _ = ro["id"].(string)
+			}
+			if optID == "" {
+				optID = fmt.Sprintf("opt_%d", i+1)
+			}
+
+			lbl, _ := ro["label"].(string)
+			if lbl == "" {
+				lbl, _ = ro["text"].(string)
+			}
+
+			order := i + 1
+			if o, ok := ro["order"].(float64); ok {
+				order = int(o)
+			}
+
+			options = append(options, ProfileQuestionOption{
+				OptionID: optID,
+				Label:    lbl,
+				Order:    order,
+			})
+		}
+
+		userResp, answered := userResponses[srv.id]
+		if answered {
+			var ansMap map[string]interface{}
+			_ = json.Unmarshal(userResp.answers, &ansMap)
+
+			selectedOptID := ""
+			if val, ok := ansMap["selectedOptionId"].(string); ok {
+				selectedOptID = val
+			} else if val, ok := ansMap[q.ID].(string); ok {
+				selectedOptID = val
+			} else if val, ok := ansMap[srv.id].(string); ok {
+				selectedOptID = val
+			}
+
+			selectedOptLabel := selectedOptID
+			for _, opt := range options {
+				if opt.OptionID == selectedOptID {
+					selectedOptLabel = opt.Label
+					break
+				}
+			}
+
+			resp.AnsweredQuestions = append(resp.AnsweredQuestions, AnsweredProfileQuestion{
+				QuestionID:          q.ID,
+				SurveyID:            srv.id,
+				QuestionText:        q.Text,
+				CategoryID:          srv.category,
+				CategoryName:        srv.category,
+				Options:             options,
+				SelectedOptionID:    selectedOptID,
+				SelectedOptionLabel: selectedOptLabel,
+				UpdatedAt:           userResp.updatedAt.Format(time.RFC3339),
+			})
+		} else {
+			reward := srv.reward
+			if reward <= 0 {
+				reward = 10
+			}
+			resp.AvailableScoreX += reward
+			resp.UnansweredQuestions = append(resp.UnansweredQuestions, UnansweredProfileQuestion{
+				ID:                 q.ID,
+				SurveyID:           srv.id,
+				QuestionText:       q.Text,
+				CategoryID:         srv.category,
+				CategoryName:       srv.category,
+				TargetingGender:    "ALL",
+				Options:            options,
+				ProfileScoreReward: reward,
+				Status:             srv.status,
+				ShowOnHome:         false,
+			})
+		}
+	}
+
+	resp.AnsweredCount = len(resp.AnsweredQuestions)
+	return resp, nil
+}
+
+func (r *SurveyRepository) SubmitProfileAnswers(ctx context.Context, userID string, answers []ProfileAnswerInput) (int, error) {
+	if len(answers) == 0 {
+		return 0, nil
+	}
+
+	totalScoreAwarded := 0
+
+	for _, ans := range answers {
+		surveyID := ""
+		if ans.SurveyID != nil && *ans.SurveyID != "" {
+			surveyID = *ans.SurveyID
+		} else {
+			_ = r.pool.QueryRow(ctx, `SELECT survey_id FROM questions WHERE id = $1`, ans.QuestionID).Scan(&surveyID)
+		}
+		if surveyID == "" {
+			continue
+		}
+
+		// Check if user already completed this survey
+		var existingID string
+		_ = r.pool.QueryRow(ctx, `SELECT id FROM survey_responses WHERE survey_id = $1 AND user_id = $2`, surveyID, userID).Scan(&existingID)
+
+		payloadBytes, _ := json.Marshal(map[string]interface{}{
+			ans.QuestionID:     ans.OptionID,
+			"selectedOptionId": ans.OptionID,
+			"updatedAt":        time.Now().Format(time.RFC3339),
+		})
+
+		if existingID != "" {
+			// Update without awarding score (Rule 11)
+			_, _ = r.pool.Exec(ctx, `UPDATE survey_responses SET answers = $1, completed_at = NOW() WHERE id = $2`, payloadBytes, existingID)
+		} else {
+			// Insert and award score
+			respID := fmt.Sprintf("resp_%d_%s", time.Now().Unix(), randString(5))
+			_, err := r.pool.Exec(ctx, `
+				INSERT INTO survey_responses (id, survey_id, user_id, answers, is_verified, completed_at, created_at)
+				VALUES ($1, $2, $3, $4, FALSE, NOW(), NOW())
+			`, respID, surveyID, userID, payloadBytes)
+			if err != nil {
+				continue
+			}
+
+			reward := 10
+			_ = r.pool.QueryRow(ctx, `SELECT profile_score_reward FROM surveys WHERE id = $1`, surveyID).Scan(&reward)
+			if reward <= 0 {
+				reward = 10
+			}
+
+			ledgerID := fmt.Sprintf("psl_%d_%s", time.Now().Unix(), randString(5))
+			idemp := fmt.Sprintf("ps_%s_%s", userID, surveyID)
+			_, _ = r.pool.Exec(ctx, `
+				INSERT INTO profile_score_ledger (id, user_id, source_type, source_id, score_delta, idempotency_key, created_at)
+				VALUES ($1, $2, 'PROFILE_SURVEY_COMPLETED', $3, $4, $5, NOW())
+				ON CONFLICT (idempotency_key) DO NOTHING
+			`, ledgerID, userID, surveyID, reward, idemp)
+
+			_, _ = r.pool.Exec(ctx, `UPDATE users SET profile_score = profile_score + $1, updated_at = NOW() WHERE id = $2`, reward, userID)
+			totalScoreAwarded += reward
+		}
+	}
+
+	return totalScoreAwarded, nil
+}
+
+func randString(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)[:n]
+}
+

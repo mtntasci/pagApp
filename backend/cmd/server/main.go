@@ -127,6 +127,9 @@ func main() {
 	// ========================================================================
 	r.Route("/api/v1/mobile", func(mr chi.Router) {
 		mr.Get("/bootstrap", middleware.RequireUser(mobileHandler.Bootstrap))
+		mr.Post("/bootstrap", middleware.RequireUser(mobileHandler.Bootstrap))
+		mr.Get("/profile-questions", middleware.RequireUser(mobileHandler.GetProfileQuestions))
+		mr.Post("/profile-questions", middleware.RequireUser(mobileHandler.SubmitProfileQuestions))
 		mr.Get("/home", middleware.RequireUser(mobileHandler.Home))
 		mr.Post("/device", middleware.RequireUser(mobileHandler.RegisterDevice))
 		mr.Get("/profile", middleware.RequireUser(mobileHandler.GetProfile))

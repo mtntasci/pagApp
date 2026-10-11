@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,7 +39,7 @@ func NewMobileHandler(
 	}
 }
 
-// GET /api/v1/mobile/bootstrap
+// GET & POST /api/v1/mobile/bootstrap
 func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 	user := middleware.GetUser(r.Context())
 	if user == nil {
@@ -46,7 +47,102 @@ func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Try reading optional device info from POST body
+	if r.Method == http.MethodPost && r.Body != nil {
+		var devBody struct {
+			DeviceID   string  `json:"deviceId"`
+			Platform   string  `json:"platform"`
+			AppVersion *string `json:"appVersion"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&devBody)
+		if devBody.DeviceID != "" {
+			_ = h.deviceRepo.Upsert(r.Context(), &model.Device{
+				ID:         devBody.DeviceID,
+				UserID:     user.ID,
+				FCMToken:   devBody.DeviceID,
+				Platform:   devBody.Platform,
+				AppVersion: devBody.AppVersion,
+				IsActive:   true,
+			})
+		}
+	}
+
+	// Split DisplayName into firstName / lastName
+	nameParts := strings.Fields(user.DisplayName)
+	firstName := ""
+	lastName := ""
+	if len(nameParts) > 0 {
+		firstName = nameParts[0]
+		if len(nameParts) > 1 {
+			lastName = strings.Join(nameParts[1:], " ")
+		}
+	}
+
+	// Partition completed survey IDs
+	completedIDs, _ := h.surveyRepo.GetCompletedSurveyIDs(r.Context(), user.ID)
+	regularCompleted := make([]string, 0)
+	profileCompleted := make([]string, 0)
+	for _, id := range completedIDs {
+		if strings.HasPrefix(id, "pq_") {
+			profileCompleted = append(profileCompleted, id)
+		} else {
+			regularCompleted = append(regularCompleted, id)
+		}
+	}
+
+	rewardFloat, _ := strconv.ParseFloat(user.RewardBalance, 64)
+	rewardInt := int(rewardFloat)
+
+	var birthDateStr *string
+	if user.BirthDate != nil {
+		formatted := user.BirthDate.Format("2006-01-02")
+		birthDateStr = &formatted
+	}
+
 	writeSuccess(w, map[string]any{
+		"userId":                    user.ID,
+		"id":                        user.ID,
+		"firebaseUid":               user.FirebaseUID,
+		"displayName":               user.DisplayName,
+		"firstName":                 firstName,
+		"lastName":                  lastName,
+		"email":                     user.Email,
+		"phone":                     user.Phone,
+		"photoUrl":                  nil,
+		"status":                    "ACTIVE",
+		"kycStatus":                 user.KYCStatus,
+		"iban":                      nil,
+		"tckn":                      nil,
+		"ibanVerified":              false,
+		"profileScore":              user.ProfileScore,
+		"profileCompleted":          user.City != nil && *user.City != "",
+		"phoneVerified":             user.PhoneVerified,
+		"emailVerified":             user.Email != nil && *user.Email != "",
+		"rewardBalance":             rewardInt,
+		"rewardBalanceFloat":        rewardFloat,
+		"activeDeviceId":            nil,
+		"isUnderage":                false,
+		"underageBlocked":           false,
+		"city":                      user.City,
+		"district":                  user.District,
+		"gender":                    user.Gender,
+		"birthDate":                 birthDateStr,
+		"age":                       user.Age,
+		"maritalStatus":             user.MaritalStatus,
+		"childrenStatus":            user.ChildrenStatus,
+		"hometown":                  user.Hometown,
+		"education":                 user.Education,
+		"occupation":                user.Occupation,
+		"completedSurveyIds":        regularCompleted,
+		"completedProfileSurveyIds": profileCompleted,
+		"missingDocuments":          []any{},
+		"missingDocumentIds":        []string{},
+		"communicationPreferences": map[string]bool{
+			"pushMarketing":  true,
+			"smsMarketing":   false,
+			"emailMarketing": false,
+			"phoneMarketing": false,
+		},
 		"user": map[string]any{
 			"id":            user.ID,
 			"firebaseUid":   user.FirebaseUID,
@@ -64,6 +160,71 @@ func (h *MobileHandler) Bootstrap(w http.ResponseWriter, r *http.Request) {
 			"kvkkAccepted":        true,
 		},
 	}, "Bootstrap verileri başarıyla yüklendi.")
+}
+
+// GET /api/v1/mobile/profile-questions
+func (h *MobileHandler) GetProfileQuestions(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r.Context())
+	if user == nil {
+		writeError(w, "Yetkilendirme başarısız", http.StatusUnauthorized)
+		return
+	}
+
+	resp, err := h.surveyRepo.ListProfileQuestionsForUser(r.Context(), user.ID)
+	if err != nil {
+		writeError(w, "Profil soruları alınamadı: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeSuccess(w, resp, "Profil soruları başarıyla getirildi.")
+}
+
+// POST /api/v1/mobile/profile-questions
+func (h *MobileHandler) SubmitProfileQuestions(w http.ResponseWriter, r *http.Request) {
+	user := middleware.GetUser(r.Context())
+	if user == nil {
+		writeError(w, "Yetkilendirme başarısız", http.StatusUnauthorized)
+		return
+	}
+
+	var body struct {
+		Answers    []repository.ProfileAnswerInput `json:"answers"`
+		QuestionID *string                         `json:"questionId"`
+		OptionID   *string                         `json:"optionId"`
+		SurveyID   *string                         `json:"surveyId"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, "Geçersiz istek gövdesi: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var answersList []repository.ProfileAnswerInput
+	if len(body.Answers) > 0 {
+		answersList = body.Answers
+	} else if body.QuestionID != nil && body.OptionID != nil {
+		answersList = append(answersList, repository.ProfileAnswerInput{
+			QuestionID: *body.QuestionID,
+			OptionID:   *body.OptionID,
+			SurveyID:   body.SurveyID,
+		})
+	}
+
+	if len(answersList) == 0 {
+		writeError(w, "En az bir cevap girilmelidir.", http.StatusBadRequest)
+		return
+	}
+
+	scoreAwarded, err := h.surveyRepo.SubmitProfileAnswers(r.Context(), user.ID, answersList)
+	if err != nil {
+		writeError(w, "Cevaplar kaydedilemedi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeSuccess(w, map[string]any{
+		"success":           true,
+		"batchScoreAwarded": scoreAwarded,
+	}, "Cevaplar başarıyla kaydedildi.")
 }
 
 // GET /api/v1/mobile/home

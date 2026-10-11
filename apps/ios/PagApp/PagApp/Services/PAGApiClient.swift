@@ -39,16 +39,21 @@ public class PAGApiClient {
             throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "Geçersiz sunucu yanıtı"])
         }
         
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
+        if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            if httpResponse.statusCode >= 400 {
+                let errorMsg = json["error"] as? String ?? json["message"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+                throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+            }
+            return json
         }
         
         if httpResponse.statusCode >= 400 {
-            let errorMsg = json["error"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+            let rawText = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorMsg = !rawText.isEmpty ? rawText : "İstek başarısız oldu (\(httpResponse.statusCode))"
             throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
         
-        return json
+        throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
     }
     
     public func post(endpoint: String, body: [String: Any]) async throws -> [String: Any] {
@@ -71,16 +76,21 @@ public class PAGApiClient {
             throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "Geçersiz sunucu yanıtı"])
         }
         
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
+        if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            if httpResponse.statusCode >= 400 {
+                let errorMsg = json["error"] as? String ?? json["message"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+                throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+            }
+            return json
         }
         
         if httpResponse.statusCode >= 400 {
-            let errorMsg = json["error"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+            let rawText = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorMsg = !rawText.isEmpty ? rawText : "İstek başarısız oldu (\(httpResponse.statusCode))"
             throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
         
-        return json
+        throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
     }
     
     public func put(endpoint: String, body: [String: Any]) async throws -> [String: Any] {
@@ -103,15 +113,20 @@ public class PAGApiClient {
             throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "Geçersiz sunucu yanıtı"])
         }
         
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
+        if let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+            if httpResponse.statusCode >= 400 {
+                let errorMsg = json["error"] as? String ?? json["message"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+                throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
+            }
+            return json
         }
         
         if httpResponse.statusCode >= 400 {
-            let errorMsg = json["error"] as? String ?? "İstek başarısız oldu (\(httpResponse.statusCode))"
+            let rawText = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let errorMsg = !rawText.isEmpty ? rawText : "İstek başarısız oldu (\(httpResponse.statusCode))"
             throw NSError(domain: "PAGApiClient", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
         
-        return json
+        throw NSError(domain: "PAGApiClient", code: 500, userInfo: [NSLocalizedDescriptionKey: "JSON ayrıştırma hatası"])
     }
 }
