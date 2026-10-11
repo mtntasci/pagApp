@@ -26,7 +26,7 @@ COPY --from=builder /app/migrations /app/migrations
 
 # Healthcheck
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3000/ || wget -q --spider http://localhost:3000/ || exit 1
+  CMD curl -f http://localhost:3000/health || curl -f http://localhost:3000/ || wget -q --spider http://localhost:3000/health || wget -q --spider http://localhost:3000/ || exit 1
 
 # Expose port 3000
 EXPOSE 3000

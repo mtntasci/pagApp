@@ -376,3 +376,89 @@ func (h *AdminHandler) UploadMedia(w http.ResponseWriter, r *http.Request) {
 		"key": key,
 	}, "Görsel Cloudflare R2'ye başarıyla yüklendi.")
 }
+
+// GET /api/v1/admin/stories
+func (h *AdminHandler) ListStories(w http.ResponseWriter, r *http.Request) {
+	resp, err := h.adminOpsRepo.ListStories(r.Context())
+	if err != nil {
+		writeError(w, "Story listesi alınamadı: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeSuccess(w, resp, "Story listesi getirildi.")
+}
+
+// POST /api/v1/admin/stories
+func (h *AdminHandler) SaveStory(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		SurveyID      string  `json:"surveyId"`
+		Label         string  `json:"label"`
+		ShortLabel    string  `json:"shortLabel"`
+		StoryLabel    string  `json:"storyLabel"`
+		Title         string  `json:"title"`
+		ImageCategory string  `json:"imageCategory"`
+		ImageURL      *string `json:"imageUrl"`
+		Position      *int    `json:"position"`
+		SortOrder     *int    `json:"sortOrder"`
+		IsActive      *bool   `json:"isActive"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, "Geçersiz istek gövdesi: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if body.SurveyID == "" {
+		writeError(w, "Survey ID zorunludur.", http.StatusBadRequest)
+		return
+	}
+
+	lbl := body.ShortLabel
+	if lbl == "" {
+		lbl = body.Label
+	}
+	if lbl == "" {
+		lbl = body.StoryLabel
+	}
+	if lbl == "" {
+		lbl = body.Title
+	}
+	if lbl == "" {
+		lbl = "Anket"
+	}
+
+	pos := 999
+	if body.SortOrder != nil {
+		pos = *body.SortOrder
+	} else if body.Position != nil {
+		pos = *body.Position
+	}
+
+	active := true
+	if body.IsActive != nil {
+		active = *body.IsActive
+	}
+
+	storyCfg := map[string]interface{}{
+		"showInStory":   active,
+		"label":         lbl,
+		"shortLabel":    lbl,
+		"storyLabel":    lbl,
+		"imageCategory": body.ImageCategory,
+		"position":      pos,
+		"sortOrder":     pos,
+		"isActive":      active,
+	}
+	if body.ImageURL != nil {
+		storyCfg["imageUrl"] = *body.ImageURL
+	}
+
+	if err := h.adminOpsRepo.SaveStory(r.Context(), body.SurveyID, storyCfg); err != nil {
+		writeError(w, "Story kaydedilemedi: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeSuccess(w, map[string]interface{}{
+		"success":     true,
+		"storyConfig": storyCfg,
+	}, "Story başarıyla kaydedildi.")
+}

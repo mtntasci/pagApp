@@ -336,3 +336,154 @@ func (r *AdminOpsRepository) ListRespondents(ctx context.Context, surveyID, city
 	}
 	return list, nil
 }
+
+type AdminStoryItem struct {
+	ID            string     `json:"id"`
+	StoryID       string     `json:"storyId"`
+	SurveyID      string     `json:"surveyId"`
+	Title         string     `json:"title"`
+	Label         string     `json:"label"`
+	ShortLabel    string     `json:"shortLabel"`
+	StoryLabel    string     `json:"storyLabel"`
+	ImageCategory string     `json:"imageCategory"`
+	ImageURL      *string    `json:"imageUrl"`
+	Position      int        `json:"position"`
+	SortOrder     int        `json:"sortOrder"`
+	IsActive      bool       `json:"isActive"`
+	SurveyTitle   string     `json:"surveyTitle"`
+	Status        string     `json:"status"`
+	StartAt       *time.Time `json:"startAt"`
+	EndAt         *time.Time `json:"endAt"`
+}
+
+type AvailableSurveyItem struct {
+	ID       string `json:"id"`
+	Title    string `json:"title"`
+	Category string `json:"category"`
+	Status   string `json:"status"`
+	HasStory bool   `json:"hasStory"`
+}
+
+type StoriesResponse struct {
+	Stories          []AdminStoryItem      `json:"stories"`
+	AvailableSurveys []AvailableSurveyItem `json:"availableSurveys"`
+}
+
+func (r *AdminOpsRepository) ListStories(ctx context.Context) (*StoriesResponse, error) {
+	query := `SELECT id, title, category, status, start_at, end_at, story_config FROM surveys ORDER BY created_at DESC`
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	resp := &StoriesResponse{
+		Stories:          make([]AdminStoryItem, 0),
+		AvailableSurveys: make([]AvailableSurveyItem, 0),
+	}
+
+	for rows.Next() {
+		var id, title, category, status string
+		var startAt, endAt *time.Time
+		var storyConfigRaw []byte
+		if err := rows.Scan(&id, &title, &category, &status, &startAt, &endAt, &storyConfigRaw); err != nil {
+			return nil, err
+		}
+
+		var sc map[string]interface{}
+		if len(storyConfigRaw) > 0 {
+			_ = json.Unmarshal(storyConfigRaw, &sc)
+		}
+
+		hasStory := false
+		if sc != nil {
+			show, _ := sc["showInStory"].(bool)
+			isSt, _ := sc["isStory"].(bool)
+			if show || isSt {
+				hasStory = true
+			}
+		}
+
+		resp.AvailableSurveys = append(resp.AvailableSurveys, AvailableSurveyItem{
+			ID:       id,
+			Title:    title,
+			Category: category,
+			Status:   status,
+			HasStory: hasStory,
+		})
+
+		if hasStory {
+			label, _ := sc["label"].(string)
+			if label == "" {
+				label, _ = sc["shortLabel"].(string)
+			}
+			if label == "" {
+				label, _ = sc["storyLabel"].(string)
+			}
+			if label == "" {
+				label = title
+			}
+
+			imgCat, _ := sc["imageCategory"].(string)
+			if imgCat == "" {
+				imgCat = category
+			}
+			if imgCat == "" {
+				imgCat = "Genel"
+			}
+
+			var imgURL *string
+			if u, ok := sc["imageUrl"].(string); ok && u != "" {
+				imgURL = &u
+			}
+
+			pos := 999
+			if p, ok := sc["sortOrder"].(float64); ok {
+				pos = int(p)
+			} else if p, ok := sc["position"].(float64); ok {
+				pos = int(p)
+			}
+
+			isActive := true
+			if act, ok := sc["isActive"].(bool); ok {
+				isActive = act
+			}
+
+			resp.Stories = append(resp.Stories, AdminStoryItem{
+				ID:            id,
+				StoryID:       id,
+				SurveyID:      id,
+				Title:         label,
+				Label:         label,
+				ShortLabel:    label,
+				StoryLabel:    label,
+				ImageCategory: imgCat,
+				ImageURL:      imgURL,
+				Position:      pos,
+				SortOrder:     pos,
+				IsActive:      isActive,
+				SurveyTitle:   title,
+				Status:        status,
+				StartAt:       startAt,
+				EndAt:         endAt,
+			})
+		}
+	}
+
+	return resp, nil
+}
+
+func (r *AdminOpsRepository) SaveStory(ctx context.Context, surveyID string, storyConfig map[string]interface{}) error {
+	raw, err := json.Marshal(storyConfig)
+	if err != nil {
+		return err
+	}
+	res, err := r.pool.Exec(ctx, `UPDATE surveys SET story_config = $1, updated_at = NOW() WHERE id = $2`, raw, surveyID)
+	if err != nil {
+		return err
+	}
+	if res.RowsAffected() == 0 {
+		return fmt.Errorf("survey not found: %s", surveyID)
+	}
+	return nil
+}

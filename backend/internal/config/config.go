@@ -65,7 +65,7 @@ func LoadConfig() (*Config, error) {
 	cfg := &Config{
 		Port:           getEnv("PORT", "3000"),
 		ServerEnv:      getEnv("SERVER_ENV", "production"),
-		AllowedOrigins: splitTrim(getEnv("ALLOWED_ORIGINS", "https://app.pagapp.com.tr,https://admin.pagapp.com.tr,https://customer.pagapp.com.tr")),
+		AllowedOrigins: splitTrim(getEnv("ALLOWED_ORIGINS", "https://api.pagapp.com.tr,https://admin.pagapp.com.tr,https://customer.pagapp.com.tr,https://www.pagapp.com.tr,https://pagapp.com.tr,https://app.pagapp.com.tr,http://localhost:3000")),
 
 		DBHost:                   getEnv("DB_HOST", "127.0.0.1"),
 		DBPort:                   getEnv("DB_PORT", "5432"),

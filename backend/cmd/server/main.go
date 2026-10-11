@@ -162,6 +162,8 @@ func main() {
 		ar.Get("/verification/assignments", middleware.RequirePortalUser(adminHandler.ListVerificationAssignments))
 		ar.Post("/verification/calls/result", middleware.RequirePortalUser(adminHandler.SubmitCallResult))
 		ar.Get("/verification/respondents", middleware.RequirePortalUser(adminHandler.ListRespondents))
+		ar.Get("/stories", middleware.RequirePortalUser(adminHandler.ListStories))
+		ar.Post("/stories", middleware.RequirePortalUser(adminHandler.SaveStory))
 		ar.Post("/media/upload", middleware.RequirePortalUser(adminHandler.UploadMedia))
 	})
 
