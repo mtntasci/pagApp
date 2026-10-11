@@ -4,7 +4,7 @@ import FirebaseAuth
 public class PAGApiClient {
     public static let shared = PAGApiClient()
     
-    public var baseUrl = "https://app.pagapp.com.tr/api/v1/mobile"
+    public var baseUrl = "https://api.pagapp.com.tr/api/v1/mobile"
     
     private init() {}
     

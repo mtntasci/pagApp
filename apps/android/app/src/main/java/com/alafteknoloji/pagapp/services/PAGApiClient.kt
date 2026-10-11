@@ -12,7 +12,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object PAGApiClient {
-    var baseUrl = "https://app.pagapp.com.tr/api/v1/mobile"
+    var baseUrl = "https://api.pagapp.com.tr/api/v1/mobile"
 
     private suspend fun getAuthToken(): String? {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return null

@@ -11,9 +11,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Lütfen zorunlu alanları doldurunuz.' }, { status: 400 });
     }
 
-    // Forward application to Admin API if available
+    // Forward application to Admin API
     try {
-      await fetch('https://app.pagapp.com.tr/api/v1/admin/applications', {
+      const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'https://api.pagapp.com.tr';
+      await fetch(`${apiUrl}/api/v1/admin/applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
