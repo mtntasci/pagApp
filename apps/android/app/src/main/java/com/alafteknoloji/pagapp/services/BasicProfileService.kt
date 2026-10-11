@@ -7,9 +7,13 @@ import com.alafteknoloji.pagapp.models.PAGCity
 import com.alafteknoloji.pagapp.models.PAGDistrict
 import com.alafteknoloji.pagapp.models.PAGLocationPair
 import com.alafteknoloji.pagapp.models.PAGNeighborhood
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 
 class BasicProfileService(private val context: Context) {
@@ -34,6 +38,39 @@ class BasicProfileService(private val context: Context) {
 
     init {
         loadLocationsDataset()
+        CoroutineScope(Dispatchers.IO).launch {
+            fetchLocationsFromBackend()
+        }
+    }
+
+    private fun parseCitiesArray(citiesArray: JSONArray): List<PAGCity> {
+        val cityList = mutableListOf<PAGCity>()
+        for (i in 0 until citiesArray.length()) {
+            val cObj = citiesArray.getJSONObject(i)
+            val cId = cObj.getString("id")
+            val cName = cObj.getString("name")
+            val dArray = cObj.optJSONArray("districts") ?: JSONArray()
+            val distList = mutableListOf<PAGDistrict>()
+            for (j in 0 until dArray.length()) {
+                val dObj = dArray.getJSONObject(j)
+                val dId = dObj.getString("id")
+                val dName = dObj.getString("name")
+                val nArray = dObj.optJSONArray("neighborhoods")
+                val nhList = mutableListOf<PAGNeighborhood>()
+                if (nArray != null) {
+                    for (k in 0 until nArray.length()) {
+                        val nObj = nArray.getJSONObject(k)
+                        nhList.add(PAGNeighborhood(nObj.getString("id"), nObj.getString("name")))
+                    }
+                }
+                if (nhList.isEmpty()) {
+                    nhList.add(PAGNeighborhood("${dId}01", "Merkez Mah."))
+                }
+                distList.add(PAGDistrict(dId, dName, nhList))
+            }
+            cityList.add(PAGCity(cId, cName, distList))
+        }
+        return cityList
     }
 
     private fun loadLocationsDataset() {
@@ -41,35 +78,27 @@ class BasicProfileService(private val context: Context) {
             val jsonString = context.assets.open("turkey-locations.json").bufferedReader().use { it.readText() }
             val root = JSONObject(jsonString)
             val citiesArray = root.getJSONArray("cities")
-            val cityList = mutableListOf<PAGCity>()
-            for (i in 0 until citiesArray.length()) {
-                val cObj = citiesArray.getJSONObject(i)
-                val cId = cObj.getString("id")
-                val cName = cObj.getString("name")
-                val dArray = cObj.getJSONArray("districts")
-                val distList = mutableListOf<PAGDistrict>()
-                for (j in 0 until dArray.length()) {
-                    val dObj = dArray.getJSONObject(j)
-                    val dId = dObj.getString("id")
-                    val dName = dObj.getString("name")
-                    val nArray = dObj.optJSONArray("neighborhoods")
-                    val nhList = mutableListOf<PAGNeighborhood>()
-                    if (nArray != null) {
-                        for (k in 0 until nArray.length()) {
-                            val nObj = nArray.getJSONObject(k)
-                            nhList.add(PAGNeighborhood(nObj.getString("id"), nObj.getString("name")))
-                        }
-                    }
-                    if (nhList.isEmpty()) {
-                        nhList.add(PAGNeighborhood("${dId}01", "Merkez Mah."))
-                    }
-                    distList.add(PAGDistrict(dId, dName, nhList))
-                }
-                cityList.add(PAGCity(cId, cName, distList))
-            }
-            _locations.value = cityList
+            _locations.value = parseCitiesArray(citiesArray)
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    suspend fun fetchLocationsFromBackend() {
+        try {
+            val apiRes = PAGApiClient.get("/locations")
+            if (apiRes != null && apiRes.optBoolean("success")) {
+                val data = apiRes.optJSONObject("data")
+                val citiesArray = data?.optJSONArray("cities")
+                if (citiesArray != null && citiesArray.length() > 0) {
+                    val parsed = parseCitiesArray(citiesArray)
+                    if (parsed.isNotEmpty()) {
+                        _locations.value = parsed
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Local fallback already active
         }
     }
 

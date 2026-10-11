@@ -19,6 +19,7 @@ type AdminHandler struct {
 	adminOpsRepo   *repository.AdminOpsRepository
 	surveyRepo     *repository.SurveyRepository
 	portalUserRepo *repository.PortalUserRepository
+	locationRepo   *repository.LocationRepo
 	storage        storage.Storage
 }
 
@@ -26,12 +27,14 @@ func NewAdminHandler(
 	adminOpsRepo *repository.AdminOpsRepository,
 	surveyRepo *repository.SurveyRepository,
 	portalUserRepo *repository.PortalUserRepository,
+	locationRepo *repository.LocationRepo,
 	storage storage.Storage,
 ) *AdminHandler {
 	return &AdminHandler{
 		adminOpsRepo:   adminOpsRepo,
 		surveyRepo:     surveyRepo,
 		portalUserRepo: portalUserRepo,
+		locationRepo:   locationRepo,
 		storage:        storage,
 	}
 }
@@ -44,6 +47,25 @@ func (h *AdminHandler) GetMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSuccess(w, metrics, "Metrikler getirildi.")
+}
+
+// GET /api/v1/admin/locations
+func (h *AdminHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
+	if h.locationRepo == nil {
+		writeError(w, "Location repository not configured", http.StatusInternalServerError)
+		return
+	}
+	locations, err := h.locationRepo.GetLocations(r.Context())
+	if err != nil {
+		writeError(w, "Konum verileri alınamadı: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, model.APIResponse{
+		Success: true,
+		Data: map[string]any{
+			"cities": locations,
+		},
+	})
 }
 
 // GET /api/v1/admin/surveys

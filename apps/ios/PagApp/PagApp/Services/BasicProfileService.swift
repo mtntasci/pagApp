@@ -14,6 +14,9 @@ public final class BasicProfileService: ObservableObject {
     
     private init() {
         loadLocationsDataset()
+        Task {
+            await fetchLocationsFromBackend()
+        }
     }
     
     private func loadLocationsDataset() {
@@ -50,6 +53,23 @@ public final class BasicProfileService: ObservableObject {
                 return updatedCity
             }
             self.locations = processedCities
+        }
+    }
+    
+    public func fetchLocationsFromBackend() async {
+        do {
+            let response = try await PAGApiClient.shared.get(endpoint: "/locations")
+            if let success = response["success"] as? Bool, success,
+               let data = response["data"] as? [String: Any],
+               let citiesRaw = data["cities"] {
+                let serialized = try JSONSerialization.data(withJSONObject: ["cities": citiesRaw])
+                let decoded = try JSONDecoder().decode(PAGTurkeyLocations.self, from: serialized)
+                if !decoded.cities.isEmpty {
+                    self.locations = decoded.cities
+                }
+            }
+        } catch {
+            print("[BasicProfileService] fetchLocationsFromBackend fallback used: \(error.localizedDescription)")
         }
     }
     

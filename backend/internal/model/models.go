@@ -277,6 +277,27 @@ type UserConsent struct {
 	AcceptedAt time.Time `json:"acceptedAt"`
 }
 
+// Neighborhood represents a mahalle
+type Neighborhood struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+// District represents an ilçe
+type District struct {
+	ID            string         `json:"id"`
+	CityID        string         `json:"cityId,omitempty"`
+	Name          string         `json:"name"`
+	Neighborhoods []Neighborhood `json:"neighborhoods,omitempty"`
+}
+
+// City represents an il
+type City struct {
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Districts []District `json:"districts"`
+}
+
 // APIResponse standardizes all REST JSON outputs
 type APIResponse struct {
 	Success bool   `json:"success"`

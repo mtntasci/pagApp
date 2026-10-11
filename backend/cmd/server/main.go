@@ -55,6 +55,7 @@ func main() {
 	surveyRepo := repository.NewSurveyRepository(db.Pool)
 	ledgerRepo := repository.NewLedgerRepository(db.Pool)
 	adminOpsRepo := repository.NewAdminOpsRepository(db.Pool)
+	locationRepo := repository.NewLocationRepo(db.Pool)
 
 	// 4. Initialize Cloudflare R2 Storage
 	r2Storage, err := storage.NewR2(cfg)
@@ -83,8 +84,8 @@ func main() {
 	surveyService := service.NewSurveyService(db.Pool, surveyRepo, userRepo, ledgerRepo, wsHub)
 
 	// 9. Initialize Handlers
-	mobileHandler := handler.NewMobileHandler(surveyService, userRepo, deviceRepo, surveyRepo, ledgerRepo)
-	adminHandler := handler.NewAdminHandler(adminOpsRepo, surveyRepo, portalUserRepo, r2Storage)
+	mobileHandler := handler.NewMobileHandler(surveyService, userRepo, deviceRepo, surveyRepo, ledgerRepo, locationRepo)
+	adminHandler := handler.NewAdminHandler(adminOpsRepo, surveyRepo, portalUserRepo, locationRepo, r2Storage)
 
 	// 10. Build Chi Router
 	r := chi.NewRouter()
@@ -147,13 +148,18 @@ func main() {
 		mr.Post("/permissions/location", middleware.RequireUser(mobileHandler.UpdateLocationPermission))
 		mr.Get("/legal/documents", mobileHandler.GetLegalDocuments)
 		mr.Post("/legal/acceptances", middleware.RequireUser(mobileHandler.AcceptLegalDocument))
+		mr.Get("/locations", mobileHandler.GetLocations)
 	})
+
+	// Public Direct Locations Endpoint
+	r.Get("/api/v1/locations", mobileHandler.GetLocations)
 
 	// ========================================================================
 	// ADMIN REST API ROUTES (/api/v1/admin/*)
 	// ========================================================================
 	r.Route("/api/v1/admin", func(ar chi.Router) {
 		ar.Get("/dashboard/metrics", middleware.RequirePortalUser(adminHandler.GetMetrics))
+		ar.Get("/locations", middleware.RequirePortalUser(adminHandler.GetLocations))
 		ar.Get("/surveys", middleware.RequirePortalUser(adminHandler.ListSurveys))
 		ar.Post("/surveys", middleware.RequirePortalUser(adminHandler.CreateOrUpdateSurvey))
 		ar.Delete("/surveys", middleware.RequirePortalUser(adminHandler.DeleteSurvey))

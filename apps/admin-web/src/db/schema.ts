@@ -337,3 +337,39 @@ export const withdrawalRequests = pgTable(
     statusIdx: index('withdrawal_requests_status_idx').on(table.status)
   })
 );
+
+// ============================================================================
+// 14. TURKEY LOCATIONS (Cities, Districts, Neighborhoods)
+// ============================================================================
+export const cities = pgTable('cities', {
+  id: varchar('id', { length: 10 }).primaryKey(),
+  name: varchar('name', { length: 100 }).notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+});
+
+export const districts = pgTable(
+  'districts',
+  {
+    id: varchar('id', { length: 20 }).primaryKey(),
+    cityId: varchar('city_id', { length: 10 }).references(() => cities.id, { onDelete: 'cascade' }).notNull(),
+    name: varchar('name', { length: 100 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    cityIdIdx: index('districts_city_id_idx').on(table.cityId)
+  })
+);
+
+export const neighborhoods = pgTable(
+  'neighborhoods',
+  {
+    id: varchar('id', { length: 30 }).primaryKey(),
+    districtId: varchar('district_id', { length: 20 }).references(() => districts.id, { onDelete: 'cascade' }).notNull(),
+    name: varchar('name', { length: 150 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull()
+  },
+  (table) => ({
+    districtIdIdx: index('neighborhoods_district_id_idx').on(table.districtId)
+  })
+);
+

@@ -21,6 +21,7 @@ type MobileHandler struct {
 	deviceRepo    *repository.DeviceRepository
 	surveyRepo    *repository.SurveyRepository
 	ledgerRepo    *repository.LedgerRepository
+	locationRepo  *repository.LocationRepo
 }
 
 func NewMobileHandler(
@@ -29,6 +30,7 @@ func NewMobileHandler(
 	deviceRepo *repository.DeviceRepository,
 	surveyRepo *repository.SurveyRepository,
 	ledgerRepo *repository.LedgerRepository,
+	locationRepo *repository.LocationRepo,
 ) *MobileHandler {
 	return &MobileHandler{
 		surveyService: surveyService,
@@ -36,6 +38,7 @@ func NewMobileHandler(
 		deviceRepo:    deviceRepo,
 		surveyRepo:    surveyRepo,
 		ledgerRepo:    ledgerRepo,
+		locationRepo:  locationRepo,
 	}
 }
 
@@ -748,5 +751,38 @@ func parseFlexibleDate(s string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("cannot parse date: %s", s)
+}
+
+// GET /api/v1/mobile/locations
+func (h *MobileHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
+	if h.locationRepo == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(model.APIResponse{
+			Success: false,
+			Error:   "Location repository not configured",
+		})
+		return
+	}
+
+	locations, err := h.locationRepo.GetLocations(r.Context())
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		_ = json.NewEncoder(w).Encode(model.APIResponse{
+			Success: false,
+			Error:   "Konum verileri yüklenemedi: " + err.Error(),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(model.APIResponse{
+		Success: true,
+		Data: map[string]any{
+			"cities": locations,
+		},
+	})
 }
 
