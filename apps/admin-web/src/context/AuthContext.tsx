@@ -51,13 +51,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const fetchPortalUser = useCallback(async (currentUser: User) => {
-    // 1. Super Admin Bootstrap for admin@pagapp.com & mtntasci@gmail.com
+    // 1. Super Admin Bootstrap for root@pagapp.com.tr, admin@pagapp.com.tr & mtntasci@gmail.com
     const userEmail = (currentUser.email || '').toLowerCase();
-    if (userEmail === 'admin@pagapp.com.tr' || userEmail === 'mtntasci@gmail.com') {
+    if (userEmail === 'root@pagapp.com.tr' || userEmail === 'admin@pagapp.com.tr' || userEmail === 'mtntasci@gmail.com') {
       const bootstrapUser: PortalUser = {
         uid: currentUser.uid,
         email: currentUser.email || userEmail,
-        displayName: 'Süper Admin',
+        displayName: userEmail === 'root@pagapp.com.tr' ? 'Root Admin' : 'Süper Admin',
         role: 'SUPER_ADMIN',
         status: 'ACTIVE',
         mustChangePassword: false

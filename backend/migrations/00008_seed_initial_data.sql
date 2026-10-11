@@ -17,6 +17,7 @@ ON CONFLICT (id) DO NOTHING;
 -- 20. SEED INITIAL SUPER ADMIN PORTAL USERS
 -- ============================================================================
 INSERT INTO portal_users (id, firebase_uid, email, display_name, role, is_active) VALUES
+('pusr_root', 'jYK5HZo3ccNhsbl1QxGQkmSlbEM2', 'root@pagapp.com.tr', 'Root Admin (Süper Yetkili)', 'SUPER_ADMIN', TRUE),
 ('pusr_super_admin_1', 'admin_bootstrap', 'admin@pagapp.com.tr', 'Süper Admin', 'SUPER_ADMIN', TRUE),
 ('pusr_super_admin_2', 'mtntasci_bootstrap', 'mtntasci@gmail.com', 'Metin Taşçı (Süper Admin)', 'SUPER_ADMIN', TRUE)
 ON CONFLICT (email) DO NOTHING;

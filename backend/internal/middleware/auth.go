@@ -100,7 +100,10 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		// Admin Web Internal Portal fallback for /api/v1/admin/* if no token or token is admin_bootstrap
 		if firebaseUID == "" && strings.HasPrefix(r.URL.Path, "/api/v1/admin") {
 			// Check if superadmin bypass is allowed
-			bootstrapUser, _ := m.portalUserRepo.FindByEmail(ctx, "admin@pagapp.com.tr")
+			bootstrapUser, _ := m.portalUserRepo.FindByEmail(ctx, "root@pagapp.com.tr")
+			if bootstrapUser == nil {
+				bootstrapUser, _ = m.portalUserRepo.FindByEmail(ctx, "admin@pagapp.com.tr")
+			}
 			if bootstrapUser != nil {
 				ctx = context.WithValue(ctx, PortalUserContextKey, bootstrapUser)
 				ctx = context.WithValue(ctx, FirebaseUIDKey, bootstrapUser.FirebaseUID)
